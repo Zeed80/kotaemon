@@ -78,7 +78,7 @@ documents and developers who want to build their own RAG pipeline.
 
 - **Support complex reasoning methods**: Use question decomposition to answer your complex/multi-hop question. Support agent-based reasoning with `ReAct`, `ReWOO` and other agents.
 
-- **Configurable settings UI**: You can adjust most important aspects of retrieval & generation process on the UI (incl. prompts).
+- **Configurable settings UI**: You can adjust most important aspects of retrieval & generation on the UI (incl. prompts). Many application-level settings (Ollama URL, index toggles, chat placeholders) are editable in **Settings → General** and persist across restarts via `application_settings.json`.
 
 - **Extensible**: Being built on Gradio, you are free to customize or add any UI elements as you like. Also, we aim to support multiple strategies for document indexing & retrieval. `GraphRAG` indexing pipeline is provided as an example.
 
@@ -87,6 +87,28 @@ documents and developers who want to build their own RAG pipeline.
 ## Installation
 
 > If you are not a developer and just want to use the app, please check out our easy-to-follow [User Guide](https://cinnamon.github.io/kotaemon/). Download the `.zip` file from the [latest release](https://github.com/Cinnamon/kotaemon/releases/latest) to get all the newest features and bug fixes.
+
+### Quick install (recommended)
+
+Скрипт **`install.sh`** выполняет установку и развёртывание в один шаг (Linux и macOS; на Windows используйте [Docker](#with-docker-recommended) или WSL).
+
+```bash
+git clone https://github.com/Cinnamon/kotaemon
+cd kotaemon
+chmod +x install.sh
+./install.sh --help
+```
+
+**Режимы:**
+
+| Команда | Описание |
+|--------|----------|
+| `./install.sh` | Локальная установка: создаётся `.venv`, ставятся зависимости, из `.env.example` создаётся `.env`, загружается PDF.js, затем запускается приложение. |
+| `./install.sh --no-launch` | То же, но без запуска (только установка). Запуск потом: `source .venv/bin/activate && python app.py` |
+| `./install.sh --no-pdfjs` | Локальная установка без загрузки PDF.js (просмотр PDF в браузере будет недоступен). |
+| `./install.sh --docker` | Развёртывание через Docker Compose: сборка образа и запуск в фоне. После установки: http://localhost:7860 |
+
+После первого запуска заполните API-ключи в `.env` или в веб-интерфейсе (**Resources** → LLMs/Embeddings). Большинство остальных настроек можно изменить в **Settings → General** (Ollama URL, модели, флаги индексов, плейсхолдеры чата и т.д.).
 
 ### System requirements
 
@@ -140,17 +162,38 @@ documents and developers who want to build their own RAG pipeline.
 
 4. We use [GHCR](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) to store docker images, all images can be found [here.](https://github.com/Cinnamon/kotaemon/pkgs/container/kotaemon)
 
-5. **Docker Compose**: для запуска из репозитория используйте `docker-compose.yml`:
+5. **Docker Compose** (удобно через скрипт или вручную):
+
+   Через скрипт (создаёт `.env` из `.env.example` при отсутствии):
+
+   ```bash
+   ./install.sh --docker
+   ```
+
+   Вручную:
 
    ```bash
    cp .env.example .env
-   # отредактируйте .env (API-ключи и т.д.)
+   # отредактируйте .env (API-ключи, при необходимости KOTAEMON_IMAGE и KOTAEMON_PORT)
    docker compose up -d --build
    ```
 
-   Вариант образа задаётся переменной `KOTAEMON_IMAGE` (`lite` по умолчанию, `full`, `ollama`). Для отдельного контейнера Ollama: `docker compose --profile ollama up -d`.
+   Вариант образа задаётся в `.env`: **`KOTAEMON_IMAGE`** — `lite` (по умолчанию), `full` или `ollama`. Порт — **`KOTAEMON_PORT`** (по умолчанию 7860). Для отдельного контейнера Ollama: `docker compose --profile ollama up -d`.
 
 ### Without Docker
+
+**Вариант 1 — через скрипт (рекомендуется):**
+
+```bash
+git clone https://github.com/Cinnamon/kotaemon
+cd kotaemon
+./install.sh
+# или: ./install.sh --no-launch (только установка, без запуска)
+```
+
+Скрипт создаёт виртуальное окружение `.venv`, ставит зависимости, при отсутствии копирует `.env` из `.env.example`, при необходимости загружает PDF.js и запускает приложение.
+
+**Вариант 2 — вручную:**
 
 1. Clone and install required packages on a fresh python environment.
 
@@ -167,9 +210,9 @@ documents and developers who want to build their own RAG pipeline.
    pip install -e "libs/ktem"
    ```
 
-2. Create a `.env` file in the root of this project. Use `.env.example` as a template
+2. Create a `.env` file in the root of this project. Use `.env.example` as a template.
 
-   The `.env` file is there to serve use cases where users want to pre-config the models before starting up the app (e.g. deploy the app on HF hub). The file will only be used to populate the db once upon the first run, it will no longer be used in consequent runs.
+   The `.env` file is used for API keys and optional pre-config of models; many other settings can be changed later in the web UI (**Settings → General**). The file is read at startup; saved UI settings are stored in the database and in `ktem_app_data/application_settings.json` for persistence across restarts.
 
 3. (Optional) To enable in-browser `PDF_JS` viewer, download [PDF_JS_DIST](https://github.com/mozilla/pdf.js/releases/download/v4.0.379/pdfjs-4.0.379-dist.zip) then extract it to `libs/ktem/ktem/assets/prebuilt`
 
@@ -193,6 +236,7 @@ documents and developers who want to build their own RAG pipeline.
 > [!NOTE]
 > Official MS GraphRAG indexing only works with OpenAI or Ollama API.
 > We recommend most users to use NanoGraphRAG implementation for straightforward integration with Kotaemon.
+> You can enable or disable index types (LightRAG, Nano GraphRAG, MS GraphRAG, Global GraphRAG) in **Settings → General**; changes take effect after restarting the app.
 
 <details>
 
@@ -254,15 +298,17 @@ Select the desired loader in `Settings -> Retrieval Settings -> File loader`.
 
 - By default, all application data is stored in the `./ktem_app_data` folder. You can back up or copy this folder to transfer your installation to a new machine.
 
-- For advanced users or specific use cases, you can customize these files:
+- **Настройки в веб-интерфейсе**: большинство несекретных параметров можно менять в **Settings → General** (вкладка General): URL Ollama, модель реранкера Ollama, флаги индексов (LightRAG, Nano GraphRAG, MS GraphRAG, Global GraphRAG), плейсхолдеры чата, число примеров для few-shot rewrite. После сохранения они записываются в БД и в `ktem_app_data/application_settings.json`; при следующем запуске приложения список типов индексов и другие значения берутся оттуда. **Секреты (API-ключи)** по-прежнему задаются только в `.env` или в Resources в UI.
 
-  - `flowsettings.py`
-  - `.env`
+- For advanced users or specific use cases, you can also customize:
+
+  - `flowsettings.py` — значения по умолчанию и расширенная конфигурация
+  - `.env` — API-ключи и переменные окружения (приоритет при первом запуске)
 
 #### `flowsettings.py`
 
-This file contains the configuration of your application. You can use the example
-[here](flowsettings.py) as the starting point.
+This file contains the default configuration of your application. You can use the example
+[here](flowsettings.py) as the starting point. Many of these defaults can be overridden in the web UI (**Settings → General**); the UI also writes `ktem_app_data/application_settings.json` so that index toggles (e.g. USE_LIGHTRAG) take effect after a restart.
 
 <details>
 
