@@ -1,0 +1,44 @@
+---
+description: Angular convention для сообщений коммитов
+alwaysApply: true
+---
+
+# Commit Conventions (Kotaemon)
+
+## Формат
+
+```
+<type>(<scope>): <subject>
+```
+
+- **type** — нижний регистр
+- **scope** — опционально
+- **subject** — краткое описание без точки в конце
+
+## Допустимые types
+
+| Type     | Описание                    |
+|----------|-----------------------------|
+| feat     | Новая функциональность      |
+| fix      | Исправление ошибки          |
+| docs     | Только документация         |
+| build    | Сборка и зависимости        |
+| chore    | Прочие изменения            |
+| ci       | CI/CD                       |
+| perf     | Оптимизация производительности |
+| refactor | Рефакторинг                 |
+| revert   | Откат коммита               |
+| style    | Форматирование кода         |
+| test     | Тесты                       |
+
+## Примеры
+
+```
+feat(retrieval): add hybrid retriever
+fix(llm): correct timeout handling
+docs(api): update component examples
+```
+
+## CI Cache
+
+Для сброса кэша зависимостей в CI добавь в тело коммита строку `[ignore cache]`.

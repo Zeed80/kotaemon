@@ -50,7 +50,7 @@ jobs:
           echo "check=$ignore_cache" | tee -a ${{ matrix.GITHUB_OUTPUT }}
 
       - name: Set up Python ${{ matrix.python-version }} on ${{ runner.os }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         id: setup_python
         with:
           python-version: ${{ matrix.python-version }}
@@ -67,7 +67,7 @@ jobs:
       - name: Try to restore dependencies from ${{ steps.get-cache-key.outputs.key }}
         id: restore-dependencies
         if: steps.check-ignore-cache.outputs.check != 'true'
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.pythonLocation }}
           key: ${{ steps.get-cache-key.outputs.key }}
@@ -92,7 +92,7 @@ jobs:
         if: |
           steps.check-ignore-cache.outputs.check != 'true' &&
           steps.check-cache-hit.outputs.check != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: ${{ env.pythonLocation }}
           key: ${{ steps.restore-dependencies.outputs.cache-primary-key }}

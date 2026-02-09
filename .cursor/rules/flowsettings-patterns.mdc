@@ -1,0 +1,59 @@
+---
+description: Паттерны конфигурации flowsettings в Kotaemon
+globs: "flowsettings.py,**/flowsettings*.py"
+alwaysApply: false
+---
+
+# Flowsettings Patterns (Kotaemon)
+
+## Структура KH_* констант
+
+- **KH_DOCSTORE** — Document Store (Elasticsearch, LanceDB, SimpleFileDocumentStore)
+- **KH_VECTORSTORE** — Vector Store (ChromaDB, LanceDB, Milvus, Qdrant)
+- **KH_LLMS** — LLM-провайдеры
+- **KH_EMBEDDINGS** — Модели эмбеддингов
+- **KH_RERANKINGS** — Модели переранжирования
+- **KH_REASONINGS** — Пайплайны рассуждений (FullQAPipeline, ReactAgentPipeline и т.д.)
+- **KH_INDEX_TYPES** — Типы индексации (FileIndex, GraphRAG, NanoGraphRAG, LightRAG)
+
+## Формат спецификации компонента
+
+```python
+{
+    "__type__": "module.path.ClassName",
+    "param1": value1,
+    "param2": value2,
+}
+```
+
+Пример:
+
+```python
+KH_DOCSTORE = {
+    "__type__": "kotaemon.storages.LanceDBDocumentStore",
+    "path": str(KH_USER_DATA_DIR / "docstore"),
+}
+
+KH_LLMS["openai"] = {
+    "spec": {
+        "__type__": "kotaemon.llms.ChatOpenAI",
+        "temperature": 0,
+        "base_url": "https://api.openai.com/v1",
+        "api_key": OPENAI_API_KEY,
+        "model": "gpt-4o-mini",
+        "timeout": 20,
+    },
+    "default": True,
+}
+```
+
+## Переменные окружения
+
+Использовать `decouple.config()`:
+
+```python
+from decouple import config
+
+KH_GRADIO_SHARE = config("KH_GRADIO_SHARE", default=False, cast=bool)
+OPENAI_API_KEY = config("OPENAI_API_KEY", default="")
+```

@@ -1,0 +1,56 @@
+---
+description: Стандарты Python для проекта Kotaemon (black, isort, flake8, mypy)
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Python Standards (Kotaemon)
+
+## Форматирование и стиль
+
+- **black**: длина строки 88, profile black
+- **isort**: profile black, `known_first_party = ["kotaemon"]`
+- **flake8**: max-line-length 88, `--extend-ignore E203`
+- **autoflake**: удалять неиспользуемые импорты и переменные (кроме tests)
+
+## Type Hints
+
+- Использовать аннотации типов для всех функций и методов
+- mypy: `--check-untyped-defs`, `--ignore-missing-imports`
+- Избегать `Any` без необходимости; предпочитать конкретные типы
+
+## Примеры
+
+### Обработка ошибок
+
+```python
+# BAD
+try:
+    await fetch_data()
+except Exception:
+    pass
+
+# GOOD
+try:
+    await fetch_data()
+except Exception as e:
+    logger.error("Failed to fetch", exc_info=e)
+    raise DataFetchError("Unable to retrieve data") from e
+```
+
+### Аннотации
+
+```python
+# BAD
+def process(items):
+    return [x for x in items if x]
+
+# GOOD
+def process(items: list[str]) -> list[str]:
+    return [x for x in items if x]
+```
+
+## Зависимости
+
+- Python >= 3.10
+- См. `pyproject.toml` и `.pre-commit-config.yaml` для актуальных версий инструментов

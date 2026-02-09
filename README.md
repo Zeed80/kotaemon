@@ -96,7 +96,7 @@ documents and developers who want to build their own RAG pipeline.
 
 ### With Docker (recommended)
 
-1. We support both `lite` & `full` version of Docker images. With `full` version, the extra packages of `unstructured` will be installed, which can support additional file types (`.doc`, `.docx`, ...) but the cost is larger docker image size. For most users, the `lite` image should work well in most cases.
+1. We support both `lite` & `full` version of Docker images. The **`full`** image is an all-in-one image that includes **MS GraphRAG**, **Nano GraphRAG**, **LightRAG**, **Unstructured**, and **Docling**, so you can use any indexing strategy and document loader from a single container. It also installs extra packages for additional file types (`.doc`, `.docx`, ...); the image size is larger. For minimal setups, the `lite` image is sufficient.
 
    - To use the `full` version.
 
@@ -229,14 +229,16 @@ See [Local model setup](docs/local_model.md).
 
 ### Setup multimodal document parsing (OCR, table parsing, figure extraction)
 
-These options are available:
+For best document recognition with figures and tables, use **Docling** as the file loader and set `USE_MULTIMODAL=true` and `KH_VLM_ENDPOINT` (or Azure/OpenAI vision deployment variables) in `.env` so that figure captions are generated via a vision model. In the app, go to `Settings -> Retrieval Settings -> File loader` and choose **Docling (figure+table extraction)**.
+
+Other options:
 
 - [Azure Document Intelligence (API)](https://azure.microsoft.com/en-us/products/ai-services/ai-document-intelligence)
 - [Adobe PDF Extract (API)](https://developer.adobe.com/document-services/docs/overview/pdf-extract-api/)
 - [Docling (local, open-source)](https://github.com/DS4SD/docling)
-  - To use Docling, first install required dependencies: `pip install docling`
+  - To use Docling, first install required dependencies: `pip install docling` (or use the `full` Docker image, which includes Docling).
 
-Select corresponding loaders in `Settings -> Retrieval Settings -> File loader`
+Select the desired loader in `Settings -> Retrieval Settings -> File loader`.
 
 ### Customize your application
 

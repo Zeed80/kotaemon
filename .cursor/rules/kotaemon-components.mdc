@@ -1,0 +1,56 @@
+---
+description: Паттерн BaseComponent для компонентов kotaemon
+globs: "libs/**/*.py"
+alwaysApply: false
+---
+
+# Kotaemon Component Pattern
+
+## Базовый паттерн
+
+Все компоненты наследуются от `kotaemon.base.BaseComponent`:
+
+1. **Param** — параметры конфигурации (str, int, float и т.д.)
+2. **Node** — подкомпоненты (тип: BaseComponent или его подклассы)
+3. **run()** — логика обработки; обязательно переопределить
+
+## Сигнатура run()
+
+```python
+def run(self, *args, **kwargs) -> Document | list[Document] | Iterator[Document] | None | Any:
+    """Run the component."""
+```
+
+## Принципы
+
+- **Входы:** допускать несколько типов (str, Document, List[str], List[Document])
+- **Выход:** один унифицированный тип; сделать его максимально общим
+
+## Пример
+
+```python
+from kotaemon.base import BaseComponent
+from kotaemon.llms import LCAzureChatOpenAI
+from kotaemon.parsers import RegexExtractor
+
+
+class FancyPipeline(BaseComponent):
+    param1: str = "This is param1"
+    param2: int = 10
+    param3: float
+
+    node1: BaseComponent
+    node2: LCAzureChatOpenAI
+    node3: RegexExtractor
+
+    def run(self, some_text: str):
+        prompt = (self.param1 + some_text) * int(self.param2 + self.param3)
+        llm_pred = self.node2(prompt).text
+        matches = self.node3(llm_pred)
+        return matches
+```
+
+## Импорты
+
+- Использовать `from kotaemon.base import BaseComponent, Node, Param, lazy`
+- Типы: `Document`, `RetrievedDocument`, `LLMInterface` из `kotaemon.base`
