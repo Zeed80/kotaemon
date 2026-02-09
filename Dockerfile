@@ -60,11 +60,9 @@ ENTRYPOINT ["sh", "/app/launch.sh"]
 # Full version
 FROM lite AS full
 
-# Additional dependencies for full version
+# Additional dependencies for full version (no Tesseract; use VLM or Docling EasyOCR/RapidOCR)
 RUN apt-get update -qqy && \
     apt-get install -y --no-install-recommends \
-        tesseract-ocr \
-        tesseract-ocr-jpn \
         libsm6 \
         libxext6 \
         libreoffice \

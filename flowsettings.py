@@ -316,6 +316,16 @@ KH_RERANKINGS["cohere"] = {
     "default": True,
 }
 
+# Ollama reranker (qwen3-reranker, bge-reranker-v2-m3 и др.): ollama pull qwen3-reranker
+KH_RERANKINGS["ollama"] = {
+    "spec": {
+        "__type__": "kotaemon.rerankings.OllamaReranking",
+        "base_url": KH_OLLAMA_URL,
+        "model_name": config("OLLAMA_RERANKER_MODEL", default="qwen3-reranker"),
+    },
+    "default": False,
+}
+
 KH_REASONINGS = [
     "ktem.reasoning.simple.FullQAPipeline",
     "ktem.reasoning.simple.FullDecomposeQAPipeline",
@@ -328,6 +338,21 @@ KH_VLM_ENDPOINT = "{0}/openai/deployments/{1}/chat/completions?api-version={2}".
     config("OPENAI_VISION_DEPLOYMENT_NAME", default="gpt-4o"),
     config("OPENAI_API_VERSION", default=""),
 )
+
+# VLM options for web UI: list of (display_name, value). "default" -> KH_VLM_ENDPOINT
+KH_VLM_OPTIONS = [
+    ("Default (from OPENAI_VISION_DEPLOYMENT_NAME)", "default"),
+]
+
+
+def get_vlm_endpoint(value: str) -> str:
+    """Resolve VLM option value to endpoint URL."""
+    if not value or value == "default":
+        return KH_VLM_ENDPOINT
+    # value can be a full endpoint URL when extended in flowsettings
+    if value.startswith("http"):
+        return value
+    return KH_VLM_ENDPOINT
 
 
 SETTINGS_APP: dict[str, dict] = {}

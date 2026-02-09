@@ -41,14 +41,45 @@ class DoclingReader(BaseReader):
         ),
     )
 
+    ocr_backend: str = Param(
+        "auto",
+        help=(
+            "OCR backend for Docling: 'auto' (default), 'easyocr', or 'rapidocr'. "
+            "Use 'easyocr' or 'rapidocr' to avoid Tesseract."
+        ),
+    )
+
     @Param.auto(cache=True)
     def converter_(self):
         try:
-            from docling.document_converter import DocumentConverter
-        except ImportError:
-            raise ImportError("Please install docling: 'pip install docling'")
+            from docling.document_converter import (
+                DocumentConverter,
+                PdfFormatOption,
+            )
+            from docling.datamodel.base_models import InputFormat
+            from docling.datamodel.pipeline_options import PdfPipelineOptions
+        except ImportError as e:
+            raise ImportError("Please install docling: 'pip install docling'") from e
 
-        return DocumentConverter()
+        format_options = None
+        if self.ocr_backend in ("easyocr", "rapidocr"):
+            pipeline_options = PdfPipelineOptions()
+            pipeline_options.do_ocr = True
+            if self.ocr_backend == "easyocr":
+                from docling.datamodel.pipeline_options import EasyOcrOptions
+
+                pipeline_options.ocr_options = EasyOcrOptions()
+            else:
+                from docling.datamodel.pipeline_options import RapidOcrOptions
+
+                pipeline_options.ocr_options = RapidOcrOptions()
+            format_options = {
+                InputFormat.PDF: PdfFormatOption(
+                    pipeline_options=pipeline_options,
+                ),
+            }
+
+        return DocumentConverter(format_options=format_options)
 
     def run(
         self, file_path: str | Path, extra_info: Optional[dict] = None, **kwargs

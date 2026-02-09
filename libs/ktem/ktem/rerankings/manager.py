@@ -54,11 +54,12 @@ class RerankingManager:
     def load_vendors(self):
         from kotaemon.rerankings import (
             CohereReranking,
+            OllamaReranking,
             TeiFastReranking,
             VoyageAIReranking,
         )
 
-        self._vendors = [TeiFastReranking, CohereReranking, VoyageAIReranking]
+        self._vendors = [TeiFastReranking, CohereReranking, VoyageAIReranking, OllamaReranking]
 
     def __getitem__(self, key: str) -> BaseReranking:
         """Get model by name"""

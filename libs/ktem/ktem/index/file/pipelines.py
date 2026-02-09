@@ -42,8 +42,10 @@ from kotaemon.indices.ingests.files import (
     azure_reader,
     docling_reader,
     unstructured,
+    vision_ocr_reader,
     web_reader,
 )
+from kotaemon.loaders import DoclingReader, VisionOCRReader
 from kotaemon.indices.rankings import BaseReranking, LLMReranking, LLMTrulensScoring
 from kotaemon.indices.splitters import BaseSplitter, TokenSplitter
 
@@ -666,20 +668,32 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
     decide which pipeline should be used.
     """
 
-    reader_mode: str = Param("default", help="The reader mode")
+    document_recognition_mode: str = Param(
+        "ocr",
+        help="Document recognition: 'ocr' (Unstructured/Tesseract etc.) or 'vlm' (multimodal models only)",
+    )
+    vlm_model: str = Param("default", help="VLM model for document recognition (when mode is VLM)")
+    llm_model: str = Param("", help="LLM model (for indexing/captioning; empty = default)")
     embedding: BaseEmbeddings
     run_embedding_in_thread: bool = False
 
-    @Param.auto(depends_on="reader_mode")
+    @Param.auto(depends_on=["document_recognition_mode", "vlm_model"])
     def readers(self):
+        from theflow.settings import settings as flowsettings
+
         readers = deepcopy(KH_DEFAULT_FILE_EXTRACTORS)
-        print("reader_mode", self.reader_mode)
-        if self.reader_mode == "adobe":
-            readers[".pdf"] = adobe_reader
-        elif self.reader_mode == "azure-di":
-            readers[".pdf"] = azure_reader
-        elif self.reader_mode == "docling":
-            readers[".pdf"] = docling_reader
+
+        if self.document_recognition_mode == "vlm":
+            vlm_endpoint = getattr(
+                flowsettings, "get_vlm_endpoint", lambda v: getattr(flowsettings, "KH_VLM_ENDPOINT", "")
+            )(self.vlm_model)
+            vision_reader = VisionOCRReader(vlm_endpoint=vlm_endpoint)
+            docling_reader_with_vlm = DoclingReader(vlm_endpoint=vlm_endpoint)
+            for ext in (".png", ".jpeg", ".jpg", ".tiff", ".tif"):
+                if ext in readers:
+                    readers[ext] = vision_reader
+            readers[".pdf"] = docling_reader_with_vlm
+        # else: OCR mode — leave KH_DEFAULT_FILE_EXTRACTORS (Unstructured for images, PDFThumbnailReader for PDF)
 
         dev_readers, _, _ = dev_settings()
         readers.update(dev_readers)
@@ -688,27 +702,49 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
 
     @classmethod
     def get_user_settings(cls):
+        from theflow.settings import settings as flowsettings
+
+        vlm_choices = getattr(flowsettings, "KH_VLM_OPTIONS", [("Default", "default")])
+        llm_choices = [("(default)", "")]
+        try:
+            from ktem.llms.manager import llms
+
+            llm_choices += [(_, _) for _ in llms.options().keys()]
+        except Exception:
+            pass
+
         return {
-            "reader_mode": {
-                "name": "File loader",
-                "value": "default",
+            "document_recognition_mode": {
+                "name": "Document recognition",
+                "value": "ocr",
                 "choices": [
-                    ("Default (open-source)", "default"),
-                    ("Adobe API (figure+table extraction)", "adobe"),
-                    (
-                        "Azure AI Document Intelligence (figure+table extraction)",
-                        "azure-di",
-                    ),
-                    ("Docling (figure+table extraction)", "docling"),
+                    ("OCR (Unstructured / Tesseract, etc.)", "ocr"),
+                    ("VLM (multimodal models only)", "vlm"),
                 ],
                 "component": "dropdown",
+            },
+            "vlm_model": {
+                "name": "VLM model",
+                "value": "default",
+                "choices": vlm_choices,
+                "component": "dropdown",
+            },
+            "llm_model": {
+                "name": "LLM model",
+                "value": "",
+                "choices": llm_choices,
+                "component": "dropdown",
+                "special_type": "llm",
             },
         }
 
     @classmethod
     def get_pipeline(cls, user_settings, index_settings) -> BaseFileIndexIndexing:
         use_quick_index_mode = user_settings.get("quick_index_mode", False)
-        print("use_quick_index_mode", use_quick_index_mode)
+        doc_mode = user_settings.get("document_recognition_mode")
+        if doc_mode is None:
+            im = user_settings.get("image_reader_mode", "unstructured")
+            doc_mode = "vlm" if im == "vlm" else "ocr"
         obj = cls(
             embedding=embedding_models_manager[
                 index_settings.get(
@@ -716,7 +752,9 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                 )
             ],
             run_embedding_in_thread=use_quick_index_mode,
-            reader_mode=user_settings.get("reader_mode", "default"),
+            document_recognition_mode=doc_mode,
+            vlm_model=user_settings.get("vlm_model", "default"),
+            llm_model=user_settings.get("llm_model", ""),
         )
         return obj
 

@@ -39,7 +39,8 @@ def read_pdf_unstructured(input_path: Union[Path, str]):
         )
 
     page_items = defaultdict(list)
-    items = partition(input_path)
+    # Use "fast" strategy to avoid OCR (Tesseract); OCR text comes from FullOCR API.
+    items = partition(input_path, strategy="fast")
     for item in items:
         page_number = item.metadata.page_number
         bbox = points_to_bbox(item.metadata.coordinates.points)

@@ -140,6 +140,16 @@ documents and developers who want to build their own RAG pipeline.
 
 4. We use [GHCR](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) to store docker images, all images can be found [here.](https://github.com/Cinnamon/kotaemon/pkgs/container/kotaemon)
 
+5. **Docker Compose**: для запуска из репозитория используйте `docker-compose.yml`:
+
+   ```bash
+   cp .env.example .env
+   # отредактируйте .env (API-ключи и т.д.)
+   docker compose up -d --build
+   ```
+
+   Вариант образа задаётся переменной `KOTAEMON_IMAGE` (`lite` по умолчанию, `full`, `ollama`). Для отдельного контейнера Ollama: `docker compose --profile ollama up -d`.
+
 ### Without Docker
 
 1. Clone and install required packages on a fresh python environment.

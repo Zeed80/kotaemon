@@ -22,6 +22,7 @@ from kotaemon.loaders import (
     PDFThumbnailReader,
     TxtReader,
     UnstructuredReader,
+    VisionOCRReader,
     WebReader,
 )
 
@@ -34,9 +35,12 @@ azure_reader = AzureAIDocumentIntelligenceLoader(
     cache_dir=getattr(flowsettings, "KH_MARKDOWN_OUTPUT_DIR", None),
 )
 docling_reader = DoclingReader()
+vision_ocr_reader = VisionOCRReader()
 adobe_reader.vlm_endpoint = (
     azure_reader.vlm_endpoint
-) = docling_reader.vlm_endpoint = getattr(flowsettings, "KH_VLM_ENDPOINT", "")
+) = docling_reader.vlm_endpoint = vision_ocr_reader.vlm_endpoint = getattr(
+    flowsettings, "KH_VLM_ENDPOINT", ""
+)
 
 
 KH_DEFAULT_FILE_EXTRACTORS: dict[str, BaseReader] = {
@@ -67,10 +71,14 @@ class DocumentIngestor(BaseComponent):
         - docx, doc
 
     Args:
-        pdf_mode: mode for pdf extraction, one of "normal", "mathpix", "ocr"
+        pdf_mode: mode for pdf extraction, one of "normal", "mathpix", "ocr", "multimodal"
             - normal: parse pdf text
             - mathpix: parse pdf text using mathpix
-            - ocr: parse pdf image using flax
+            - ocr: parse pdf image using FullOCR API
+            - multimodal: Adobe API
+        image_mode: mode for image extraction, one of "unstructured", "vlm"
+            - unstructured: use Unstructured (may require Tesseract for OCR)
+            - vlm: use Vision OCR reader (VLM only, no Tesseract)
         doc_parsers: list of document parsers to parse the document
         text_splitter: splitter to split the document into text nodes
         override_file_extractors: override file extractors for specific file extensions
@@ -78,6 +86,7 @@ class DocumentIngestor(BaseComponent):
     """
 
     pdf_mode: str = "normal"  # "normal", "mathpix", "ocr", "multimodal"
+    image_mode: str = "unstructured"  # "unstructured" | "vlm"
     doc_parsers: list[BaseDocParser] = Param(default_callback=lambda _: [])
     text_splitter: BaseSplitter = TokenSplitter.withx(
         chunk_size=1024,
@@ -94,6 +103,11 @@ class DocumentIngestor(BaseComponent):
         }
         for ext, cls in self.override_file_extractors.items():
             file_extractors[ext] = cls()
+
+        if self.image_mode == "vlm":
+            for ext in (".png", ".jpeg", ".jpg", ".tiff", ".tif"):
+                if ext in file_extractors:
+                    file_extractors[ext] = vision_ocr_reader
 
         if self.pdf_mode == "normal":
             file_extractors[".pdf"] = PDFReader()

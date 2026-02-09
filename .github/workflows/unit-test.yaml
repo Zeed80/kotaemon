@@ -100,7 +100,7 @@ jobs:
       - name: Install OS-based packages
         run: |
           sudo apt update -qqy
-          sudo apt install -y poppler-utils libpoppler-dev tesseract-ocr
+          sudo apt install -y poppler-utils libpoppler-dev
 
       - name: Test kotaemon with pytest
         run: |

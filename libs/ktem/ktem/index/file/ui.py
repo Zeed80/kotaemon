@@ -1188,7 +1188,7 @@ class FileIndexPage(BasePage):
 
         returned_ids = []
         settings = deepcopy(settings)
-        settings[f"index.options.{self._index.id}.reader_mode"] = "default"
+        settings[f"index.options.{self._index.id}.document_recognition_mode"] = "ocr"
         settings[f"index.options.{self._index.id}.quick_index_mode"] = True
         if to_process_files:
             _iter = self.index_fn(to_process_files, [], reindex, settings, user_id)
@@ -1213,7 +1213,7 @@ class FileIndexPage(BasePage):
 
         returned_ids: list[str] = []
         settings = deepcopy(settings)
-        settings[f"index.options.{self._index.id}.reader_mode"] = "default"
+        settings[f"index.options.{self._index.id}.document_recognition_mode"] = "ocr"
         settings[f"index.options.{self._index.id}.quick_index_mode"] = True
 
         if KH_DEMO_MODE:

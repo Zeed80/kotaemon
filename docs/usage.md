@@ -151,7 +151,7 @@ Now navigate back to the `Chat` tab. The chat tab is divided into 3 regions:
   - **Relevance score**: overall relevant score between evidence and user question.
   - **Vectorstore score**: relevant score from vector embedding similarity calculation (show `full-text search` if retrieved from full-text search DB).
   - **LLM relevant score**: relevant score from LLM model (which judge relevancy between question and evidence using specific prompt).
-  - **Reranking score**: relevant score from Cohere [reranking model](https://cohere.com/rerank).
+  - **Reranking score**: relevant score from reranker (Cohere, Ollama — qwen3-reranker/bge-reranker и др., см. настройки Resources → Reranking).
 
 Generally, the score quality is `LLM relevant score` > `Reranking score` > `Vectorscore`.
 By default, overall relevance score is taken directly from LLM relevant score. Evidences are sorted based on their overall relevance score and whether they have citation or not.
