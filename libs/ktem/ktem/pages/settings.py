@@ -1,4 +1,5 @@
 import hashlib
+import json
 
 import gradio as gr
 from ktem.app import BasePage
@@ -8,6 +9,60 @@ from sqlmodel import Session, select
 from theflow.settings import settings as flowsettings
 
 KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
+
+APPLICATION_SETTINGS_PREFIX = "application."
+
+
+def _persist_application_settings_file(setting: dict) -> None:
+    """Записать настройки приложения (application.*) в JSON-файл для учёта при следующем запуске (индексы, флаги)."""
+    app_data_dir = getattr(flowsettings, "KH_APP_DATA_DIR", None)
+    if not app_data_dir:
+        return
+    path = app_data_dir / "application_settings.json"
+    subset = {}
+    for key, value in setting.items():
+        if not key.startswith(APPLICATION_SETTINGS_PREFIX):
+            continue
+        short_key = key[len(APPLICATION_SETTINGS_PREFIX) :]
+        if value is None or isinstance(value, (str, int, float, bool)):
+            subset[short_key] = value
+        elif isinstance(value, (list, dict)):
+            try:
+                json.dumps(value)
+                subset[short_key] = value
+            except (TypeError, ValueError):
+                pass
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(subset, f, ensure_ascii=False, indent=2)
+    except OSError:
+        pass
+
+
+def _sync_application_settings_to_ollama_reranker(setting: dict) -> None:
+    """Обновить spec реранкера Ollama в БД из настроек приложения (application.kh_ollama_url, application.ollama_reranker_model)."""
+    url = setting.get("application.kh_ollama_url")
+    model = setting.get("application.ollama_reranker_model")
+    if url is None and model is None:
+        return
+    from ktem.rerankings.db import RerankingTable
+    from ktem.rerankings.manager import reranking_models_manager
+
+    with Session(engine) as session:
+        statement = select(RerankingTable).where(RerankingTable.name == "ollama")
+        row = session.exec(statement).first()
+        if row is None:
+            return
+        item = row[0] if isinstance(row, (tuple, list)) else row
+        spec = dict(item.spec or {})
+        if url is not None:
+            spec["base_url"] = url
+        if model is not None:
+            spec["model_name"] = model
+        item.spec = spec
+        session.add(item)
+        session.commit()
+    reranking_models_manager.load()
 
 
 signout_js = """
@@ -283,6 +338,10 @@ class SettingsPage(BasePage):
                     self._llms.append(obj)
                 if si.special_type == "embedding":
                     self._embeddings.append(obj)
+            gr.Markdown(
+                "*Изменение флагов индексов (LightRAG, Nano GraphRAG и т.д.) "
+                "вступает в силу после перезапуска приложения.*"
+            )
 
     def index_tab(self):
         # TODO: double check if we need general
@@ -387,6 +446,9 @@ class SettingsPage(BasePage):
             user_setting.setting = setting
             session.add(user_setting)
             session.commit()
+
+        _sync_application_settings_to_ollama_reranker(setting)
+        _persist_application_settings_file(setting)
 
         gr.Info("Setting saved")
         return setting

@@ -35,7 +35,7 @@ class FewshotRewriteQuestionPipeline(RewriteQuestionPipeline):
     embedding: BaseEmbeddings
     vector_store: BaseVectorStore
     doc_store: BaseDocumentStore
-    k: int = getattr(flowsettings, "N_PROMPT_OPT_EXAMPLES", 3)
+    k: int = getattr(flowsettings, "N_PROMPT_OPT_EXAMPLES", 3)  # можно переопределить из Settings → General → n_prompt_opt_examples
 
     def add_documents(self, examples, batch_size: int = 50):
         print("Adding fewshot examples for rewriting")
@@ -77,8 +77,12 @@ class FewshotRewriteQuestionPipeline(RewriteQuestionPipeline):
         return pipeline
 
     def run(self, question: str) -> Document:  # type: ignore
+        k = getattr(
+            flowsettings, "get_application_setting", lambda key, default: default
+        )("n_prompt_opt_examples", self.k)
+        k = int(k) if k is not None else self.k
         emb = self.embedding(question)[0].embedding
-        _, _, ids = self.vector_store.query(embedding=emb, top_k=self.k)
+        _, _, ids = self.vector_store.query(embedding=emb, top_k=k)
         examples = self.doc_store.get(ids)
         messages = [SystemMessage(content="You are a helpful assistant")]
         for example in examples:

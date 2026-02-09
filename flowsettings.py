@@ -355,7 +355,75 @@ def get_vlm_endpoint(value: str) -> str:
     return KH_VLM_ENDPOINT
 
 
-SETTINGS_APP: dict[str, dict] = {}
+def get_application_setting(key: str, default: str | int | float | bool | None = None):  # noqa: ANN201
+    """Взять значение настройки приложения: сначала из application_settings.json, иначе default.
+    Используется в рантайме (чаты, пайплайны), когда нет доступа к settings_state.
+    """
+    path = KH_APP_DATA_DIR / "application_settings.json"
+    if not path.exists():
+        return default
+    try:
+        import json
+
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        if key in data:
+            return data[key]
+    except Exception:  # noqa: S110
+        pass
+    return default
+
+
+# Несекретные настройки приложения — редактируются в веб-интерфейсе (Settings → General).
+# Значения по умолчанию из .env; после сохранения в UI используются сохранённые (в т.ч. для Ollama reranker).
+SETTINGS_APP: dict[str, dict] = {
+    "kh_ollama_url": {
+        "name": "Ollama API URL",
+        "value": config("KH_OLLAMA_URL", default="http://localhost:11434/v1/"),
+        "component": "text",
+    },
+    "ollama_reranker_model": {
+        "name": "Ollama reranker model",
+        "value": config("OLLAMA_RERANKER_MODEL", default="qwen3-reranker"),
+        "component": "text",
+    },
+    # Флаги индексов: отображаются в UI и сохраняются; для применения нужна перезагрузка приложения.
+    "use_lightrag": {
+        "name": "Enable LightRAG index",
+        "value": config("USE_LIGHTRAG", default=True, cast=bool),
+        "component": "checkbox",
+    },
+    "use_nano_graphrag": {
+        "name": "Enable Nano GraphRAG index",
+        "value": config("USE_NANO_GRAPHRAG", default=True, cast=bool),
+        "component": "checkbox",
+    },
+    "use_ms_graphrag": {
+        "name": "Enable MS GraphRAG index",
+        "value": config("USE_MS_GRAPHRAG", default=True, cast=bool),
+        "component": "checkbox",
+    },
+    "use_global_graphrag": {
+        "name": "Enable Global GraphRAG index",
+        "value": config("USE_GLOBAL_GRAPHRAG", default=True, cast=bool),
+        "component": "checkbox",
+    },
+    "kh_chat_msg_placeholder": {
+        "name": "Chat thinking placeholder",
+        "value": config("KH_CHAT_MSG_PLACEHOLDER", default="Thinking ..."),
+        "component": "text",
+    },
+    "kh_chat_empty_msg_placeholder": {
+        "name": "Chat empty answer placeholder",
+        "value": config("KH_CHAT_EMPTY_MSG_PLACEHOLDER", default="(Sorry, I don't know)"),
+        "component": "text",
+    },
+    "n_prompt_opt_examples": {
+        "name": "Few-shot rewrite: number of examples (k)",
+        "value": config("N_PROMPT_OPT_EXAMPLES", default=3, cast=int),
+        "component": "number",
+    },
+}
 
 
 SETTINGS_REASONING = {
@@ -382,6 +450,36 @@ USE_GLOBAL_GRAPHRAG = config("USE_GLOBAL_GRAPHRAG", default=True, cast=bool)
 USE_NANO_GRAPHRAG = config("USE_NANO_GRAPHRAG", default=True, cast=bool)
 USE_LIGHTRAG = config("USE_LIGHTRAG", default=True, cast=bool)
 USE_MS_GRAPHRAG = config("USE_MS_GRAPHRAG", default=True, cast=bool)
+
+# Переопределение из сохранённых настроек веб-интерфейса (Settings → General → Save).
+# Файл создаётся при сохранении настроек; при следующем запуске приложения список индексов строится по нему.
+_APPLICATION_SETTINGS_PATH = KH_APP_DATA_DIR / "application_settings.json"
+if _APPLICATION_SETTINGS_PATH.exists():
+    try:
+        import json
+
+        with open(_APPLICATION_SETTINGS_PATH, encoding="utf-8") as f:
+            _saved = json.load(f)
+        _bool_keys = ("use_lightrag", "use_nano_graphrag", "use_ms_graphrag", "use_global_graphrag")
+        for _k in _bool_keys:
+            if _k in _saved:
+                _v = _saved[_k]
+                if isinstance(_v, bool):
+                    pass
+                elif isinstance(_v, str):
+                    _v = _v.strip().lower() in ("1", "true", "yes", "on")
+                else:
+                    _v = bool(_v)
+                if _k == "use_lightrag":
+                    USE_LIGHTRAG = _v
+                elif _k == "use_nano_graphrag":
+                    USE_NANO_GRAPHRAG = _v
+                elif _k == "use_ms_graphrag":
+                    USE_MS_GRAPHRAG = _v
+                elif _k == "use_global_graphrag":
+                    USE_GLOBAL_GRAPHRAG = _v
+    except Exception:  # noqa: S110
+        pass  # оставляем значения из config()
 
 GRAPHRAG_INDEX_TYPES = []
 

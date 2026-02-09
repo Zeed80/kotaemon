@@ -1305,10 +1305,16 @@ class ChatPage(BasePage):
         pipeline.set_output_queue(queue)
 
         text, refs, plot, plot_gr = "", "", None, gr.update(visible=False)
-        msg_placeholder = getattr(
-            flowsettings, "KH_CHAT_MSG_PLACEHOLDER", "Thinking ..."
+        msg_placeholder = (
+            settings.get("application.kh_chat_msg_placeholder")
+            if isinstance(settings, dict)
+            else None
         )
-        print(msg_placeholder)
+        if msg_placeholder is None:
+            msg_placeholder = flowsettings.get_application_setting(
+                "kh_chat_msg_placeholder",
+                getattr(flowsettings, "KH_CHAT_MSG_PLACEHOLDER", "Thinking ..."),
+            )
         yield (
             chat_history + [(chat_input, text or msg_placeholder)],
             refs,
@@ -1355,9 +1361,20 @@ class ChatPage(BasePage):
             print(e)
 
         if not text:
-            empty_msg = getattr(
-                flowsettings, "KH_CHAT_EMPTY_MSG_PLACEHOLDER", "(Sorry, I don't know)"
+            empty_msg = (
+                settings.get("application.kh_chat_empty_msg_placeholder")
+                if isinstance(settings, dict)
+                else None
             )
+            if empty_msg is None:
+                empty_msg = flowsettings.get_application_setting(
+                    "kh_chat_empty_msg_placeholder",
+                    getattr(
+                        flowsettings,
+                        "KH_CHAT_EMPTY_MSG_PLACEHOLDER",
+                        "(Sorry, I don't know)",
+                    ),
+                )
             print(f"Generate nothing: {empty_msg}")
             yield (
                 chat_history + [(chat_input, text or empty_msg)],
