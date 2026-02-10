@@ -16,6 +16,7 @@ nav:
       # - Features: pages/app/features.md
       - Customize flow logic: pages/app/customize-flows.md
       - Creating a Component: development/create-a-component.md
+      - Quality Hardening Playbook: development/quality-hardening-playbook.md
       - Components:
           - Index:
               - File index: pages/app/index/file.md

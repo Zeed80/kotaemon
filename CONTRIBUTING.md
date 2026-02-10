@@ -48,6 +48,7 @@ pip install -e "libs/kotaemon[dev]"
 
    ```sh
    pytest libs/kotaemon/tests/
+   pytest libs/ktem/ktem_tests/
    ```
 
 6. [**Commit your changes**](https://docs.github.com/en/desktop/making-changes-in-a-branch/committing-and-reviewing-changes-to-your-project-in-github-desktop): Once you are done with your changes, add and commit them with clear messages.
@@ -81,7 +82,7 @@ _For the sake of simplicity, we use [squashing merge](https://docs.github.com/en
 Commit format:
 
 ```sh
-<gitmoji> <type>(<scope>): <subject>
+<type>(<scope>): <subject>
 <BLANK LINE>
 <body>
 <BLANK LINE>

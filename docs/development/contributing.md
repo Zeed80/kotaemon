@@ -100,14 +100,12 @@ mindmap
 
 ## Environment caching on PR
 
-- To speed up CI, environments are cached based on the version specified in `__init__.py`.
-- Since dependencies versions in `setup.py` are not pinned, you need to pump the version in order to use a new environment. That environment will then be cached and used by your subsequence commits within the PR, until you pump the version again
-- The new environment created during your PR is cached and will be available to others once the PR is merged.
-- If you are experimenting with new dependencies and want a fresh environment every time, add `[ignore cache]` in your commit message. The CI will create a fresh environment to run your commit and then discard it.
-- If your PR include updated dependencies, the recommended workflow would be:
+- To speed up CI, environments are cached using a key that includes OS, Python version and the project version computed by `setuptools-git-versioning`.
+- If you are experimenting with new dependencies and want a fresh environment for a run, add `[ignore cache]` in your commit message. The CI will create a fresh environment to run your commit and then discard it.
+- If your PR includes dependency updates, the recommended workflow is:
   - Doing development as usual.
-  - When you want to run the CI, push a commit with the message containing `[ignore cache]`.
-  - Once the PR is final, pump the version in `__init__.py` and push a final commit not containing `[ignore cache]`.
+  - When you want to force fresh dependency resolution in CI, push a commit with `[ignore cache]`.
+  - After dependency changes are stable, remove `[ignore cache]` from subsequent commits to return to normal cache usage.
 
 ## Merge PR guideline
 

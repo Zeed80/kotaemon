@@ -82,8 +82,7 @@ class BaseIndex(abc.ABC):
         """The index page UI to manage the entities"""
         return None
 
-    @classmethod
-    def get_user_settings(cls) -> dict:
+    def get_user_settings(self) -> dict:
         """Return default user settings. These are the runtime settings.
 
         The settings will be populated in the user settings page. And will be used

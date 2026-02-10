@@ -27,10 +27,6 @@ jobs:
             shell: bash
             ACTIVATE_ENV: ". env/bin/activate"
             GITHUB_OUTPUT: "$GITHUB_OUTPUT"
-          # - os: windows-latest
-          #   shell: pwsh
-          #   ACTIVATE_ENV: env/Scripts/activate.ps1
-          #   GITHUB_OUTPUT: "$env:GITHUB_OUTPUT"
 
     name: unit testing with python ${{ matrix.python-version }}
     steps:
@@ -87,6 +83,8 @@ jobs:
           python -m pip install --upgrade pip
           cd libs/kotaemon
           pip install -U --upgrade-strategy eager -e .[all]
+          cd ../ktem
+          pip install -U --upgrade-strategy eager -e .
 
       - name: New dependencies cache for key ${{ steps.restore-dependencies.outputs.cache-primary-key }}
         if: |
@@ -98,12 +96,46 @@ jobs:
           key: ${{ steps.restore-dependencies.outputs.cache-primary-key }}
 
       - name: Install OS-based packages
+        if: runner.os == 'Linux'
         run: |
           sudo apt update -qqy
           sudo apt install -y poppler-utils libpoppler-dev
 
-      - name: Test kotaemon with pytest
+      - name: Test kotaemon with pytest and coverage gate
         run: |
           pip show pytest
           cd libs/kotaemon
-          pytest
+          pytest --cov=kotaemon --cov-report=xml --cov-report=term --cov-fail-under=50
+
+      - name: Test ktem with pytest
+        run: |
+          cd libs/ktem
+          pytest ktem_tests
+
+  windows-smoke:
+    name: windows smoke test
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Clone the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11 on Windows
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: x64
+
+      - name: Install dependencies for smoke tests
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          Set-Item -Path Env:PYTHONIOENCODING -Value UTF-8
+          pip install -U --upgrade-strategy eager -e "libs/kotaemon[all]"
+          pip install -U --upgrade-strategy eager -e "libs/ktem"
+
+      - name: Run Windows smoke checks
+        shell: pwsh
+        run: |
+          python -c "from ktem.main import App; App(); print('app_ctor_ok')"
+          python -m pytest libs/ktem/ktem_tests/test_qa.py

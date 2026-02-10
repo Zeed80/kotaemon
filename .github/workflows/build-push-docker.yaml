@@ -91,7 +91,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build docker image
+      - name: Build docker image for security scan
+        uses: docker/build-push-action@v6
+        with:
+          file: Dockerfile
+          context: .
+          push: false
+          load: true
+          platforms: linux/amd64
+          tags: ${{ env.FULL_IMAGE_NAME }}:${{ matrix.target }}-scan
+          target: ${{ matrix.target }}
+          cache-from: type=gha
+
+      - name: Scan image with Trivy (fail on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.FULL_IMAGE_NAME }}:${{ matrix.target }}-scan
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
+      - name: Build and push docker image
         uses: docker/build-push-action@v6
         with:
           file: Dockerfile
