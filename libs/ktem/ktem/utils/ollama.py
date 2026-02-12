@@ -32,6 +32,28 @@ def get_ollama_base_url() -> str:
     return api_url
 
 
+def get_ollama_base_url_for_langchain() -> str:
+    """Получить базовый URL Ollama для использования с langchain_ollama.
+
+    langchain_ollama.ChatOllama ожидает базовый URL без /api и без /v1/,
+    например: http://localhost:11434/
+
+    Returns:
+        str: Базовый URL для langchain_ollama (без /v1/ и без /api)
+    """
+    url = get_application_setting("kh_ollama_url")
+    if not url:
+        url = getattr(flowsettings, "KH_OLLAMA_URL", "http://localhost:11434/v1/")
+    # Убираем /v1/ и /api, оставляем только базовый URL
+    base_url = url.replace("/v1/", "").replace("/v1", "").replace("/api", "").rstrip("/")
+    # Убеждаемся, что URL заканчивается на порт или имеет слеш в конце
+    if not base_url.endswith("/") and not base_url.endswith(":11434"):
+        base_url = f"{base_url}/"
+    elif base_url.endswith(":11434"):
+        base_url = f"{base_url}/"
+    return base_url
+
+
 def get_ollama_models(base_url: str | None = None) -> list[dict[str, str | int]]:
     """Получить список моделей из Ollama.
 

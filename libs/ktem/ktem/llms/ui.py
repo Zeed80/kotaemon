@@ -7,6 +7,7 @@ from ktem.app import BasePage
 from ktem.utils.file import YAMLNoDateSafeLoader
 from ktem.utils.ollama import (
     get_ollama_base_url,
+    get_ollama_base_url_for_langchain,
     get_ollama_models,
     pull_ollama_model,
 )
@@ -185,7 +186,9 @@ class LLMManagement(BasePage):
 
         # Auto-fill base_url for Ollama
         if is_ollama:
-            base_url = get_ollama_base_url()
+            # LCOllamaChat использует langchain_ollama.ChatOllama, который ожидает
+            # базовый URL без /api и без /v1/, например: http://localhost:11434/
+            base_url = get_ollama_base_url_for_langchain()
             required["base_url"] = base_url
             # Set default num_ctx if not present
             if "num_ctx" not in required:
@@ -487,8 +490,16 @@ class LLMManagement(BasePage):
             spec = yaml.load(current_spec, Loader=YAMLNoDateSafeLoader)
             spec["model"] = model_name
             # Также обновим base_url если его нет
-            if "base_url" not in spec:
-                spec["base_url"] = get_ollama_base_url()
+            # Проверяем тип вендора из spec, чтобы использовать правильный формат URL
+            vendor_type = spec.get("__type__", "")
+            if "LCOllamaChat" in vendor_type:
+                # LCOllamaChat использует langchain_ollama, нужен URL без /api
+                if "base_url" not in spec:
+                    spec["base_url"] = get_ollama_base_url_for_langchain()
+            else:
+                # Для других вендоров (например, ChatOpenAI с Ollama) используем стандартный формат
+                if "base_url" not in spec:
+                    spec["base_url"] = get_ollama_base_url()
             return gr.update(value=yaml.dump(spec))
         except Exception:
             return gr.update(value=current_spec)
