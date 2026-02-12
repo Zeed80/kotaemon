@@ -1,5 +1,10 @@
 import os
 
+# Применяем патч для httplib2/pyparsing совместимости ДО импорта других модулей
+from ktem.utils.httplib2_patch import patch_httplib2_pyparsing  # noqa
+
+patch_httplib2_pyparsing()
+
 from theflow.settings import settings as flowsettings
 
 KH_APP_DATA_DIR = getattr(flowsettings, "KH_APP_DATA_DIR", ".")

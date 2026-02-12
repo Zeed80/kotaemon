@@ -1,3 +1,8 @@
+# Применяем патч для httplib2/pyparsing совместимости ДО импорта других модулей
+from ktem.utils.httplib2_patch import patch_httplib2_pyparsing  # noqa
+
+patch_httplib2_pyparsing()
+
 import gradio as gr
 from decouple import config
 from ktem.app import BaseApp
