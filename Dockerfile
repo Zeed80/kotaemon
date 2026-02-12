@@ -1,18 +1,5 @@
-# Lite version
-FROM python:3.10-slim AS lite
-
-# Common dependencies
-RUN apt-get update -qqy && \
-    apt-get install -y --no-install-recommends \
-        ssh \
-        git \
-        gcc \
-        g++ \
-        poppler-utils \
-        libpoppler-dev \
-        unzip \
-        curl \
-        cargo
+# Full version with all tools: GraphRAG, Nano GraphRAG, LightRAG, Unstructured, Docling
+FROM python:3.10-slim
 
 # Setup args
 ARG TARGETPLATFORM
@@ -23,6 +10,26 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING=UTF-8
 ENV TARGETARCH=${TARGETARCH}
+ENV USE_LIGHTRAG=true
+ENV USE_NANO_GRAPHRAG=true
+
+# Install system dependencies
+RUN apt-get update -qqy && \
+    apt-get install -y --no-install-recommends \
+        ssh \
+        git \
+        gcc \
+        g++ \
+        poppler-utils \
+        libpoppler-dev \
+        unzip \
+        curl \
+        cargo \
+        libsm6 \
+        libxext6 \
+        libreoffice \
+        ffmpeg \
+        libmagic-dev
 
 # Create working directory
 WORKDIR /app
@@ -38,68 +45,46 @@ COPY . /app
 COPY launch.sh /app/launch.sh
 COPY .env.example /app/.env
 
-# Install pip packages
+# Install pip packages - base dependencies
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/pip  \
-    pip install -e "libs/kotaemon" \
+    pip install -e "libs/kotaemon[adv]" \
     && pip install -e "libs/ktem" \
+    && pip install "python-multipart>=0.0.12" \
     && pip install "pdfservices-sdk@git+https://github.com/niallcm/pdfservices-python-sdk.git@bump-and-unfreeze-requirements"
 
+# Install GraphRAG (MS GraphRAG) for amd64
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/pip  \
     if [ "$TARGETARCH" = "amd64" ]; then pip install "graphrag<=0.3.6" future; fi
-
-# Clean up
-RUN apt-get autoremove \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf ~/.cache
-
-ENTRYPOINT ["sh", "/app/launch.sh"]
-
-# Full version
-FROM lite AS full
-
-# Additional dependencies for full version (no Tesseract; use VLM or Docling EasyOCR/RapidOCR)
-RUN apt-get update -qqy && \
-    apt-get install -y --no-install-recommends \
-        libsm6 \
-        libxext6 \
-        libreoffice \
-        ffmpeg \
-        libmagic-dev
 
 # Install torch and torchvision for unstructured
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/pip  \
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
-# Install additional pip packages
+# Install Unstructured
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/pip  \
-    pip install -e "libs/kotaemon[adv]" \
-    && pip install unstructured[all-docs]
+    pip install unstructured[all-docs]
 
-# Install lightRAG
-ENV USE_LIGHTRAG=true
+# Install LightRAG
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/pip  \
     pip install aioboto3 nano-vectordb ollama xxhash "lightrag-hku<=1.3.0"
 
+# Install Docling
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/pip  \
     pip install "docling<=2.5.2"
 
-# Install Nano GraphRAG for full image (all-in-one RAG tools).
+# Install Nano GraphRAG
 # Resolve hnswlib/chroma-hnswlib conflict: nano-graphrag can pull hnswlib; chromadb uses chroma-hnswlib.
 # See https://github.com/Zeed80/kotaemon/issues/440 — reinstall chroma-hnswlib so chromadb works.
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/pip  \
     pip install nano-graphrag \
     && (pip uninstall -y hnswlib chroma-hnswlib 2>/dev/null; pip install chroma-hnswlib) || true
-
-# Enable Nano GraphRAG in full image (MS GraphRAG and LightRAG already enabled)
-ENV USE_NANO_GRAPHRAG=true
 
 # Download NLTK data from LlamaIndex
 RUN python -c "from llama_index.core.readers.base import BaseReader"
@@ -109,18 +94,5 @@ RUN apt-get autoremove \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf ~/.cache
-
-ENTRYPOINT ["sh", "/app/launch.sh"]
-
-# Ollama-bundled version
-FROM full AS ollama
-
-# Install ollama
-RUN --mount=type=ssh  \
-    --mount=type=cache,target=/root/.cache/pip  \
-    curl -fsSL https://ollama.com/install.sh | sh
-
-# RUN nohup bash -c "ollama serve &" && sleep 4 && ollama pull qwen2.5:7b
-RUN nohup bash -c "ollama serve &" && sleep 4 && ollama pull nomic-embed-text
 
 ENTRYPOINT ["sh", "/app/launch.sh"]

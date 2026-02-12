@@ -118,49 +118,34 @@ chmod +x install.sh
 
 ### With Docker (recommended)
 
-1. We support both `lite` & `full` version of Docker images. The **`full`** image is an all-in-one image that includes **MS GraphRAG**, **Nano GraphRAG**, **LightRAG**, **Unstructured**, and **Docling**, so you can use any indexing strategy and document loader from a single container. It also installs extra packages for additional file types (`.doc`, `.docx`, ...); the image size is larger. For minimal setups, the `lite` image is sufficient.
+1. Docker образ включает все инструменты: **MS GraphRAG**, **Nano GraphRAG**, **LightRAG**, **Unstructured**, и **Docling**, что позволяет использовать любую стратегию индексации и загрузчик документов из одного контейнера. Также установлены дополнительные пакеты для обработки различных типов файлов (`.doc`, `.docx`, ...).
 
-   - To use the `full` version.
-
-     ```bash
-     docker run \
-     -e GRADIO_SERVER_NAME=0.0.0.0 \
-     -e GRADIO_SERVER_PORT=7860 \
-     -v ./ktem_app_data:/app/ktem_app_data \
-     -p 7860:7860 -it --rm \
-     ghcr.io/zeed80/kotaemon:main-full
-     ```
-
-   - To use the `full` version with bundled **Ollama** for _local / private RAG_.
-
-     ```bash
-     # change image name to
-     docker run <...> ghcr.io/zeed80/kotaemon:main-ollama
-     ```
-
-   - To use the `lite` version.
+   Пример запуска:
 
    ```bash
-    # change image name to
-    docker run <...> ghcr.io/zeed80/kotaemon:main-lite
+   docker run \
+   -e GRADIO_SERVER_NAME=0.0.0.0 \
+   -e GRADIO_SERVER_PORT=7860 \
+   -v ./ktem_app_data:/app/ktem_app_data \
+   -p 7860:7860 -it --rm \
+   ghcr.io/zeed80/kotaemon:main-full
    ```
 
-2. We currently support and test two platforms: `linux/amd64` and `linux/arm64` (for newer Mac). You can specify the platform by passing `--platform` in the `docker run` command. For example:
+2. Поддерживаются платформы `linux/amd64` и `linux/arm64` (для новых Mac). Платформу можно указать через `--platform`:
 
    ```bash
-   # To run docker with platform linux/arm64
    docker run \
    -e GRADIO_SERVER_NAME=0.0.0.0 \
    -e GRADIO_SERVER_PORT=7860 \
    -v ./ktem_app_data:/app/ktem_app_data \
    -p 7860:7860 -it --rm \
    --platform linux/arm64 \
-   ghcr.io/zeed80/kotaemon:main-lite
+   ghcr.io/zeed80/kotaemon:main-full
    ```
 
-3. Once everything is set up correctly, you can go to `http://localhost:7860/` to access the WebUI.
+3. После запуска откройте `http://localhost:7860/` для доступа к веб-интерфейсу.
 
-4. We use [GHCR](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) to store docker images, all images can be found [here.](https://github.com/Zeed80/kotaemon/pkgs/container/kotaemon)
+4. Docker образы хранятся в [GHCR](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry), все образы можно найти [здесь](https://github.com/Zeed80/kotaemon/pkgs/container/kotaemon).
 
 5. **Docker Compose** (удобно через скрипт или вручную):
 
@@ -174,11 +159,11 @@ chmod +x install.sh
 
    ```bash
    cp .env.example .env
-   # отредактируйте .env (API-ключи, при необходимости KOTAEMON_IMAGE и KOTAEMON_PORT)
+   # отредактируйте .env (API-ключи, при необходимости KOTAEMON_PORT)
    docker compose up -d --build
    ```
 
-   Вариант образа задаётся в `.env`: **`KOTAEMON_IMAGE`** — `lite` (по умолчанию), `full` или `ollama`. Порт — **`KOTAEMON_PORT`** (по умолчанию 7860). Для отдельного контейнера Ollama: `docker compose --profile ollama up -d`.
+   Порт настраивается в `.env`: **`KOTAEMON_PORT`** (по умолчанию 7860). Для отдельного контейнера Ollama: `docker compose --profile ollama up -d`.
 
 ### Without Docker
 

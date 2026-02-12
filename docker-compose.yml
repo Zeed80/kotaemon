@@ -4,14 +4,9 @@
 #   1. Скопировать .env.example в .env и задать ключи API.
 #   2. Сборка и запуск:
 #      docker compose up -d --build
-#   3. Вариант образа (lite | full | ollama):
-#      KOTAEMON_IMAGE=full docker compose up -d --build
-#   4. После запуска: http://localhost:7860
+#   3. После запуска: http://localhost:7860
 #
-# Образы:
-#   lite   — минимальный (по умолчанию).
-#   full   — GraphRAG, Unstructured, Docling, тяжёлые зависимости.
-#   ollama — full + встроенный Ollama для локальных моделей.
+# Образ включает все инструменты: MS GraphRAG, Nano GraphRAG, LightRAG, Unstructured, Docling.
 
 x-common-env: &common-env
   GRADIO_SERVER_NAME: "0.0.0.0"
@@ -25,8 +20,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: ${KOTAEMON_IMAGE:-lite}
-    image: kotaemon:${KOTAEMON_IMAGE:-lite}
+    image: kotaemon:latest
     container_name: kotaemon
     ports:
       - "${KOTAEMON_PORT:-7860}:7860"

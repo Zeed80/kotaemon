@@ -291,7 +291,7 @@ run_docker_install() {
     if [[ ! -f "${ENV_FILE}" ]] && [[ -f "${ENV_EXAMPLE}" ]]; then
         print_step "Создание .env из .env.example"
         cp "${ENV_EXAMPLE}" "${ENV_FILE}"
-        print_ok "Создан ${ENV_FILE}. При необходимости отредактируйте API-ключи и KOTAEMON_IMAGE (lite|full|ollama)."
+        print_ok "Создан ${ENV_FILE}. При необходимости отредактируйте API-ключи."
     fi
 
     print_step "Сборка и запуск контейнера (Docker Compose)"
@@ -301,7 +301,6 @@ run_docker_install() {
     echo "  Интерфейс:  http://localhost:${KOTAEMON_PORT:-7860}"
     echo "  Логи:       docker compose logs -f"
     echo "  Остановка:  docker compose down"
-    echo "  Вариант образа (lite/full/ollama): задаётся в .env как KOTAEMON_IMAGE."
     echo "  Ollama отдельным контейнером: docker compose --profile ollama up -d"
     echo ""
 }
