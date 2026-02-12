@@ -63,9 +63,10 @@ class VectorIndexing(BaseIndexing):
                     markdown_content += f"\nSection: {section}"
                 if "type" in docs[i].metadata:
                     if docs[i].metadata["type"] == "image":
-                        image_origin = docs[i].metadata["image_origin"]
-                        image_origin = f'<p><img src="{image_origin}"></p>'
-                        markdown_content += f"\nImage origin: {image_origin}"
+                        image_origin = docs[i].metadata.get("image_origin", "")
+                        if image_origin:
+                            image_origin = f'<p><img src="{image_origin}"></p>'
+                            markdown_content += f"\nImage origin: {image_origin}"
                 if docs[i].text:
                     markdown_content += f"\ntext:\n{docs[i].text}"
 

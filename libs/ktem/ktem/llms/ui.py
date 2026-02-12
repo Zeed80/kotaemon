@@ -132,6 +132,8 @@ class LLMManagement(BasePage):
                                 label="Available Ollama models",
                                 info="Select a model from your Ollama installation",
                                 choices=[],
+                                value=None,
+                                allow_custom_value=True,
                                 interactive=True,
                             )
                             self.btn_refresh_ollama_models = gr.Button(

@@ -145,7 +145,9 @@ class Render:
     ) -> str:
         header = f"<i>{get_header(doc)}</i>"
         if doc.metadata.get("type", "") == "image":
-            doc_content = Render.image(url=doc.metadata["image_origin"], text=doc.text)
+            doc_content = Render.image(
+                url=doc.metadata.get("image_origin", ""), text=doc.text
+            )
         elif doc.metadata.get("type", "") == "table_raw":
             doc_content = Render.table_preserve_linebreaks(doc.text)
         else:
@@ -212,7 +214,7 @@ class Render:
         text = doc.text if not override_text else override_text
         if doc.metadata.get("type", "") == "image":
             rendered_doc_content = Render.image(
-                url=doc.metadata["image_origin"],
+                url=doc.metadata.get("image_origin", ""),
                 text=text,
             )
         elif doc.metadata.get("type", "") == "table_raw":
