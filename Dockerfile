@@ -92,7 +92,7 @@ RUN --mount=type=ssh  \
 
 # Install Nano GraphRAG for full image (all-in-one RAG tools).
 # Resolve hnswlib/chroma-hnswlib conflict: nano-graphrag can pull hnswlib; chromadb uses chroma-hnswlib.
-# See https://github.com/Cinnamon/kotaemon/issues/440 — reinstall chroma-hnswlib so chromadb works.
+# See https://github.com/Zeed80/kotaemon/issues/440 — reinstall chroma-hnswlib so chromadb works.
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/pip  \
     pip install nano-graphrag \

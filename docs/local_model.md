@@ -25,7 +25,7 @@ base_url: http://localhost:11434/v1/
 model: gemma2:2b (for llm) | nomic-embed-text (for embedding)
 ```
 
-![Models](https://raw.githubusercontent.com/Cinnamon/kotaemon/main/docs/images/models.png)
+![Models](https://raw.githubusercontent.com/Zeed80/kotaemon/main/docs/images/models.png)
 
 ### oobabooga/text-generation-webui OpenAI compatible server
 
@@ -77,14 +77,14 @@ model: model_name
 
 - Set default LLM and Embedding model to a local variant.
 
-![Models](https://raw.githubusercontent.com/Cinnamon/kotaemon/main/docs/images/llm-default.png)
+![Models](https://raw.githubusercontent.com/Zeed80/kotaemon/main/docs/images/llm-default.png)
 
 - Set embedding model for the File Collection to a local model (e.g: `ollama`)
 
-![Index](https://raw.githubusercontent.com/Cinnamon/kotaemon/main/docs/images/index-embedding.png)
+![Index](https://raw.githubusercontent.com/Zeed80/kotaemon/main/docs/images/index-embedding.png)
 
 - Go to Retrieval settings and choose LLM relevant scoring model as a local model (e.g: `ollama`). Or, you can choose to disable this feature if your machine cannot handle a lot of parallel LLM requests at the same time.
 
-![Settings](https://raw.githubusercontent.com/Cinnamon/kotaemon/main/docs/images/retrieval-setting.png)
+![Settings](https://raw.githubusercontent.com/Zeed80/kotaemon/main/docs/images/retrieval-setting.png)
 
 You are set! Start a new conversation to test your local RAG pipeline.

@@ -2,7 +2,7 @@
 
 ## 1. Add your AI models
 
-![resources tab](https://raw.githubusercontent.com/Cinnamon/kotaemon/main/docs/images/resources-tab.png)
+![resources tab](https://raw.githubusercontent.com/Zeed80/kotaemon/main/docs/images/resources-tab.png)
 
 - The tool uses Large Language Model (LLMs) to perform various tasks in a QA pipeline.
   So, you need to provide the application with access to the LLMs you want
@@ -107,7 +107,7 @@ Here is how to get the full path of your model file:
 
 ## 2. Upload your documents
 
-![file index tab](https://raw.githubusercontent.com/Cinnamon/kotaemon/main/docs/images/file-index-tab.png)
+![file index tab](https://raw.githubusercontent.com/Zeed80/kotaemon/main/docs/images/file-index-tab.png)
 
 In order to do QA on your documents, you need to upload them to the application first.
 Navigate to the `File Index` tab and you will see 2 sections:
@@ -121,7 +121,7 @@ Navigate to the `File Index` tab and you will see 2 sections:
 
 ## 3. Chat with your documents
 
-![chat tab](https://raw.githubusercontent.com/Cinnamon/kotaemon/main/docs/images/chat-tab.png)
+![chat tab](https://raw.githubusercontent.com/Zeed80/kotaemon/main/docs/images/chat-tab.png)
 
 Now navigate back to the `Chat` tab. The chat tab is divided into 3 regions:
 

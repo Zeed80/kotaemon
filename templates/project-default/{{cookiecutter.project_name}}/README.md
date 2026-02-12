@@ -2,7 +2,7 @@
 
 # Project {{ cookiecutter.project_name }}
 
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/Cinnamon/kotaemon)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/Zeed80/kotaemon)
 
 </div>
 
@@ -27,11 +27,11 @@ kh start-project
 
 - Build the pipeline in `pipeline.py`
 
-For supported utilities and tools, refer: https://github.com/Cinnamon/kotaemon/wiki/Utilities
+For supported utilities and tools, refer: https://github.com/Zeed80/kotaemon/wiki/Utilities
 
 # Contribute
 
 - For project issues and errors, please report in this repo issues.
-- For kotaemon issues and errors, please report or make PR fixes in https://github.com/Cinnamon/kotaemon.git
+- For kotaemon issues and errors, please report or make PR fixes in https://github.com/Zeed80/kotaemon.git
 - If the template for this project has issues and errors, please report or make
-  PR fixes in https://github.com/Cinnamon/kotaemon/tree/main/templates/project-default
+  PR fixes in https://github.com/Zeed80/kotaemon/tree/main/templates/project-default

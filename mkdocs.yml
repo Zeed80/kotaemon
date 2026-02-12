@@ -1,5 +1,5 @@
-repo_name: Cinnamon/kotaemon
-repo_url: https://github.com/Cinnamon/kotaemon
+repo_name: Zeed80/kotaemon
+repo_url: https://github.com/Zeed80/kotaemon
 site_name: kotaemon Docs
 edit_uri: edit/main/docs/
 
@@ -28,8 +28,8 @@ nav:
       - Contributing: development/contributing.md
   # generated using gen-files + literate-nav
   - API Reference: reference/
-  - Changelogs: https://github.com/Cinnamon/kotaemon/releases
-  - Issue Tracker: https://github.com/Cinnamon/kotaemon/issues
+  - Changelogs: https://github.com/Zeed80/kotaemon/releases
+  - Issue Tracker: https://github.com/Zeed80/kotaemon/issues
   - Live Demo: https://huggingface.co/spaces/cin-model/kotaemon-demo
 
 markdown_extensions:

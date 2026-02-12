@@ -18,8 +18,8 @@ dynamic = ["version"]
 requires-python = ">= 3.10"
 description = "Kotaemon App"
 dependencies = [
-    "kotaemon @ git+https://github.com/Cinnamon/kotaemon.git@main#subdirectory=libs/kotaemon",
-    "ktem @ git+https://github.com/Cinnamon/kotaemon.git@main#subdirectory=libs/ktem"
+    "kotaemon @ git+https://github.com/Zeed80/kotaemon.git@main#subdirectory=libs/kotaemon",
+    "ktem @ git+https://github.com/Zeed80/kotaemon.git@main#subdirectory=libs/ktem"
 ]
 authors = [
     { name = "@trducng", email = "john@cinnamon.is" },
@@ -34,7 +34,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://cinnamon.github.io/kotaemon/"
-Repository = "https://github.com/Cinnamon/kotaemon/"
+Repository = "https://github.com/Zeed80/kotaemon/"
 Documentation = "https://cinnamon.github.io/kotaemon/"
 
 [tool.codespell]

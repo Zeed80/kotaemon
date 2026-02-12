@@ -1,6 +1,6 @@
 # Getting Started with Kotaemon
 
-![type:video](https://github.com/Cinnamon/kotaemon/assets/25688648/815ecf68-3a02-4914-a0dd-3f8ec7e75cd9)
+![type:video](https://github.com/Zeed80/kotaemon/assets/25688648/815ecf68-3a02-4914-a0dd-3f8ec7e75cd9)
 
 This page is intended for **end users** who want to use the `kotaemon` tool for Question
 Answering on local documents. If you are a **developer** who wants contribute to the project, please visit the [development](development/index.md) page.
@@ -13,7 +13,7 @@ Visit this [guide](online_install.md).
 
 ### Download
 
-Download the `kotaemon-app.zip` file from the [latest release](https://github.com/Cinnamon/kotaemon/releases/latest/).
+Download the `kotaemon-app.zip` file from the [latest release](https://github.com/Zeed80/kotaemon/releases/latest/).
 
 ### Run setup script
 
@@ -36,7 +36,7 @@ To launch the app after initial setup or any change, simply run the `run_*` scri
 
 A browser window will be opened and greets you with this screen:
 
-![Chat tab](https://raw.githubusercontent.com/Cinnamon/kotaemon/main/docs/images/chat-tab.png)
+![Chat tab](https://raw.githubusercontent.com/Zeed80/kotaemon/main/docs/images/chat-tab.png)
 
 ## Usage
 
@@ -45,4 +45,4 @@ you within the application.
 
 ## Feedback
 
-Feel free to create a bug report or a feature request on our [repo](https://github.com/Cinnamon/kotaemon/issues).
+Feel free to create a bug report or a feature request on our [repo](https://github.com/Zeed80/kotaemon/issues).

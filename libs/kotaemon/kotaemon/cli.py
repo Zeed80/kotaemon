@@ -174,14 +174,14 @@ def start_project(template):
     """Start a project from a template.
 
     Important: the value for --template corresponds to the name of the template folder,
-    which is located at https://github.com/Cinnamon/kotaemon/tree/main/templates
+    which is located at https://github.com/Zeed80/kotaemon/tree/main/templates
     The default value is "project-default", which should work when you are starting a
     client project.
     """
 
     print("Retrieving template...")
     os.system(
-        "cookiecutter git@github.com:Cinnamon/kotaemon.git "
+        "cookiecutter git@github.com:Zeed80/kotaemon.git "
         f"--directory='templates/{template}'"
     )
 

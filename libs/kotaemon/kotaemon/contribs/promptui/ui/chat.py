@@ -33,13 +33,13 @@ USAGE_INSTRUCTION = """## How to use:
 In case of errors, you can:
 
 - PromptUI instruction:
-    https://github.com/Cinnamon/kotaemon/wiki/Utilities#prompt-engineering-ui
-- Create bug fix and make PR at: https://github.com/Cinnamon/kotaemon
+    https://github.com/Zeed80/kotaemon/wiki/Utilities#prompt-engineering-ui
+- Create bug fix and make PR at: https://github.com/Zeed80/kotaemon
 - Ping any of @john @tadashi @ian @jacky in Slack channel #llm-productization
 
 ## Contribute:
 
-- Follow installation at: https://github.com/Cinnamon/kotaemon/
+- Follow installation at: https://github.com/Zeed80/kotaemon/
 """
 
 

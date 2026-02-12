@@ -214,9 +214,9 @@ IF %ERRORLEVEL% == 0  (
     ) ELSE (
         ECHO Installing Kotaemon %app_version%
         @REM Work around for versioning control
-        python -m pip install git+https://github.com/Cinnamon/kotaemon.git@"%app_version%"#subdirectory=libs/kotaemon
-        python -m pip install git+https://github.com/Cinnamon/kotaemon.git@"%app_version%"#subdirectory=libs/ktem
-        python -m pip install --no-deps git+https://github.com/Cinnamon/kotaemon.git@"%app_version%"
+        python -m pip install git+https://github.com/Zeed80/kotaemon.git@"%app_version%"#subdirectory=libs/kotaemon
+        python -m pip install git+https://github.com/Zeed80/kotaemon.git@"%app_version%"#subdirectory=libs/ktem
+        python -m pip install --no-deps git+https://github.com/Zeed80/kotaemon.git@"%app_version%"
     )
 
     ( CALL pip list | findstr /C:"kotaemon" >NUL 2>&1 ) || (

@@ -36,7 +36,7 @@ class HelpPage:
         self,
         app,
         doc_dir: str = settings.KH_DOC_DIR,
-        remote_content_url: str = "https://raw.githubusercontent.com/Cinnamon/kotaemon",
+        remote_content_url: str = "https://raw.githubusercontent.com/Zeed80/kotaemon",
         app_version: str | None = settings.KH_APP_VERSION,
         changelogs_cache_dir: str
         | Path = (Path(settings.KH_APP_DATA_DIR) / "changelogs"),
@@ -100,7 +100,7 @@ class HelpPage:
                     changelogs = fi.read()
             else:
                 release_url_base = (
-                    "https://api.github.com/repos/Cinnamon/kotaemon/releases"
+                    "https://api.github.com/repos/Zeed80/kotaemon/releases"
                 )
                 changelogs = download_changelogs(
                     release_url=f"{release_url_base}/tags/v{self.app_version}"

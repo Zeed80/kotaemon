@@ -5,7 +5,7 @@
 - Clone the repo
 
   ```shell
-  git clone git@github.com:Cinnamon/kotaemon.git
+  git clone git@github.com:Zeed80/kotaemon.git
   cd kotaemon
   ```
 

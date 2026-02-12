@@ -9,7 +9,7 @@ TBD
 ## Install
 
 ```shell
-pip install kotaemon@git+ssh://git@github.com/Cinnamon/kotaemon.git
+pip install kotaemon@git+ssh://git@github.com/Zeed80/kotaemon.git
 ```
 
 ## Contribute
@@ -26,7 +26,7 @@ pip install kotaemon@git+ssh://git@github.com/Cinnamon/kotaemon.git
 - Clone the repo
 
   ```shell
-  git clone git@github.com:Cinnamon/kotaemon.git
+  git clone git@github.com:Zeed80/kotaemon.git
   cd kotaemon
   ```
 
