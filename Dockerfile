@@ -46,14 +46,15 @@ COPY launch.sh /app/launch.sh
 COPY .env.example /app/.env
 
 # Install pip packages - base dependencies
+# Используем --no-cache-dir чтобы избежать Bad CRC-32 из повреждённого кэша (nvidia/torch wheels)
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/pip  \
-    pip install -e "libs/kotaemon[adv]" \
-    && pip install -e "libs/ktem" \
-    && pip install "pdfservices-sdk@git+https://github.com/niallcm/pdfservices-python-sdk.git@bump-and-unfreeze-requirements" \
+    pip install --no-cache-dir -e "libs/kotaemon[adv]" \
+    && pip install --no-cache-dir -e "libs/ktem" \
+    && pip install --no-cache-dir "pdfservices-sdk@git+https://github.com/niallcm/pdfservices-python-sdk.git@bump-and-unfreeze-requirements" \
     && (pip uninstall -y multipart 2>/dev/null || true) \
-    && pip install --force-reinstall "python-multipart>=0.0.12" \
-    && pip install "pyparsing<3.0.0"  # httplib2 несовместим с pyparsing v3+
+    && pip install --no-cache-dir --force-reinstall "python-multipart>=0.0.12" \
+    && pip install --no-cache-dir "pyparsing<3.0.0"
 
 # Install GraphRAG (MS GraphRAG) for amd64
 RUN --mount=type=ssh  \
