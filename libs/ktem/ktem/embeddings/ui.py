@@ -5,6 +5,11 @@ import pandas as pd
 import yaml
 from ktem.app import BasePage
 from ktem.utils.file import YAMLNoDateSafeLoader
+from ktem.utils.ollama import (
+    get_ollama_base_url,
+    get_ollama_models,
+    pull_ollama_model,
+)
 from theflow.utils.modules import deserialize
 
 from .manager import embedding_models_manager
@@ -121,6 +126,36 @@ class EmbeddingManagement(BasePage):
                     )
                     self.btn_new = gr.Button("Add", variant="primary")
 
+                    # Ollama-specific UI elements for OpenAIEmbeddings
+                    with gr.Column(visible=False) as self.ollama_section:
+                        gr.Markdown("### Ollama Model Selection")
+                        gr.Markdown(
+                            "*Для использования Ollama выберите вендор OpenAIEmbeddings "
+                            "и установите base_url на Ollama URL*"
+                        )
+                        with gr.Row():
+                            self.ollama_model_dropdown = gr.Dropdown(
+                                label="Available Ollama models",
+                                info="Select a model from your Ollama installation",
+                                choices=[],
+                                interactive=True,
+                            )
+                            self.btn_refresh_ollama_models = gr.Button(
+                                "🔄 Refresh", scale=0, min_width=100
+                            )
+                        self.ollama_model_input = gr.Textbox(
+                            label="Or enter model name manually",
+                            info="Enter model name if not in the list above",
+                            placeholder="e.g., nomic-embed-text",
+                        )
+                        with gr.Row():
+                            self.btn_pull_ollama_model = gr.Button(
+                                "⬇️ Pull Model", variant="secondary"
+                            )
+                            self.ollama_pull_progress = gr.HTML(
+                                visible=False, value=""
+                            )
+
                 with gr.Column(scale=3):
                     self.spec_desc = gr.Markdown(self.spec_desc_default)
 
@@ -135,23 +170,69 @@ class EmbeddingManagement(BasePage):
             lambda: gr.update(choices=list(embedding_models_manager.vendors().keys())),
             outputs=[self.emb_choices],
         )
+        # Load Ollama models on startup if available
+        self._app.app.load(
+            self.refresh_ollama_models,
+            inputs=[],
+            outputs=[self.ollama_model_dropdown],
+        )
 
     def on_emb_vendor_change(self, vendor):
-        vendor = embedding_models_manager.vendors()[vendor]
+        vendor_cls = embedding_models_manager.vendors()[vendor]
+        vendor_name = vendor_cls.__name__
 
         required: dict = {}
-        desc = vendor.describe()
+        desc = vendor_cls.describe()
         for key, value in desc["params"].items():
             if value.get("required", False):
                 required[key] = value.get("default", None)
 
-        return yaml.dump(required), format_description(vendor)
+        # Check if this is OpenAIEmbeddings (can be used with Ollama)
+        is_ollama_compatible = vendor_name == "OpenAIEmbeddings"
+
+        # Auto-fill base_url for Ollama if OpenAIEmbeddings
+        if is_ollama_compatible:
+            # Предлагаем Ollama URL как опцию, но не заполняем автоматически
+            # Пользователь может выбрать использовать Ollama или OpenAI
+            pass
+
+        spec_yaml = yaml.dump(required)
+        desc_markdown = format_description(vendor_cls)
+
+        return (
+            spec_yaml,
+            desc_markdown,
+            gr.update(visible=is_ollama_compatible),
+            gr.update(value=""),
+            gr.update(value=""),
+        )
 
     def on_register_events(self):
         self.emb_choices.select(
             self.on_emb_vendor_change,
             inputs=[self.emb_choices],
-            outputs=[self.spec, self.spec_desc],
+            outputs=[
+                self.spec,
+                self.spec_desc,
+                self.ollama_section,
+                self.ollama_model_dropdown,
+                self.ollama_model_input,
+            ],
+        )
+        self.btn_refresh_ollama_models.click(
+            self.refresh_ollama_models,
+            inputs=[],
+            outputs=[self.ollama_model_dropdown],
+        )
+        self.ollama_model_dropdown.change(
+            self.on_ollama_model_selected,
+            inputs=[self.ollama_model_dropdown, self.spec],
+            outputs=[self.spec],
+        )
+        self.btn_pull_ollama_model.click(
+            self.pull_ollama_model_ui,
+            inputs=[self.ollama_model_input],
+            outputs=[self.ollama_pull_progress, self.ollama_model_dropdown],
         )
         self.btn_new.click(
             self.create_emb,
@@ -391,3 +472,103 @@ class EmbeddingManagement(BasePage):
             return selected_emb_name
 
         return ""
+
+    def refresh_ollama_models(self):
+        """Обновить список моделей из Ollama."""
+        try:
+            models = get_ollama_models()
+            if models:
+                choices = [model["name"] for model in models]
+                return gr.update(choices=choices, value=choices[0] if choices else None)
+            else:
+                return gr.update(choices=[], value=None)
+        except Exception as e:
+            gr.Warning(f"Не удалось получить список моделей Ollama: {e}")
+            return gr.update(choices=[], value=None)
+
+    def on_ollama_model_selected(self, model_name: str, current_spec: str):
+        """Заполнить поле model в spec при выборе модели из списка."""
+        if not model_name:
+            return gr.update(value=current_spec)
+
+        try:
+            spec = yaml.load(current_spec, Loader=YAMLNoDateSafeLoader)
+            spec["model"] = model_name
+            # Если base_url не установлен, предлагаем Ollama URL
+            if "base_url" not in spec or not spec.get("base_url"):
+                spec["base_url"] = get_ollama_base_url().replace("/api", "/v1/")
+            # Устанавливаем api_key для Ollama если не установлен
+            if "api_key" not in spec or not spec.get("api_key"):
+                spec["api_key"] = "ollama"
+            return gr.update(value=yaml.dump(spec))
+        except Exception:
+            return gr.update(value=current_spec)
+
+    def pull_ollama_model_ui(self, model_name: str):
+        """Загрузить модель из Ollama с отображением прогресса."""
+        if not model_name:
+            gr.Warning("Введите имя модели для загрузки")
+            yield gr.update(visible=False, value=""), gr.update()
+            return
+
+        progress_html = "<div style='padding: 10px;'>"
+        progress_html += f"<p>Загрузка модели <strong>{model_name}</strong>...</p>"
+        yield gr.update(visible=True, value=progress_html), gr.update()
+
+        try:
+            for response in pull_ollama_model(model_name=model_name):
+                status = response.get("status", "")
+                completed = response.get("completed", 0)
+                total = response.get("total", 0)
+
+                if completed > 0 and total > 0:
+                    ratio = int(completed / total * 100)
+                    progress_html = f"""
+                    <div style='padding: 10px;'>
+                        <p>Загрузка модели <strong>{model_name}</strong>...</p>
+                        <p>{status}: {ratio}%</p>
+                        <progress value='{completed}' max='{total}' style='width: 100%;'></progress>
+                    </div>
+                    """
+                else:
+                    progress_html = f"""
+                    <div style='padding: 10px;'>
+                        <p>Загрузка модели <strong>{model_name}</strong>...</p>
+                        <p>{status}</p>
+                    </div>
+                    """
+
+                yield gr.update(visible=True, value=progress_html), gr.update()
+
+                if status == "success":
+                    progress_html = f"""
+                    <div style='padding: 10px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px;'>
+                        <p><strong>✓ Модель {model_name} успешно загружена!</strong></p>
+                    </div>
+                    """
+                    gr.Info(f"Модель {model_name} успешно загружена")
+                    # Обновить список моделей
+                    models = get_ollama_models()
+                    choices = [m["name"] for m in models]
+                    yield gr.update(visible=True, value=progress_html), gr.update(
+                        choices=choices, value=model_name
+                    )
+                    return
+
+            # Если дошли сюда без success
+            progress_html = f"""
+            <div style='padding: 10px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px;'>
+                <p>Загрузка завершена, но статус не определен</p>
+            </div>
+            """
+            yield gr.update(visible=True, value=progress_html), gr.update()
+
+        except Exception as e:
+            error_html = f"""
+            <div style='padding: 10px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px;'>
+                <p><strong>Ошибка при загрузке модели:</strong></p>
+                <p>{str(e)}</p>
+            </div>
+            """
+            gr.Error(f"Ошибка при загрузке модели: {e}")
+            yield gr.update(visible=True, value=error_html), gr.update()
