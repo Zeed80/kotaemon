@@ -52,7 +52,8 @@ RUN --mount=type=ssh  \
     && pip install -e "libs/ktem" \
     && pip install "pdfservices-sdk@git+https://github.com/niallcm/pdfservices-python-sdk.git@bump-and-unfreeze-requirements" \
     && (pip uninstall -y multipart 2>/dev/null || true) \
-    && pip install --force-reinstall "python-multipart>=0.0.12"
+    && pip install --force-reinstall "python-multipart>=0.0.12" \
+    && pip install "pyparsing<3.0.0"  # httplib2 несовместим с pyparsing v3+
 
 # Install GraphRAG (MS GraphRAG) for amd64
 RUN --mount=type=ssh  \
