@@ -50,8 +50,9 @@ RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/pip  \
     pip install -e "libs/kotaemon[adv]" \
     && pip install -e "libs/ktem" \
-    && pip install "python-multipart>=0.0.12" \
-    && pip install "pdfservices-sdk@git+https://github.com/niallcm/pdfservices-python-sdk.git@bump-and-unfreeze-requirements"
+    && pip install "pdfservices-sdk@git+https://github.com/niallcm/pdfservices-python-sdk.git@bump-and-unfreeze-requirements" \
+    && (pip uninstall -y multipart 2>/dev/null || true) \
+    && pip install --force-reinstall "python-multipart>=0.0.12"
 
 # Install GraphRAG (MS GraphRAG) for amd64
 RUN --mount=type=ssh  \
