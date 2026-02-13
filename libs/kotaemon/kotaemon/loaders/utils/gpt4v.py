@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import time
@@ -46,65 +47,113 @@ def generate_gpt4v(
         str: Текст ответа от VLM.
     """
     # Определяем тип провайдера по endpoint
-    # Ollama использует OpenAI-compatible API на порту 11434
-    # Проверяем по порту 11434 или по отсутствию известных доменов OpenAI/Azure
+    # Ollama использует OpenAI-compatible API на порту 11434 для LLM,
+    # но для vision моделей лучше использовать нативный API /api/chat
     known_providers = ["openai.com", "azure.com", "api.openai.com", "api.groq.com"]
     has_known_provider = any(provider in endpoint for provider in known_providers)
-    # Ollama endpoint обычно содержит :11434 и /v1/chat/completions
-    # Также проверяем по отсутствию известных провайдеров и наличию /v1/chat/completions
+    # Ollama endpoint обычно содержит :11434
+    # Проверяем по порту 11434 или наличию "ollama" в URL
     is_ollama = (
-        "/v1/chat/completions" in endpoint 
-        and (":11434" in endpoint or "ollama" in endpoint.lower())
+        (":11434" in endpoint or "ollama" in endpoint.lower())
         and not has_known_provider
     )
+    
+    # Для Ollama vision моделей используем нативный API вместо OpenAI-compatible
+    # Преобразуем endpoint из /v1/chat/completions в /api/chat для Ollama
+    ollama_endpoint = None
+    if is_ollama:
+        # Преобразуем OpenAI-compatible endpoint в нативный Ollama API
+        if "/v1/chat/completions" in endpoint:
+            # Заменяем /v1/chat/completions на /api/chat
+            ollama_endpoint = endpoint.replace("/v1/chat/completions", "/api/chat")
+        elif "/api/chat" in endpoint:
+            # Уже правильный формат
+            ollama_endpoint = endpoint
+        else:
+            # Если endpoint не содержит ни /v1/chat/completions, ни /api/chat
+            # Извлекаем базовый URL (до последнего /) и добавляем /api/chat
+            if endpoint.endswith("/"):
+                ollama_endpoint = f"{endpoint}api/chat"
+            else:
+                # Находим базовый URL (убираем путь после последнего /)
+                parts = endpoint.rsplit("/", 1)
+                if len(parts) == 2:
+                    base_url = parts[0]
+                    ollama_endpoint = f"{base_url}/api/chat"
+                else:
+                    # Если нет / в URL, добавляем /api/chat
+                    ollama_endpoint = f"{endpoint}/api/chat"
     
     # Для Ollama не нужен api-key в заголовках
     if is_ollama:
         headers = {"Content-Type": "application/json"}
+        actual_endpoint = ollama_endpoint or endpoint
     else:
         # OpenAI API Key для Azure OpenAI / OpenAI
         api_key = config("AZURE_OPENAI_API_KEY", default="")
         headers = {"Content-Type": "application/json", "api-key": api_key}
+        actual_endpoint = endpoint
 
     if isinstance(images, str):
         images = [images]
 
-    payload = {
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                ]
-                + [
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": image},
-                    }
-                    for image in images[:max_images]
-                ],
-            }
-        ],
-        "max_tokens": max_tokens,
-        "temperature": 0,
-    }
-
-    # Для Ollama добавляем дополнительные параметры
+    # Для Ollama используем нативный формат с массивом images в сообщении
     if is_ollama:
+        # Извлекаем base64 из data URL для Ollama
+        base64_images = []
+        for image in images[:max_images]:
+            if image.startswith("data:"):
+                # Извлекаем base64 из data URL: data:image/jpeg;base64,<base64>
+                # Разделяем по запятой и берем часть после неё
+                base64_data = image.split(",", 1)[1] if "," in image else image
+            else:
+                # Если уже base64 строка (без data: префикса)
+                base64_data = image
+            base64_images.append(base64_data)
+        
+        payload = {
+            "model": model if model else "",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt,
+                    "images": base64_images,
+                }
+            ],
+            "options": {
+                "num_ctx": 16384,  # Увеличенное контекстное окно для обработки больших изображений
+                "num_predict": max_tokens,  # Максимальное количество токенов для генерации
+                "temperature": 0,
+                "keep_alive": "5m",  # Сохранять модель в памяти 5 минут
+            },
+            "stream": False,
+        }
+        
         if not model:
             logger.warning(
                 f"Ollama endpoint detected but no model provided: {endpoint}. "
                 "Model parameter is required for Ollama."
             )
-        else:
-            payload["model"] = model
-        # Параметры для Ollama в options
-        # Увеличиваем num_ctx для больших изображений (vision модели требуют больше контекста)
-        payload["options"] = {
-            "num_ctx": 16384,  # Увеличенное контекстное окно для обработки больших изображений
-            "num_predict": max_tokens,  # Максимальное количество токенов для генерации
+    else:
+        # OpenAI-compatible формат для других провайдеров
+        payload = {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                    ]
+                    + [
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": image},
+                        }
+                        for image in images[:max_images]
+                    ],
+                }
+            ],
+            "max_tokens": max_tokens,
             "temperature": 0,
-            "keep_alive": "5m",  # Сохранять модель в памяти 5 минут
         }
 
     if len(images) > max_images:
@@ -118,18 +167,19 @@ def generate_gpt4v(
     
     # Логируем параметры запроса для отладки
     logger.info(
-        f"VLM request: endpoint={endpoint}, model={model}, max_tokens={max_tokens}, "
+        f"VLM request: endpoint={actual_endpoint}, model={model}, max_tokens={max_tokens}, "
         f"timeout={timeout}s, images_count={len(images_to_send)}, "
-        f"total_image_size={total_image_size / 1024:.2f} KB, is_ollama={is_ollama}"
+        f"total_image_size={total_image_size / 1024:.2f} KB, is_ollama={is_ollama}, "
+        f"using_native_api={is_ollama and ollama_endpoint is not None}"
     )
 
     response = None
     try:
-        response = requests.post(endpoint, headers=headers, json=payload, timeout=timeout)
+        response = requests.post(actual_endpoint, headers=headers, json=payload, timeout=timeout)
         response.raise_for_status()
     except requests.exceptions.Timeout as e:
         logger.error(
-            f"VLM request timeout after {timeout}s: endpoint={endpoint}, model={model}, "
+            f"VLM request timeout after {timeout}s: endpoint={actual_endpoint}, model={model}, "
             f"image_size={total_image_size / 1024:.2f} KB"
         )
         raise
@@ -138,14 +188,14 @@ def generate_gpt4v(
         error_detail = str(e)
         if "Remote end closed connection" in error_detail or "RemoteDisconnected" in str(type(e)):
             logger.error(
-                f"VLM connection closed by server (RemoteDisconnected): endpoint={endpoint}, "
+                f"VLM connection closed by server (RemoteDisconnected): endpoint={actual_endpoint}, "
                 f"model={model}, image_size={total_image_size / 1024:.2f} KB, "
                 f"timeout={timeout}s. This may indicate the image is too large or the request "
                 f"takes too long. Try reducing image size or increasing timeout."
             )
         else:
             logger.error(
-                f"VLM connection error: endpoint={endpoint}, model={model}, "
+                f"VLM connection error: endpoint={actual_endpoint}, model={model}, "
                 f"error={error_detail}, image_size={total_image_size / 1024:.2f} KB"
             )
         raise
@@ -158,7 +208,7 @@ def generate_gpt4v(
             except Exception:
                 error_text = f"Status {response.status_code}"
         logger.error(
-            f"VLM HTTP error: endpoint={endpoint}, model={model}, "
+            f"VLM HTTP error: endpoint={actual_endpoint}, model={model}, "
             f"status={response.status_code if response else 'unknown'}, "
             f"error={error_text}, image_size={total_image_size / 1024:.2f} KB"
         )
@@ -171,14 +221,25 @@ def generate_gpt4v(
             except Exception:
                 pass
         logger.exception(
-            f"Error generating gpt4v: endpoint={endpoint}, model={model}, "
+            f"Error generating gpt4v: endpoint={actual_endpoint}, model={model}, "
             f"response={error_text}, error={e}, image_size={total_image_size / 1024:.2f} KB"
         )
         raise
 
     output = response.json()
-    output = output["choices"][0]["message"]["content"]
-    return output
+    
+    # Для Ollama нативного API формат ответа отличается
+    if is_ollama:
+        # Ollama возвращает {"message": {"content": "..."}}
+        if "message" in output and "content" in output["message"]:
+            return output["message"]["content"]
+        else:
+            logger.error(f"Unexpected Ollama response format: {output}")
+            raise ValueError(f"Unexpected Ollama response format: {output}")
+    else:
+        # OpenAI-compatible формат: {"choices": [{"message": {"content": "..."}}]}
+        output = output["choices"][0]["message"]["content"]
+        return output
 
 
 def stream_gpt4v(
