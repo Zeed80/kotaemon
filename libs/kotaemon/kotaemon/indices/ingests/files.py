@@ -1,7 +1,6 @@
 import logging
 from pathlib import Path
 from typing import Type
-from functools import lru_cache
 
 from decouple import config
 from llama_index.core.readers.base import BaseReader
@@ -11,6 +10,22 @@ from theflow.settings import settings as flowsettings
 from kotaemon.base import BaseComponent, Document, Param
 from kotaemon.indices.extractors import BaseDocParser
 from kotaemon.indices.splitters import BaseSplitter, TokenSplitter
+from kotaemon.loaders import (
+    AdobeReader,
+    AzureAIDocumentIntelligenceLoader,
+    DirectoryReader,
+    DoclingReader,
+    HtmlReader,
+    MathpixPDFReader,
+    MhtmlReader,
+    OCRReader,
+    PandasExcelReader,
+    PDFThumbnailReader,
+    TxtReader,
+    UnstructuredReader,
+    VisionOCRReader,
+    WebReader,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,154 +35,42 @@ def _get_vlm_endpoint() -> str:
     return getattr(flowsettings, "KH_VLM_ENDPOINT", "")
 
 
-# Lazy initialization functions for readers
-@lru_cache(maxsize=1)
-def _get_web_reader() -> "WebReader":
-    """Lazy load WebReader."""
-    from kotaemon.loaders import WebReader
-
-    return WebReader()
-
-
-@lru_cache(maxsize=1)
-def _get_unstructured_reader() -> "UnstructuredReader":
-    """Lazy load UnstructuredReader."""
-    from kotaemon.loaders import UnstructuredReader
-
-    return UnstructuredReader()
-
-
-@lru_cache(maxsize=1)
-def _get_adobe_reader() -> "AdobeReader":
-    """Lazy load AdobeReader."""
-    from kotaemon.loaders import AdobeReader
-
-    reader = AdobeReader()
-    reader.vlm_endpoint = _get_vlm_endpoint()
-    return reader
-
-
-@lru_cache(maxsize=1)
-def _get_azure_reader() -> "AzureAIDocumentIntelligenceLoader":
-    """Lazy load Azure AI Document Intelligence Reader."""
-    from kotaemon.loaders import AzureAIDocumentIntelligenceLoader
-
-    reader = AzureAIDocumentIntelligenceLoader(
-        endpoint=str(config("AZURE_DI_ENDPOINT", default="")),
-        credential=str(config("AZURE_DI_CREDENTIAL", default="")),
-        cache_dir=getattr(flowsettings, "KH_MARKDOWN_OUTPUT_DIR", None),
-    )
-    reader.vlm_endpoint = _get_vlm_endpoint()
-    return reader
-
-
-@lru_cache(maxsize=1)
-def _get_docling_reader() -> "DoclingReader":
-    """Lazy load DoclingReader."""
-    from kotaemon.loaders import DoclingReader
-
-    reader = DoclingReader()
-    reader.vlm_endpoint = _get_vlm_endpoint()
-    return reader
-
-
-@lru_cache(maxsize=1)
-def _get_vision_ocr_reader() -> "VisionOCRReader":
-    """Lazy load VisionOCRReader."""
-    from kotaemon.loaders import VisionOCRReader
-
-    reader = VisionOCRReader()
-    reader.vlm_endpoint = _get_vlm_endpoint()
-    return reader
-
-
-def _get_lazy_extractors() -> dict[str, BaseReader]:
-    """Get lazy-initialized extractors dict."""
-    from kotaemon.loaders import (
-        HtmlReader,
-        MhtmlReader,
-        PandasExcelReader,
-        PDFThumbnailReader,
-        TxtReader,
-    )
-
-    return {
-        ".xlsx": PandasExcelReader(),
-        ".docx": _get_unstructured_reader(),
-        ".pptx": _get_unstructured_reader(),
-        ".xls": _get_unstructured_reader(),
-        ".doc": _get_unstructured_reader(),
-        ".html": HtmlReader(),
-        ".mhtml": MhtmlReader(),
-        ".png": _get_unstructured_reader(),
-        ".jpeg": _get_unstructured_reader(),
-        ".jpg": _get_unstructured_reader(),
-        ".tiff": _get_unstructured_reader(),
-        ".tif": _get_unstructured_reader(),
-        ".pdf": PDFThumbnailReader(),
-        ".txt": TxtReader(),
-        ".md": TxtReader(),
-    }
-
-
-# Lazy-loaded KH_DEFAULT_FILE_EXTRACTORS
-@lru_cache(maxsize=1)
-def get_default_file_extractors() -> dict[str, BaseReader]:
-    """Get the default file extractors with lazy initialization."""
-    return _get_lazy_extractors()
-
-
-# For backwards compatibility - these are now deprecated
-# but kept for code that imports them directly
-import warnings
-
-# Create lazy property-like access via module-level __getattr__
-class _LazyModule:
-    """Module wrapper for lazy loading."""
-
-    _readers_cache = {}
-
-    def __getattr__(self, name):
-        if name in self._readers_cache:
-            return self._readers_cache[name]
-
-        lazy_loaders = {
-            "web_reader": _get_web_reader,
-            "unstructured": _get_unstructured_reader,
-            "adobe_reader": _get_adobe_reader,
-            "azure_reader": _get_azure_reader,
-            "docling_reader": _get_docling_reader,
-            "vision_ocr_reader": _get_vision_ocr_reader,
-        }
-
-        if name in lazy_loaders:
-            reader = lazy_loaders[name]()
-            self._readers_cache[name] = reader
-            return reader
-
-        raise AttributeError(f"module has no attribute {name!r}")
-
-
-_lazy_module = _LazyModule()
-
-
-def __getattr__(name):
-    """Module-level lazy attribute access."""
-    return getattr(_lazy_module, name)
-
-
-# Keep backwards compatibility - these are now lazy
-web_reader = _lazy_module
-unstructured = _lazy_module
-adobe_reader = _lazy_module
-azure_reader = _lazy_module
-docling_reader = _lazy_module
-vision_ocr_reader = _lazy_module
-
-
-KH_DEFAULT_FILE_EXTRACTORS: dict[str, BaseReader] = property(
-    lambda self: get_default_file_extractors()
+# Initialize readers with VLM endpoint configuration
+web_reader = WebReader()
+unstructured = UnstructuredReader()
+adobe_reader = AdobeReader()
+azure_reader = AzureAIDocumentIntelligenceLoader(
+    endpoint=str(config("AZURE_DI_ENDPOINT", default="")),
+    credential=str(config("AZURE_DI_CREDENTIAL", default="")),
+    cache_dir=getattr(flowsettings, "KH_MARKDOWN_OUTPUT_DIR", None),
 )
+docling_reader = DoclingReader()
+vision_ocr_reader = VisionOCRReader()
+
+# Set VLM endpoints
+adobe_reader.vlm_endpoint = _get_vlm_endpoint()
+azure_reader.vlm_endpoint = _get_vlm_endpoint()
+docling_reader.vlm_endpoint = _get_vlm_endpoint()
+vision_ocr_reader.vlm_endpoint = _get_vlm_endpoint()
+
+
+KH_DEFAULT_FILE_EXTRACTORS: dict[str, BaseReader] = {
+    ".xlsx": PandasExcelReader(),
+    ".docx": unstructured,
+    ".pptx": unstructured,
+    ".xls": unstructured,
+    ".doc": unstructured,
+    ".html": HtmlReader(),
+    ".mhtml": MhtmlReader(),
+    ".png": unstructured,
+    ".jpeg": unstructured,
+    ".jpg": unstructured,
+    ".tiff": unstructured,
+    ".tif": unstructured,
+    ".pdf": PDFThumbnailReader(),
+    ".txt": TxtReader(),
+    ".md": TxtReader(),
+}
 
 
 class DocumentIngestor(BaseComponent):
@@ -206,33 +109,25 @@ class DocumentIngestor(BaseComponent):
 
     def _get_reader(self, input_files: list[str | Path]):
         """Get appropriate readers for the input files based on file extension"""
-        # Use lazy-loaded extractors
-        file_extractors = get_default_file_extractors()
-
+        file_extractors: dict[str, BaseReader] = {
+            ext: reader for ext, reader in KH_DEFAULT_FILE_EXTRACTORS.items()
+        }
         for ext, cls in self.override_file_extractors.items():
             file_extractors[ext] = cls()
 
         if self.image_mode == "vlm":
             for ext in (".png", ".jpeg", ".jpg", ".tiff", ".tif"):
                 if ext in file_extractors:
-                    file_extractors[ext] = _get_vision_ocr_reader()
+                    file_extractors[ext] = vision_ocr_reader
 
         if self.pdf_mode == "normal":
-            from llama_index.readers.file import PDFReader
-
             file_extractors[".pdf"] = PDFReader()
         elif self.pdf_mode == "ocr":
-            from kotaemon.loaders import OCRReader
-
             file_extractors[".pdf"] = OCRReader()
         elif self.pdf_mode == "multimodal":
-            file_extractors[".pdf"] = _get_adobe_reader()
+            file_extractors[".pdf"] = adobe_reader
         else:
-            from kotaemon.loaders import MathpixPDFReader
-
             file_extractors[".pdf"] = MathpixPDFReader()
-
-        from kotaemon.loaders import DirectoryReader
 
         main_reader = DirectoryReader(
             input_files=input_files,
