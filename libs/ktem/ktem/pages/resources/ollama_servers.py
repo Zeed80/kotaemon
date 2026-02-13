@@ -60,7 +60,6 @@ class OllamaServersManagement(BasePage):
                     self.edit_status_html = gr.HTML(
                         value=_ollama_status_html(False, "unreachable"),
                         elem_classes=["ollama-status"],
-                        scale=0,
                     )
                     self.btn_check_edit = gr.Button("Проверить", size="sm", min_width=80, scale=0)
                 gr.Markdown("### Настройки модели")
@@ -100,7 +99,6 @@ class OllamaServersManagement(BasePage):
                 self.add_status_html = gr.HTML(
                     value=_ollama_status_html(False, "unreachable"),
                     elem_classes=["ollama-status"],
-                    scale=0,
                 )
                 self.btn_check_add = gr.Button("Проверить", size="sm", min_width=80, scale=0)
             gr.Markdown("### Настройки модели")
