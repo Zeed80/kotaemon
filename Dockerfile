@@ -47,9 +47,13 @@ COPY .env.example /app/.env
 
 # Install pip packages - base dependencies
 # Используем --no-cache-dir чтобы избежать Bad CRC-32 из повреждённого кэша (nvidia/torch wheels)
+# Очищаем кэш pip перед установкой для предотвращения ошибок с поврежденными wheel файлами
+# Если ошибка Bad CRC-32 повторяется, очистите кэш Docker BuildKit: docker builder prune -af
 RUN --mount=type=ssh  \
-    --mount=type=cache,target=/root/.cache/pip  \
-    pip install --no-cache-dir -e "libs/kotaemon[adv]" \
+    --mount=type=cache,target=/root/.cache/pip,sharing=locked  \
+    rm -rf /root/.cache/pip/wheels/* || true \
+    && pip cache purge || true \
+    && pip install --no-cache-dir -e "libs/kotaemon[adv]" \
     && pip install --no-cache-dir -e "libs/ktem" \
     && pip install --no-cache-dir "pdfservices-sdk@git+https://github.com/niallcm/pdfservices-python-sdk.git@bump-and-unfreeze-requirements" \
     && (pip uninstall -y multipart 2>/dev/null || true) \
@@ -62,9 +66,14 @@ RUN --mount=type=ssh  \
     if [ "$TARGETARCH" = "amd64" ]; then pip install "graphrag<=0.3.6" future; fi
 
 # Install torch and torchvision for unstructured
+# Очищаем кэш перед установкой torch для избежания проблем с поврежденными wheel файлами
+# Удаляем поврежденные nvidia wheel файлы из кэша
 RUN --mount=type=ssh  \
-    --mount=type=cache,target=/root/.cache/pip  \
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+    --mount=type=cache,target=/root/.cache/pip,sharing=locked  \
+    rm -rf /root/.cache/pip/wheels/*nvidia* || true \
+    && rm -rf /root/.cache/pip/wheels/*torch* || true \
+    && pip cache purge || true \
+    && pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # Install Unstructured
 RUN --mount=type=ssh  \
