@@ -266,11 +266,27 @@ class VisionOCRReader(BaseReader):
             elif b64_size > 2 * 1024 * 1024:  # > 2MB
                 timeout = 450  # 7.5 минут для больших изображений
             
+            # Определяем, используется ли Ollama
+            is_ollama = (
+                "/v1/chat/completions" in endpoint 
+                and (":11434" in endpoint or "ollama" in endpoint.lower())
+                and not any(provider in endpoint for provider in ["openai.com", "azure.com", "api.openai.com", "api.groq.com"])
+            )
+            
+            # Предупреждение для больших изображений в Ollama
+            if is_ollama and b64_size > 2 * 1024 * 1024:  # > 2MB
+                logger.warning(
+                    f"Large image for Ollama VLM: file={file_path.name}, "
+                    f"image_size={b64_size / 1024:.2f} KB. "
+                    f"Ollama may close connection for very large images. "
+                    f"Consider reducing image resolution below {MAX_IMAGE_DIMENSION}px."
+                )
+            
             logger.info(
                 f"Starting VLM extraction: file={file_path.name}, "
                 f"endpoint={endpoint}, model={model}, "
                 f"max_tokens={self.max_tokens}, timeout={timeout}s, "
-                f"image_size={b64_size / 1024:.2f} KB"
+                f"image_size={b64_size / 1024:.2f} KB, is_ollama={is_ollama}"
             )
             
             text = generate_gpt4v(
@@ -295,15 +311,43 @@ class VisionOCRReader(BaseReader):
                 f"VLM extraction timeout: file={file_path.name}, "
                 f"endpoint={endpoint}, model={model}, "
                 f"timeout={timeout}s, elapsed_time={elapsed_time:.2f}s, "
-                f"image_size={b64_size / 1024:.2f} KB"
+                f"image_size={b64_size / 1024:.2f} KB. "
+                f"Consider reducing image size or increasing timeout."
             )
             text = ""
-        except requests.exceptions.ConnectionError as e:
+        except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as e:
             elapsed_time = time.time() - start_time
+            error_str = str(e)
+            is_remote_disconnected = (
+                "Remote end closed connection" in error_str 
+                or "RemoteDisconnected" in str(type(e))
+            )
+            
+            if is_remote_disconnected:
+                logger.error(
+                    f"VLM connection closed by server (RemoteDisconnected): file={file_path.name}, "
+                    f"endpoint={endpoint}, model={model}, "
+                    f"elapsed_time={elapsed_time:.2f}s, image_size={b64_size / 1024:.2f} KB. "
+                    f"This usually means the image is too large for the model or the request takes too long. "
+                    f"Try: 1) Reducing image resolution (current max: {MAX_IMAGE_DIMENSION}px), "
+                    f"2) Using a smaller image, 3) Checking if Ollama model supports this image size."
+                )
+            else:
+                logger.error(
+                    f"VLM connection error: file={file_path.name}, "
+                    f"endpoint={endpoint}, model={model}, "
+                    f"elapsed_time={elapsed_time:.2f}s, image_size={b64_size / 1024:.2f} KB, "
+                    f"error={error_str}. Check if Ollama is running and accessible."
+                )
+            text = ""
+        except requests.exceptions.HTTPError as e:
+            elapsed_time = time.time() - start_time
+            status_code = getattr(e.response, "status_code", "unknown") if hasattr(e, "response") else "unknown"
             logger.error(
-                f"VLM connection error: file={file_path.name}, "
+                f"VLM HTTP error: file={file_path.name}, "
                 f"endpoint={endpoint}, model={model}, "
-                f"elapsed_time={elapsed_time:.2f}s, error={e}"
+                f"status={status_code}, elapsed_time={elapsed_time:.2f}s, "
+                f"image_size={b64_size / 1024:.2f} KB, error={e}"
             )
             text = ""
         except Exception as e:

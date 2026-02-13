@@ -50,9 +50,11 @@ def generate_gpt4v(
     # Проверяем по порту 11434 или по отсутствию известных доменов OpenAI/Azure
     known_providers = ["openai.com", "azure.com", "api.openai.com", "api.groq.com"]
     has_known_provider = any(provider in endpoint for provider in known_providers)
+    # Ollama endpoint обычно содержит :11434 и /v1/chat/completions
+    # Также проверяем по отсутствию известных провайдеров и наличию /v1/chat/completions
     is_ollama = (
         "/v1/chat/completions" in endpoint 
-        and ":11434" in endpoint
+        and (":11434" in endpoint or "ollama" in endpoint.lower())
         and not has_known_provider
     )
     
@@ -89,50 +91,88 @@ def generate_gpt4v(
 
     # Для Ollama добавляем дополнительные параметры
     if is_ollama:
-        if model:
+        if not model:
+            logger.warning(
+                f"Ollama endpoint detected but no model provided: {endpoint}. "
+                "Model parameter is required for Ollama."
+            )
+        else:
             payload["model"] = model
         # Параметры для Ollama в options
+        # Увеличиваем num_ctx для больших изображений (vision модели требуют больше контекста)
         payload["options"] = {
-            "num_ctx": 8192,  # Контекстное окно для обработки больших изображений
+            "num_ctx": 16384,  # Увеличенное контекстное окно для обработки больших изображений
             "num_predict": max_tokens,  # Максимальное количество токенов для генерации
             "temperature": 0,
             "keep_alive": "5m",  # Сохранять модель в памяти 5 минут
         }
-    elif is_ollama and not model:
-        logger.warning(
-            f"Ollama endpoint detected but no model provided: {endpoint}. "
-            "Model parameter is required for Ollama."
-        )
 
     if len(images) > max_images:
         logger.warning(
             f"Truncated to {max_images} images (original {len(images)} images)"
         )
 
+    # Вычисляем размер изображений для логирования
+    images_to_send = images[:max_images]
+    total_image_size = sum(len(img) for img in images_to_send)
+    
     # Логируем параметры запроса для отладки
-    logger.debug(
+    logger.info(
         f"VLM request: endpoint={endpoint}, model={model}, max_tokens={max_tokens}, "
-        f"timeout={timeout}, images_count={len(images[:max_images])}"
+        f"timeout={timeout}s, images_count={len(images_to_send)}, "
+        f"total_image_size={total_image_size / 1024:.2f} KB, is_ollama={is_ollama}"
     )
 
+    response = None
     try:
         response = requests.post(endpoint, headers=headers, json=payload, timeout=timeout)
         response.raise_for_status()
     except requests.exceptions.Timeout as e:
         logger.error(
-            f"VLM request timeout after {timeout}s: endpoint={endpoint}, model={model}"
+            f"VLM request timeout after {timeout}s: endpoint={endpoint}, model={model}, "
+            f"image_size={total_image_size / 1024:.2f} KB"
         )
         raise
-    except requests.exceptions.ConnectionError as e:
+    except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as e:
+        # RemoteDisconnected является подклассом ConnectionError
+        error_detail = str(e)
+        if "Remote end closed connection" in error_detail or "RemoteDisconnected" in str(type(e)):
+            logger.error(
+                f"VLM connection closed by server (RemoteDisconnected): endpoint={endpoint}, "
+                f"model={model}, image_size={total_image_size / 1024:.2f} KB, "
+                f"timeout={timeout}s. This may indicate the image is too large or the request "
+                f"takes too long. Try reducing image size or increasing timeout."
+            )
+        else:
+            logger.error(
+                f"VLM connection error: endpoint={endpoint}, model={model}, "
+                f"error={error_detail}, image_size={total_image_size / 1024:.2f} KB"
+            )
+        raise
+    except requests.exceptions.HTTPError as e:
+        # HTTP ошибки (4xx, 5xx)
+        error_text = ""
+        if response is not None:
+            try:
+                error_text = response.text[:500]  # Ограничиваем размер лога
+            except Exception:
+                error_text = f"Status {response.status_code}"
         logger.error(
-            f"VLM connection error: endpoint={endpoint}, model={model}, error={e}"
+            f"VLM HTTP error: endpoint={endpoint}, model={model}, "
+            f"status={response.status_code if response else 'unknown'}, "
+            f"error={error_text}, image_size={total_image_size / 1024:.2f} KB"
         )
         raise
     except Exception as e:
-        error_text = getattr(response, "text", str(e))
+        error_text = ""
+        if response is not None:
+            try:
+                error_text = response.text[:500] if hasattr(response, "text") else ""
+            except Exception:
+                pass
         logger.exception(
             f"Error generating gpt4v: endpoint={endpoint}, model={model}, "
-            f"response={error_text}, error={e}"
+            f"response={error_text}, error={e}, image_size={total_image_size / 1024:.2f} KB"
         )
         raise
 
@@ -167,9 +207,11 @@ def stream_gpt4v(
     # Проверяем по порту 11434 или по отсутствию известных доменов OpenAI/Azure
     known_providers = ["openai.com", "azure.com", "api.openai.com", "api.groq.com"]
     has_known_provider = any(provider in endpoint for provider in known_providers)
+    # Ollama endpoint обычно содержит :11434 и /v1/chat/completions
+    # Также проверяем по отсутствию известных провайдеров и наличию /v1/chat/completions
     is_ollama = (
         "/v1/chat/completions" in endpoint 
-        and ":11434" in endpoint
+        and (":11434" in endpoint or "ollama" in endpoint.lower())
         and not has_known_provider
     )
     
@@ -206,34 +248,26 @@ def stream_gpt4v(
         "temperature": 0,
     }
 
-    # Для Ollama обязательно нужен параметр model
-    if is_ollama and model:
-        payload["model"] = model
-    elif is_ollama and not model:
-        logger.warning(
-            f"Ollama endpoint detected but no model provided: {endpoint}. "
-            "Model parameter is required for Ollama."
-        )
-
     if len(images) > max_images:
         logger.warning(
             f"Truncated to {max_images} images (original {len(images)} images)"
         )
+    
     # Для Ollama добавляем дополнительные параметры
     if is_ollama:
-        if model:
+        if not model:
+            logger.warning(
+                f"Ollama endpoint detected but no model provided: {endpoint}. "
+                "Model parameter is required for Ollama."
+            )
+        else:
             payload["model"] = model
         payload["options"] = {
-            "num_ctx": 8192,
+            "num_ctx": 16384,  # Увеличенное контекстное окно для обработки больших изображений
             "num_predict": max_tokens,
             "temperature": 0,
             "keep_alive": "5m",
         }
-    elif is_ollama and not model:
-        logger.warning(
-            f"Ollama endpoint detected but no model provided: {endpoint}. "
-            "Model parameter is required for Ollama."
-        )
 
     try:
         response = requests.post(
