@@ -110,11 +110,15 @@ class VLMsManagement(BasePage):
             outputs=[self.vlm_list],
             show_progress="hidden",
         )
+        server_choices = [c[1] for c in ollama_servers_manager.options_for_dropdown()]
         self._app.app.load(
-            lambda: gr.update(
-                choices=[c[1] for c in ollama_servers_manager.options_for_dropdown()]
-            ),
+            lambda: gr.update(choices=server_choices),
             outputs=[self.add_ollama_server],
+            show_progress="hidden",
+        )
+        self._app.app.load(
+            lambda: gr.update(choices=server_choices),
+            outputs=[self.edit_ollama_server],
             show_progress="hidden",
         )
 
@@ -291,21 +295,23 @@ class VLMsManagement(BasePage):
 
     def on_add_provider_change(self, provider):
         is_ollama = provider == "ollama"
+        server_choices = [c[1] for c in ollama_servers_manager.options_for_dropdown()]
         return (
             gr.update(visible=not is_ollama),
             gr.update(visible=not is_ollama),
             gr.update(visible=not is_ollama),
-            gr.update(visible=is_ollama),
+            gr.update(visible=is_ollama, choices=server_choices, value=server_choices[0] if server_choices else None),
             gr.update(visible=is_ollama),
         )
 
     def on_edit_provider_change(self, provider):
         is_ollama = provider == "ollama"
+        server_choices = [c[1] for c in ollama_servers_manager.options_for_dropdown()]
         return (
             gr.update(visible=not is_ollama),
             gr.update(visible=not is_ollama),
             gr.update(visible=not is_ollama),
-            gr.update(visible=is_ollama),
+            gr.update(visible=is_ollama, choices=server_choices),
             gr.update(visible=is_ollama),
         )
 

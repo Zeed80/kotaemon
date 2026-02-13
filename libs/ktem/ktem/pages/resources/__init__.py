@@ -4,7 +4,6 @@ from ktem.db.models import User, engine
 from ktem.embeddings.ui import EmbeddingManagement
 from ktem.index.ui import IndexManagement
 from ktem.llms.ui import LLMManagement
-from ktem.pages.resources.ollama_servers import OllamaServersManagement
 from ktem.pages.resources.vlms import VLMsManagement
 from ktem.rerankings.ui import RerankingManagement
 from sqlmodel import Session, select
@@ -23,9 +22,6 @@ class ResourcesTab(BasePage):
 
         with gr.Tab("LLMs") as self.llm_management_tab:
             self.llm_management = LLMManagement(self._app)
-
-        with gr.Tab("Ollama servers") as self.ollama_servers_tab:
-            self.ollama_servers_management = OllamaServersManagement(self._app)
 
         with gr.Tab("VLMs") as self.vlms_tab:
             self.vlms_management = VLMsManagement(self._app)

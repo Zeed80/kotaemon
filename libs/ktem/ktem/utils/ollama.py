@@ -1,4 +1,10 @@
-"""Утилиты для работы с Ollama API."""
+"""Утилиты для работы с Ollama API.
+
+Все HTTP-запросы к Ollama (проверка доступности, список моделей, загрузка)
+выполняются на бэкенде — на хосте, где запущен Kotaemon. URL localhost
+и 127.0.0.1 означают «этот сервер», а не браузер пользователя.
+Используется только официальный Ollama API (GET /api/tags, POST /api/pull и т.д.).
+"""
 
 import json
 import logging
@@ -67,7 +73,7 @@ def get_ollama_base_url_for_langchain() -> str:
 
 
 def _normalize_url_to_api(url: str) -> str:
-    """Привести URL к формату с /api для запросов к Ollama API."""
+    """Привести URL к формату с /api для запросов к Ollama API (на бэкенде)."""
     url = (url or "").strip().rstrip("/")
     url = url.replace("/v1/", "/api").replace("/v1", "/api")
     if not url.endswith("/api"):
@@ -81,14 +87,18 @@ def _normalize_url_to_api(url: str) -> str:
 def check_ollama_available(base_url: str | None = None) -> tuple[bool, str]:
     """Проверить доступность сервера Ollama по URL.
 
-    Выполняет GET к {base_url}/api/tags с таймаутом. При 200 считает сервер
-    доступным.
+    Запрос выполняется на бэкенде (на хосте, где запущен Kotaemon).
+    localhost и 127.0.0.1 означают «этот сервер», а не браузер пользователя.
+
+    Выполняет GET к {base_url}/api/tags с таймаутом 3 с. При 200 считает
+    сервер доступным. Используется только официальный Ollama API.
 
     Args:
         base_url: URL Ollama (с /v1/ или /api или без). Если None — из настроек.
 
     Returns:
-        (success, message): успех и сообщение для UI (ok / unreachable / error).
+        (success, message): успех и код для UI: ok, timeout, unreachable,
+        error, empty_url, status_XXX.
     """
     if base_url is None or not (base_url or "").strip():
         base_url = get_application_setting("kh_ollama_url")

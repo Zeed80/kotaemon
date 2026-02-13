@@ -745,6 +745,7 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                 "value": "default",
                 "choices": vlm_choices,
                 "component": "dropdown",
+                "special_type": "vlm",
             },
             "llm_model": {
                 "name": "LLM model",

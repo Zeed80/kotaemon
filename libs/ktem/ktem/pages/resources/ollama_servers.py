@@ -3,12 +3,30 @@
 import gradio as gr
 import pandas as pd
 from ktem.app import BasePage
+from ktem.utils.ollama import check_ollama_available
 
 from ktem.ollama_servers import ollama_servers_manager
 
 
 def _status_icon(ok: bool) -> str:
     return "🟢" if ok else "🔴"
+
+
+def _ollama_status_html(ok: bool, message: str) -> str:
+    """HTML индикатора доступности Ollama (зелёный/красный кружок)."""
+    if ok:
+        color, title = "#22c55e", "Ollama доступен"
+    else:
+        color = "#ef4444"
+        title = {"timeout": "Таймаут", "unreachable": "Недоступен", "error": "Ошибка"}.get(
+            message, "Недоступен"
+        )
+    return (
+        f'<span title="{title}" style="'
+        "display: inline-block; width: 14px; height: 14px; border-radius: 50%; "
+        f"background: {color}; margin-left: 8px; vertical-align: middle;"
+        '" aria-label="Ollama status"></span>'
+    )
 
 
 class OllamaServersManagement(BasePage):
@@ -30,7 +48,16 @@ class OllamaServersManagement(BasePage):
                 )
             with gr.Column(visible=False) as self._edit_panel:
                 self.edit_name = gr.Textbox(label="Имя", interactive=False)
-                self.edit_base_url = gr.Textbox(label="Ollama API URL")
+                with gr.Row():
+                    self.edit_base_url = gr.Textbox(
+                        label="Ollama API URL",
+                        info="Проверка выполняется на сервере Kotaemon. localhost — машина, где запущено приложение.",
+                    )
+                    self.edit_status_html = gr.HTML(
+                        value=_ollama_status_html(False, "unreachable"),
+                        elem_classes=["ollama-status"],
+                    )
+                    self.btn_check_edit = gr.Button("Проверить", size="sm", min_width=80)
                 self.edit_num_ctx = gr.Number(
                     label="Макс. контекст (num_ctx)",
                     value=8192,
@@ -53,11 +80,17 @@ class OllamaServersManagement(BasePage):
                 label="Имя",
                 info="Уникальное имя сервера (например: local, dev)",
             )
-            self.add_base_url = gr.Textbox(
-                label="Ollama API URL",
-                info="Например: http://localhost:11434/v1/",
-                placeholder="http://localhost:11434/v1/",
-            )
+            with gr.Row():
+                self.add_base_url = gr.Textbox(
+                    label="Ollama API URL",
+                    info="Проверка выполняется на сервере Kotaemon. localhost — машина, где запущено приложение.",
+                    placeholder="http://localhost:11434/v1/",
+                )
+                self.add_status_html = gr.HTML(
+                    value=_ollama_status_html(False, "unreachable"),
+                    elem_classes=["ollama-status"],
+                )
+                self.btn_check_add = gr.Button("Проверить", size="sm", min_width=80)
             self.add_num_ctx = gr.Number(
                 label="Макс. контекст (num_ctx)",
                 value=8192,
@@ -106,7 +139,29 @@ class OllamaServersManagement(BasePage):
     def list_servers_with_status(self):
         return self.list_servers(with_status=True)
 
+    def _check_add_url_and_return_html(self, url):
+        """Проверка доступности по URL (форма Add). Выполняется на бэкенде."""
+        ok, msg = check_ollama_available(url)
+        return _ollama_status_html(ok, msg)
+
+    def _check_edit_url_and_return_html(self, url):
+        """Проверка доступности по URL (форма Edit). Выполняется на бэкенде."""
+        ok, msg = check_ollama_available(url)
+        return _ollama_status_html(ok, msg)
+
     def on_register_events(self):
+        self.btn_check_add.click(
+            self._check_add_url_and_return_html,
+            inputs=[self.add_base_url],
+            outputs=[self.add_status_html],
+            show_progress="hidden",
+        )
+        self.btn_check_edit.click(
+            self._check_edit_url_and_return_html,
+            inputs=[self.edit_base_url],
+            outputs=[self.edit_status_html],
+            show_progress="hidden",
+        )
         self.btn_refresh_status.click(
             self.list_servers_with_status,
             inputs=[],
@@ -120,6 +175,7 @@ class OllamaServersManagement(BasePage):
                 self._edit_panel,
                 self.edit_name,
                 self.edit_base_url,
+                self.edit_status_html,
                 self.edit_num_ctx,
                 self.selected_server_name,
             ],
@@ -131,12 +187,17 @@ class OllamaServersManagement(BasePage):
             outputs=[],
             show_progress="hidden",
         ).then(
-            self.list_servers,
+            self.list_servers_with_status,
             inputs=[],
             outputs=[self.server_list],
         ).then(
-            lambda: ("", "", 8192),
-            outputs=[self.add_name, self.add_base_url, self.add_num_ctx],
+            lambda: ("", "", 8192, _ollama_status_html(False, "unreachable")),
+            outputs=[
+                self.add_name,
+                self.add_base_url,
+                self.add_num_ctx,
+                self.add_status_html,
+            ],
         )
         self.btn_save.click(
             self.save_server,
@@ -177,6 +238,7 @@ class OllamaServersManagement(BasePage):
                 gr.update(visible=False),
                 "",
                 "",
+                _ollama_status_html(False, "unreachable"),
                 8192,
                 "",
                 gr.update(visible=False),
@@ -187,6 +249,7 @@ class OllamaServersManagement(BasePage):
                 self._edit_panel,
                 self.edit_name,
                 self.edit_base_url,
+                self.edit_status_html,
                 self.edit_num_ctx,
                 self.selected_server_name,
                 self.btn_delete_confirm,
@@ -218,6 +281,7 @@ class OllamaServersManagement(BasePage):
                 gr.update(visible=False),
                 "",
                 "",
+                _ollama_status_html(False, "unreachable"),
                 8192,
                 "",
                 gr.update(visible=False),
@@ -228,6 +292,7 @@ class OllamaServersManagement(BasePage):
                 self._edit_panel,
                 self.edit_name,
                 self.edit_base_url,
+                self.edit_status_html,
                 self.edit_num_ctx,
                 self.selected_server_name,
                 self.btn_delete_confirm,
@@ -243,6 +308,7 @@ class OllamaServersManagement(BasePage):
                 gr.update(visible=False),
                 "",
                 "",
+                _ollama_status_html(False, "unreachable"),
                 8192,
                 "",
             )
@@ -254,13 +320,16 @@ class OllamaServersManagement(BasePage):
                 gr.update(visible=False),
                 "",
                 "",
+                _ollama_status_html(False, "unreachable"),
                 8192,
                 "",
             )
+        ok, msg = ollama_servers_manager.check_available(name)
         return (
             gr.update(visible=True),
             server["name"],
             server["base_url"],
+            _ollama_status_html(ok, msg),
             server["num_ctx"],
             server["name"],
         )

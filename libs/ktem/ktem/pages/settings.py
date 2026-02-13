@@ -5,7 +5,7 @@ import gradio as gr
 from ktem.app import BasePage
 from ktem.components import reasonings
 from ktem.db.models import Settings, User, engine
-from ktem.utils.ollama import check_ollama_available
+from ktem.pages.resources.ollama_servers import OllamaServersManagement
 from sqlmodel import Session, select
 from theflow.settings import settings as flowsettings
 
@@ -151,9 +151,10 @@ class SettingsPage(BasePage):
         self._components = {}
         self._reasoning_mode = {}
 
-        # store llms and embeddings components
+        # store llms, embeddings and vlms components
         self._llms = []
         self._embeddings = []
+        self._vlms = []
 
         # render application page if there are application settings
         self._render_app_tab = False
@@ -198,6 +199,9 @@ class SettingsPage(BasePage):
         if self._app.f_user_management:
             with gr.Tab("User settings"):
                 self.user_tab()
+
+        with gr.Tab("Ollama servers"):
+            self.ollama_servers_management = OllamaServersManagement(self._app)
 
         self.app_tab()
         self.index_tab()
@@ -351,20 +355,7 @@ class SettingsPage(BasePage):
         with gr.Tab("General", visible=self._render_app_tab):
             for n, si in self._default_settings.application.settings.items():
                 if n == "kh_ollama_url":
-                    with gr.Row():
-                        obj = render_setting_item(si, si.value)
-                        self._components[f"application.{n}"] = obj
-                        self._ollama_status_html = gr.HTML(
-                            value=_ollama_status_html(False, "unreachable"),
-                            elem_classes=["ollama-status"],
-                        )
-                        self._ollama_check_btn = gr.Button(
-                            "Проверить", size="sm", min_width=80
-                        )
-                    if si.special_type == "llm":
-                        self._llms.append(obj)
-                    if si.special_type == "embedding":
-                        self._embeddings.append(obj)
+                    # Пропускаем поле kh_ollama_url - управление серверами Ollama теперь в отдельной вкладке
                     continue
                 obj = render_setting_item(si, si.value)
                 self._components[f"application.{n}"] = obj
@@ -396,6 +387,8 @@ class SettingsPage(BasePage):
                             self._llms.append(obj)
                         if si.special_type == "embedding":
                             self._embeddings.append(obj)
+                        if si.special_type == "vlm":
+                            self._vlms.append(obj)
 
     def reasoning_tab(self):
         with gr.Tab("Reasoning settings", visible=self._render_reasoning_tab):
@@ -491,45 +484,24 @@ class SettingsPage(BasePage):
         """Get the setting components"""
         output = []
         for name in self._settings_keys:
+            if name not in self._components:
+                continue  # Пропускаем поля, которые не рендерятся (например kh_ollama_url)
             output.append(self._components[name])
         return output
 
     def component_names(self):
         """Get the setting components"""
-        return self._settings_keys
-
-    def _check_ollama_and_return_html(self, url):
-        """По значению URL проверить Ollama и вернуть HTML индикатора."""
-        if not url or not str(url).strip():
-            from flowsettings import get_application_setting
-
-            url = get_application_setting("kh_ollama_url") or getattr(
-                flowsettings, "KH_OLLAMA_URL", ""
-            )
-        ok, msg = check_ollama_available(url)
-        return _ollama_status_html(ok, msg)
+        # Исключаем kh_ollama_url, так как управление серверами Ollama теперь в отдельной вкладке
+        return [name for name in self._settings_keys if name != "application.kh_ollama_url"]
 
     def _on_app_created(self):
         if not self._app.f_user_management:
-            load_event = self._app.app.load(
+            self._app.app.load(
                 self.load_setting,
                 inputs=self._user_id,
                 outputs=[self._settings_state] + self.components(),
                 show_progress="hidden",
             )
-            if self._render_app_tab and hasattr(self, "_ollama_status_html"):
-                load_event.then(
-                    self._check_ollama_and_return_html,
-                    inputs=[self._components["application.kh_ollama_url"]],
-                    outputs=[self._ollama_status_html],
-                    show_progress="hidden",
-                )
-                self._ollama_check_btn.click(
-                    self._check_ollama_and_return_html,
-                    inputs=[self._components["application.kh_ollama_url"]],
-                    outputs=[self._ollama_status_html],
-                    show_progress="hidden",
-                )
 
         def update_llms():
             from ktem.llms.manager import llms
@@ -551,6 +523,20 @@ class SettingsPage(BasePage):
             emb_choices += [(_, _) for _ in embedding_models_manager.options().keys()]
             return gr.update(choices=emb_choices)
 
+        def update_vlms():
+            from theflow.settings import settings as flowsettings
+
+            vlm_choices = [("Default (from env)", "default")]
+            try:
+                from ktem.vlms import vlms_manager
+
+                vlm_choices += vlms_manager.options_for_dropdown()
+            except Exception:
+                vlm_choices += getattr(
+                    flowsettings, "KH_VLM_OPTIONS", [("Default", "default")]
+                )[1:]
+            return gr.update(choices=vlm_choices)
+
         for llm in self._llms:
             self._app.app.load(
                 update_llms,
@@ -563,5 +549,12 @@ class SettingsPage(BasePage):
                 update_embeddings,
                 inputs=[],
                 outputs=[emb],
+                show_progress="hidden",
+            )
+        for vlm in self._vlms:
+            self._app.app.load(
+                update_vlms,
+                inputs=[],
+                outputs=[vlm],
                 show_progress="hidden",
             )
