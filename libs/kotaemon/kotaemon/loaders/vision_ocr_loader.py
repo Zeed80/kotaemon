@@ -4,9 +4,12 @@ Avoids Tesseract by sending the image to a VLM endpoint with a prompt to extract
 all text, preserving structure and order.
 """
 import logging
+import os
+import time
 from pathlib import Path
 from typing import List, Optional
 
+import requests
 from kotaemon.base import Document, Param
 
 from .base import BaseReader
@@ -14,6 +17,11 @@ from .utils.adobe import encode_image_base64
 from .utils.gpt4v import generate_gpt4v
 
 logger = logging.getLogger(__name__)
+
+# Максимальный размер изображения в пикселях (по ширине или высоте) перед ресайзом
+MAX_IMAGE_DIMENSION = 4096
+# Максимальный размер файла изображения в байтах (50MB)
+MAX_IMAGE_FILE_SIZE = 50 * 1024 * 1024
 
 # MIME types for data URL
 _IMAGE_MIME = {
@@ -28,12 +36,30 @@ _IMAGE_MIME = {
 }
 
 EXTRACT_TEXT_PROMPT = (
-    "Extract all text from this document image, preserving structure and reading order. "
-    "Read text carefully, including numbers, dates, names, and special characters. "
-    "Maintain the original layout: preserve paragraphs, lists, tables, and line breaks. "
-    "Output only the extracted text, with no commentary, explanation, or additional text. "
-    "If the image contains multiple languages, extract text in all languages present. "
-    "Use line breaks where appropriate to keep paragraphs and lists readable."
+    "You are an expert OCR system. Extract ALL visible text from this document image with maximum accuracy and detail.\n\n"
+    "CRITICAL REQUIREMENTS:\n"
+    "1. Extract EVERY piece of text visible in the image - do not skip or omit anything\n"
+    "2. Preserve the exact reading order (left-to-right, top-to-bottom, or as appropriate for the language)\n"
+    "3. Maintain original structure: preserve paragraphs, headings, lists, tables, and formatting\n"
+    "4. Extract numbers, dates, names, addresses, and special characters with 100% accuracy\n"
+    "5. For tables: preserve column structure, use tabs or spaces to align columns\n"
+    "6. For lists: preserve bullet points, numbering, and indentation\n"
+    "7. For multi-column layouts: maintain column separation\n"
+    "8. Extract text in ALL languages present - do not translate or skip non-English text\n"
+    "9. Preserve line breaks and spacing to maintain readability\n"
+    "10. Include headers, footers, watermarks, and any text in margins\n\n"
+    "OUTPUT FORMAT:\n"
+    "- Output ONLY the extracted text\n"
+    "- Do NOT add explanations, commentary, or descriptions\n"
+    "- Do NOT add markdown formatting unless the original document uses it\n"
+    "- Use line breaks to separate paragraphs and sections\n"
+    "- For tables, use consistent spacing or tabs between columns\n"
+    "- Preserve capitalization and punctuation exactly as shown\n\n"
+    "QUALITY CHECK:\n"
+    "- Verify that numbers match exactly (especially dates, amounts, IDs)\n"
+    "- Ensure all visible text is included - nothing should be missing\n"
+    "- Check that special characters (currency symbols, mathematical operators, etc.) are preserved\n"
+    "- Confirm that multi-line text blocks maintain their structure"
 )
 
 
@@ -109,18 +135,85 @@ class VisionOCRReader(BaseReader):
                 "VisionOCRReader: unsupported extension %s, attempting anyway", suffix
             )
         mime = _IMAGE_MIME.get(suffix, "image/png")
+        
+        # Проверяем размер файла
+        file_size = file_path.stat().st_size
+        if file_size > MAX_IMAGE_FILE_SIZE:
+            logger.warning(
+                f"Image file too large: {file_path.name} ({file_size / 1024 / 1024:.2f} MB). "
+                f"Maximum allowed: {MAX_IMAGE_FILE_SIZE / 1024 / 1024:.2f} MB"
+            )
+        
         try:
-            b64 = encode_image_base64(file_path)
+            # Проверяем размер изображения и при необходимости ресайзим
+            image_path = file_path
+            try:
+                from PIL import Image
+                
+                with Image.open(file_path) as img:
+                    width, height = img.size
+                    logger.debug(
+                        f"Image dimensions: {file_path.name} - {width}x{height}, "
+                        f"file_size={file_size / 1024:.2f} KB"
+                    )
+                    
+                    # Ресайзим если изображение слишком большое
+                    if width > MAX_IMAGE_DIMENSION or height > MAX_IMAGE_DIMENSION:
+                        logger.info(
+                            f"Resizing large image: {file_path.name} from {width}x{height} "
+                            f"to max {MAX_IMAGE_DIMENSION}px"
+                        )
+                        # Сохраняем пропорции
+                        if width > height:
+                            new_width = MAX_IMAGE_DIMENSION
+                            new_height = int(height * (MAX_IMAGE_DIMENSION / width))
+                        else:
+                            new_height = MAX_IMAGE_DIMENSION
+                            new_width = int(width * (MAX_IMAGE_DIMENSION / height))
+                        
+                        img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                        # Сохраняем во временный файл
+                        import tempfile
+                        temp_fd, temp_path = tempfile.mkstemp(suffix=suffix)
+                        os.close(temp_fd)
+                        img_resized.save(temp_path, format=img.format or "PNG")
+                        image_path = Path(temp_path)
+                        logger.debug(f"Resized image saved to temporary file: {image_path}")
+            except ImportError:
+                logger.warning("PIL/Pillow not available, skipping image resize check")
+            except Exception as e:
+                logger.warning(f"Failed to check/resize image {file_path}: {e}, using original")
+            
+            b64 = encode_image_base64(image_path)
+            
+            # Очищаем временный файл если был создан
+            if image_path != file_path and image_path.exists():
+                try:
+                    os.unlink(image_path)
+                except Exception:
+                    pass
+                    
         except Exception as e:
-            logger.exception("Failed to read image %s: %s", file_path, e)
+            logger.exception(
+                f"Failed to read/process image {file_path}: file_size={file_size / 1024:.2f} KB, error={e}"
+            )
             return [
                 Document(
                     text="",
-                    metadata={"file_name": file_path.name, "file_path": str(file_path)},
+                    metadata={
+                        "file_name": file_path.name,
+                        "file_path": str(file_path),
+                        "error": str(e),
+                    },
                 )
             ]
 
         data_url = f"data:{mime};base64,{b64}"
+        b64_size = len(b64)
+        logger.debug(
+            f"Image encoded: {file_path.name}, base64_size={b64_size / 1024:.2f} KB, "
+            f"data_url_size={len(data_url) / 1024:.2f} KB"
+        )
 
         endpoint = self.vlm_endpoint or ""
         model = self.vlm_model or ""
@@ -162,16 +255,65 @@ class VisionOCRReader(BaseReader):
                 )
             ]
 
+        start_time = time.time()
+        
         try:
+            # Определяем таймаут на основе размера изображения
+            # Большие изображения требуют больше времени
+            timeout = 300  # Базовый таймаут 5 минут
+            if b64_size > 5 * 1024 * 1024:  # > 5MB
+                timeout = 600  # 10 минут для очень больших изображений
+            elif b64_size > 2 * 1024 * 1024:  # > 2MB
+                timeout = 450  # 7.5 минут для больших изображений
+            
+            logger.info(
+                f"Starting VLM extraction: file={file_path.name}, "
+                f"endpoint={endpoint}, model={model}, "
+                f"max_tokens={self.max_tokens}, timeout={timeout}s, "
+                f"image_size={b64_size / 1024:.2f} KB"
+            )
+            
             text = generate_gpt4v(
                 endpoint=endpoint,
                 prompt=EXTRACT_TEXT_PROMPT,
                 images=data_url,
                 max_tokens=self.max_tokens,
                 model=model if model else None,
+                timeout=timeout,
             )
+            
+            elapsed_time = time.time() - start_time
+            text_length = len(text) if text else 0
+            logger.info(
+                f"VLM extraction completed: file={file_path.name}, "
+                f"extracted_text_length={text_length}, elapsed_time={elapsed_time:.2f}s"
+            )
+            
+        except requests.exceptions.Timeout as e:
+            elapsed_time = time.time() - start_time
+            logger.error(
+                f"VLM extraction timeout: file={file_path.name}, "
+                f"endpoint={endpoint}, model={model}, "
+                f"timeout={timeout}s, elapsed_time={elapsed_time:.2f}s, "
+                f"image_size={b64_size / 1024:.2f} KB"
+            )
+            text = ""
+        except requests.exceptions.ConnectionError as e:
+            elapsed_time = time.time() - start_time
+            logger.error(
+                f"VLM connection error: file={file_path.name}, "
+                f"endpoint={endpoint}, model={model}, "
+                f"elapsed_time={elapsed_time:.2f}s, error={e}"
+            )
+            text = ""
         except Exception as e:
-            logger.exception("VLM text extraction failed for %s: %s", file_path, e)
+            elapsed_time = time.time() - start_time
+            logger.exception(
+                f"VLM text extraction failed: file={file_path.name}, "
+                f"endpoint={endpoint}, model={model}, "
+                f"max_tokens={self.max_tokens}, elapsed_time={elapsed_time:.2f}s, "
+                f"image_size={b64_size / 1024:.2f} KB, error={e}"
+            )
             text = ""
 
         metadata = {

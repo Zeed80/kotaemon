@@ -1,20 +1,35 @@
 import json
 import logging
+import time
 from typing import Any, List
 
 import requests
 from decouple import config
+from tenacity import (
+    after_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 logger = logging.getLogger(__name__)
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=2, min=2, max=30),
+    retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ChunkedEncodingError)),
+    after=after_log(logger, logging.WARNING),
+)
 def generate_gpt4v(
     endpoint: str,
     images: str | List[str],
     prompt: str,
-    max_tokens: int = 512,
+    max_tokens: int = 8192,
     max_images: int = 10,
     model: str | None = None,
+    timeout: int = 300,
 ) -> str:
     """Генерировать ответ от VLM для изображений.
 
@@ -22,9 +37,10 @@ def generate_gpt4v(
         endpoint: URL endpoint для VLM (OpenAI-compatible или Ollama).
         images: Изображение(я) в формате data URL или список data URLs.
         prompt: Текст промпта для VLM.
-        max_tokens: Максимальное количество токенов в ответе.
+        max_tokens: Максимальное количество токенов в ответе (по умолчанию 8192 для документов).
         max_images: Максимальное количество изображений для обработки.
         model: Имя модели (обязательно для Ollama, опционально для других провайдеров).
+        timeout: Таймаут запроса в секундах (по умолчанию 300 для больших изображений).
 
     Returns:
         str: Текст ответа от VLM.
@@ -71,9 +87,17 @@ def generate_gpt4v(
         "temperature": 0,
     }
 
-    # Для Ollama обязательно нужен параметр model
-    if is_ollama and model:
-        payload["model"] = model
+    # Для Ollama добавляем дополнительные параметры
+    if is_ollama:
+        if model:
+            payload["model"] = model
+        # Параметры для Ollama в options
+        payload["options"] = {
+            "num_ctx": 8192,  # Контекстное окно для обработки больших изображений
+            "num_predict": max_tokens,  # Максимальное количество токенов для генерации
+            "temperature": 0,
+            "keep_alive": "5m",  # Сохранять модель в памяти 5 минут
+        }
     elif is_ollama and not model:
         logger.warning(
             f"Ollama endpoint detected but no model provided: {endpoint}. "
@@ -85,13 +109,32 @@ def generate_gpt4v(
             f"Truncated to {max_images} images (original {len(images)} images)"
         )
 
-    response = requests.post(endpoint, headers=headers, json=payload)
+    # Логируем параметры запроса для отладки
+    logger.debug(
+        f"VLM request: endpoint={endpoint}, model={model}, max_tokens={max_tokens}, "
+        f"timeout={timeout}, images_count={len(images[:max_images])}"
+    )
 
     try:
+        response = requests.post(endpoint, headers=headers, json=payload, timeout=timeout)
         response.raise_for_status()
+    except requests.exceptions.Timeout as e:
+        logger.error(
+            f"VLM request timeout after {timeout}s: endpoint={endpoint}, model={model}"
+        )
+        raise
+    except requests.exceptions.ConnectionError as e:
+        logger.error(
+            f"VLM connection error: endpoint={endpoint}, model={model}, error={e}"
+        )
+        raise
     except Exception as e:
-        logger.exception(f"Error generating gpt4v: {response.text}; error {e}")
-        return ""
+        error_text = getattr(response, "text", str(e))
+        logger.exception(
+            f"Error generating gpt4v: endpoint={endpoint}, model={model}, "
+            f"response={error_text}, error={e}"
+        )
+        raise
 
     output = response.json()
     output = output["choices"][0]["message"]["content"]
@@ -176,8 +219,26 @@ def stream_gpt4v(
         logger.warning(
             f"Truncated to {max_images} images (original {len(images)} images)"
         )
+    # Для Ollama добавляем дополнительные параметры
+    if is_ollama:
+        if model:
+            payload["model"] = model
+        payload["options"] = {
+            "num_ctx": 8192,
+            "num_predict": max_tokens,
+            "temperature": 0,
+            "keep_alive": "5m",
+        }
+    elif is_ollama and not model:
+        logger.warning(
+            f"Ollama endpoint detected but no model provided: {endpoint}. "
+            "Model parameter is required for Ollama."
+        )
+
     try:
-        response = requests.post(endpoint, headers=headers, json=payload, stream=True)
+        response = requests.post(
+            endpoint, headers=headers, json=payload, stream=True, timeout=300
+        )
         assert response.status_code == 200, str(response.content)
         output = ""
         logprobs = []

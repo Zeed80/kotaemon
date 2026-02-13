@@ -65,12 +65,14 @@ class LightRAGIndex(GraphRAGIndex):
         # retrieval settings
         prefix = f"index.options.{self.id}."
         search_type = settings.get(prefix + "search_type", "local")
+        use_dynamic_prompts = settings.get(prefix + "use_dynamic_prompts", True)
 
         retrievers = [
             LightRAGRetrieverPipeline(
                 file_ids=file_ids,
                 Index=self._resources["Index"],
                 search_type=search_type,
+                use_dynamic_prompts=use_dynamic_prompts,
             )
         ]
 
