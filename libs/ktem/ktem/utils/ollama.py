@@ -32,6 +32,18 @@ def get_ollama_base_url() -> str:
     return api_url
 
 
+def server_url_to_langchain_base(url: str) -> str:
+    """Привести URL сервера (из OllamaServerTable) к формату для langchain_ollama.
+
+    Например: http://localhost:11434/v1/ -> http://localhost:11434/
+    """
+    url = (url or "").strip().rstrip("/")
+    url = url.replace("/v1/", "").replace("/v1", "").replace("/api", "")
+    if url and not url.endswith("/"):
+        url = f"{url}/"
+    return url or "http://localhost:11434/"
+
+
 def get_ollama_base_url_for_langchain() -> str:
     """Получить базовый URL Ollama для использования с langchain_ollama.
 
@@ -54,6 +66,54 @@ def get_ollama_base_url_for_langchain() -> str:
     return base_url
 
 
+def _normalize_url_to_api(url: str) -> str:
+    """Привести URL к формату с /api для запросов к Ollama API."""
+    url = (url or "").strip().rstrip("/")
+    url = url.replace("/v1/", "/api").replace("/v1", "/api")
+    if not url.endswith("/api"):
+        if ":11434" in url and not url.endswith("/api"):
+            url = f"{url}/api" if not url.endswith("/") else f"{url.rstrip('/')}/api"
+        elif url and not url.endswith("/api"):
+            url = f"{url}/api"
+    return url.rstrip("/")
+
+
+def check_ollama_available(base_url: str | None = None) -> tuple[bool, str]:
+    """Проверить доступность сервера Ollama по URL.
+
+    Выполняет GET к {base_url}/api/tags с таймаутом. При 200 считает сервер
+    доступным.
+
+    Args:
+        base_url: URL Ollama (с /v1/ или /api или без). Если None — из настроек.
+
+    Returns:
+        (success, message): успех и сообщение для UI (ok / unreachable / error).
+    """
+    if base_url is None or not (base_url or "").strip():
+        base_url = get_application_setting("kh_ollama_url")
+        if not base_url:
+            base_url = getattr(flowsettings, "KH_OLLAMA_URL", "http://localhost:11434/v1/")
+    api_url = _normalize_url_to_api(base_url)
+    if not api_url:
+        return False, "empty_url"
+    try:
+        response = requests.get(f"{api_url}/tags", timeout=3)
+        if response.status_code == 200:
+            return True, "ok"
+        return False, f"status_{response.status_code}"
+    except requests.exceptions.Timeout:
+        return False, "timeout"
+    except requests.exceptions.ConnectionError:
+        return False, "unreachable"
+    except requests.exceptions.RequestException as e:
+        logger.debug("check_ollama_available failed: %s", e)
+        return False, "error"
+    except Exception as e:
+        logger.exception("check_ollama_available: %s", e)
+        return False, "error"
+
+
 def get_ollama_models(base_url: str | None = None) -> list[dict[str, str | int]]:
     """Получить список моделей из Ollama.
 
@@ -66,6 +126,8 @@ def get_ollama_models(base_url: str | None = None) -> list[dict[str, str | int]]
     """
     if base_url is None:
         base_url = get_ollama_base_url()
+    else:
+        base_url = _normalize_url_to_api(base_url)
 
     try:
         response = requests.get(f"{base_url}/tags", timeout=5)
@@ -107,6 +169,8 @@ def pull_ollama_model(
     """
     if base_url is None:
         base_url = get_ollama_base_url()
+    else:
+        base_url = _normalize_url_to_api(base_url)
 
     if not model_name:
         raise ValueError("Имя модели не может быть пустым")

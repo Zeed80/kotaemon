@@ -5,6 +5,7 @@ import gradio as gr
 from ktem.app import BasePage
 from ktem.components import reasonings
 from ktem.db.models import Settings, User, engine
+from ktem.utils.ollama import check_ollama_available
 from sqlmodel import Session, select
 from theflow.settings import settings as flowsettings
 
@@ -86,6 +87,23 @@ gr_cls_choices = {
     "radio": gr.Radio,
     "checkboxgroup": gr.CheckboxGroup,
 }
+
+
+def _ollama_status_html(ok: bool, message: str) -> str:
+    """Вернуть HTML индикатора доступности Ollama (зелёный/серый/красный кружок)."""
+    if ok:
+        color, title = "#22c55e", "Ollama доступен"
+    else:
+        color = "#ef4444"
+        title = {"timeout": "Таймаут", "unreachable": "Недоступен", "error": "Ошибка"}.get(
+            message, "Недоступен"
+        )
+    return (
+        f'<span title="{title}" style="'
+        "display: inline-block; width: 14px; height: 14px; border-radius: 50%; "
+        f"background: {color}; margin-left: 8px; vertical-align: middle;"
+        '" aria-label="Ollama status"></span>'
+    )
 
 
 def render_setting_item(setting_item, value):
@@ -332,6 +350,22 @@ class SettingsPage(BasePage):
     def app_tab(self):
         with gr.Tab("General", visible=self._render_app_tab):
             for n, si in self._default_settings.application.settings.items():
+                if n == "kh_ollama_url":
+                    with gr.Row():
+                        obj = render_setting_item(si, si.value)
+                        self._components[f"application.{n}"] = obj
+                        self._ollama_status_html = gr.HTML(
+                            value=_ollama_status_html(False, "unreachable"),
+                            elem_classes=["ollama-status"],
+                        )
+                        self._ollama_check_btn = gr.Button(
+                            "Проверить", size="sm", min_width=80
+                        )
+                    if si.special_type == "llm":
+                        self._llms.append(obj)
+                    if si.special_type == "embedding":
+                        self._embeddings.append(obj)
+                    continue
                 obj = render_setting_item(si, si.value)
                 self._components[f"application.{n}"] = obj
                 if si.special_type == "llm":
@@ -464,14 +498,38 @@ class SettingsPage(BasePage):
         """Get the setting components"""
         return self._settings_keys
 
+    def _check_ollama_and_return_html(self, url):
+        """По значению URL проверить Ollama и вернуть HTML индикатора."""
+        if not url or not str(url).strip():
+            from flowsettings import get_application_setting
+
+            url = get_application_setting("kh_ollama_url") or getattr(
+                flowsettings, "KH_OLLAMA_URL", ""
+            )
+        ok, msg = check_ollama_available(url)
+        return _ollama_status_html(ok, msg)
+
     def _on_app_created(self):
         if not self._app.f_user_management:
-            self._app.app.load(
+            load_event = self._app.app.load(
                 self.load_setting,
                 inputs=self._user_id,
                 outputs=[self._settings_state] + self.components(),
                 show_progress="hidden",
             )
+            if self._render_app_tab and hasattr(self, "_ollama_status_html"):
+                load_event.then(
+                    self._check_ollama_and_return_html,
+                    inputs=[self._components["application.kh_ollama_url"]],
+                    outputs=[self._ollama_status_html],
+                    show_progress="hidden",
+                )
+                self._ollama_check_btn.click(
+                    self._check_ollama_and_return_html,
+                    inputs=[self._components["application.kh_ollama_url"]],
+                    outputs=[self._ollama_status_html],
+                    show_progress="hidden",
+                )
 
         def update_llms():
             from ktem.llms.manager import llms

@@ -684,9 +684,18 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         readers = deepcopy(KH_DEFAULT_FILE_EXTRACTORS)
 
         if self.document_recognition_mode == "vlm":
-            vlm_endpoint = getattr(
-                flowsettings, "get_vlm_endpoint", lambda v: getattr(flowsettings, "KH_VLM_ENDPOINT", "")
-            )(self.vlm_model)
+            try:
+                from ktem.vlms import vlms_manager
+
+                vlm_endpoint = vlms_manager.get_endpoint(self.vlm_model)
+            except Exception:
+                vlm_endpoint = ""
+            if not vlm_endpoint:
+                vlm_endpoint = getattr(
+                    flowsettings,
+                    "get_vlm_endpoint",
+                    lambda v: getattr(flowsettings, "KH_VLM_ENDPOINT", ""),
+                )("default")
             vision_reader = VisionOCRReader(vlm_endpoint=vlm_endpoint)
             docling_reader_with_vlm = DoclingReader(vlm_endpoint=vlm_endpoint)
             for ext in (".png", ".jpeg", ".jpg", ".tiff", ".tif"):
@@ -704,7 +713,15 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
     def get_user_settings(cls):
         from theflow.settings import settings as flowsettings
 
-        vlm_choices = getattr(flowsettings, "KH_VLM_OPTIONS", [("Default", "default")])
+        vlm_choices = [("Default (from env)", "default")]
+        try:
+            from ktem.vlms import vlms_manager
+
+            vlm_choices += vlms_manager.options_for_dropdown()
+        except Exception:
+            vlm_choices += getattr(
+                flowsettings, "KH_VLM_OPTIONS", [("Default", "default")]
+            )[1:]  # avoid duplicating default
         llm_choices = [("(default)", "")]
         try:
             from ktem.llms.manager import llms

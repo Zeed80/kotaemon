@@ -5,11 +5,13 @@ import pandas as pd
 import yaml
 from ktem.app import BasePage
 from ktem.utils.file import YAMLNoDateSafeLoader
+from ktem.ollama_servers import ollama_servers_manager
 from ktem.utils.ollama import (
     get_ollama_base_url,
     get_ollama_base_url_for_langchain,
     get_ollama_models,
     pull_ollama_model,
+    server_url_to_langchain_base,
 )
 from theflow.utils.modules import deserialize
 
@@ -126,11 +128,26 @@ class LLMManagement(BasePage):
 
                     # Ollama-specific UI elements
                     with gr.Column(visible=False) as self.ollama_section:
-                        gr.Markdown("### Ollama Model Selection")
+                        gr.Markdown("### Ollama")
+                        self.ollama_server_dropdown = gr.Dropdown(
+                            label="Ollama server",
+                            info="Choose a registered Ollama server (add in Ollama servers tab)",
+                            choices=[],
+                            value=None,
+                            allow_custom_value=False,
+                            interactive=True,
+                        )
+                        self.ollama_num_ctx = gr.Number(
+                            label="Макс. контекст (num_ctx)",
+                            value=8192,
+                            precision=0,
+                            info="Override server default if needed",
+                        )
+                        gr.Markdown("### Model")
                         with gr.Row():
                             self.ollama_model_dropdown = gr.Dropdown(
                                 label="Available Ollama models",
-                                info="Select a model from your Ollama installation",
+                                info="Select a model from the chosen server",
                                 choices=[],
                                 value=None,
                                 allow_custom_value=True,
@@ -166,10 +183,16 @@ class LLMManagement(BasePage):
             lambda: gr.update(choices=list(llms.vendors().keys())),
             outputs=[self.llm_choices],
         )
-        # Load Ollama models on startup if available
+        # Load Ollama server list and models on startup
+        self._app.app.load(
+            lambda: gr.update(
+                choices=[c[1] for c in ollama_servers_manager.options_for_dropdown()]
+            ),
+            outputs=[self.ollama_server_dropdown],
+        )
         self._app.app.load(
             self.refresh_ollama_models,
-            inputs=[],
+            inputs=[self.ollama_server_dropdown],
             outputs=[self.ollama_model_dropdown],
         )
 
@@ -186,23 +209,33 @@ class LLMManagement(BasePage):
         # Check if this is LCOllamaChat vendor
         is_ollama = vendor_name == "LCOllamaChat"
 
-        # Auto-fill base_url for Ollama
+        # Auto-fill base_url for Ollama (fallback if no server selected)
         if is_ollama:
-            # LCOllamaChat использует langchain_ollama.ChatOllama, который ожидает
-            # базовый URL без /api и без /v1/, например: http://localhost:11434/
             base_url = get_ollama_base_url_for_langchain()
             required["base_url"] = base_url
-            # Set default num_ctx if not present
             if "num_ctx" not in required:
                 required["num_ctx"] = 8192
 
         spec_yaml = yaml.dump(required)
         desc_markdown = format_description(vendor_cls)
 
+        server_choices = ollama_servers_manager.options_for_dropdown()
+        server_value = server_choices[0][1] if server_choices else None
+        num_ctx_value = 8192
+        if server_value:
+            s = ollama_servers_manager.get(server_value)
+            if s:
+                num_ctx_value = s["num_ctx"]
+                required["base_url"] = server_url_to_langchain_base(s["base_url"])
+                required["num_ctx"] = s["num_ctx"]
+                spec_yaml = yaml.dump(required)
+
         return (
             spec_yaml,
             desc_markdown,
             gr.update(visible=is_ollama),
+            gr.update(choices=[c[1] for c in server_choices], value=server_value),
+            gr.update(value=num_ctx_value),
             gr.update(value=""),
             gr.update(value=""),
         )
@@ -215,13 +248,29 @@ class LLMManagement(BasePage):
                 self.spec,
                 self.spec_desc,
                 self.ollama_section,
+                self.ollama_server_dropdown,
+                self.ollama_num_ctx,
                 self.ollama_model_dropdown,
                 self.ollama_model_input,
             ],
         )
+        self.ollama_server_dropdown.change(
+            self.on_ollama_server_selected,
+            inputs=[self.ollama_server_dropdown, self.ollama_num_ctx],
+            outputs=[
+                self.spec,
+                self.ollama_model_dropdown,
+                self.ollama_num_ctx,
+            ],
+        )
+        self.ollama_num_ctx.change(
+            self.on_ollama_num_ctx_change,
+            inputs=[self.ollama_server_dropdown, self.ollama_num_ctx, self.spec],
+            outputs=[self.spec],
+        )
         self.btn_refresh_ollama_models.click(
             self.refresh_ollama_models,
-            inputs=[],
+            inputs=[self.ollama_server_dropdown],
             outputs=[self.ollama_model_dropdown],
         )
         self.ollama_model_dropdown.change(
@@ -231,21 +280,34 @@ class LLMManagement(BasePage):
         )
         self.btn_pull_ollama_model.click(
             self.pull_ollama_model_ui,
-            inputs=[self.ollama_model_input],
+            inputs=[self.ollama_server_dropdown, self.ollama_model_input],
             outputs=[self.ollama_pull_progress, self.ollama_model_dropdown],
         )
         self.btn_new.click(
             self.create_llm,
-            inputs=[self.name, self.llm_choices, self.spec, self.default],
+            inputs=[
+                self.name,
+                self.llm_choices,
+                self.spec,
+                self.default,
+                self.ollama_server_dropdown,
+                self.ollama_model_dropdown,
+                self.ollama_model_input,
+                self.ollama_num_ctx,
+            ],
             outputs=[],
         ).success(self.list_llms, inputs=[], outputs=[self.llm_list]).success(
-            lambda: ("", None, "", False, self.spec_desc_default),
+            lambda: ("", None, "", False, self.spec_desc_default, None, 8192, "", ""),
             outputs=[
                 self.name,
                 self.llm_choices,
                 self.spec,
                 self.default,
                 self.spec_desc,
+                self.ollama_server_dropdown,
+                self.ollama_num_ctx,
+                self.ollama_model_dropdown,
+                self.ollama_model_input,
             ],
         )
         self.llm_list.select(
@@ -324,17 +386,45 @@ class LLMManagement(BasePage):
             outputs=[self.connection_logs],
         )
 
-    def create_llm(self, name, choices, spec, default):
+    def create_llm(
+        self,
+        name,
+        choices,
+        spec,
+        default,
+        ollama_server=None,
+        ollama_model_dropdown=None,
+        ollama_model_input=None,
+        ollama_num_ctx=None,
+    ):
         try:
-            spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
-            spec["__type__"] = (
-                llms.vendors()[choices].__module__
-                + "."
-                + llms.vendors()[choices].__qualname__
-            )
+            vendor_cls = llms.vendors()[choices]
+            vendor_name = vendor_cls.__name__
+            if vendor_name == "LCOllamaChat" and ollama_server:
+                s = ollama_servers_manager.get(ollama_server)
+                if s:
+                    model = (ollama_model_dropdown or "").strip() or (ollama_model_input or "").strip()
+                    if not model:
+                        raise gr.Error("Выберите или введите имя модели Ollama")
+                    spec = {
+                        "__type__": vendor_cls.__module__ + "." + vendor_cls.__qualname__,
+                        "base_url": server_url_to_langchain_base(s["base_url"]),
+                        "model": model,
+                        "num_ctx": int(ollama_num_ctx) if ollama_num_ctx is not None else s["num_ctx"],
+                    }
+                else:
+                    spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
+                    spec["__type__"] = vendor_cls.__module__ + "." + vendor_cls.__qualname__
+            else:
+                spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
+                spec["__type__"] = (
+                    vendor_cls.__module__ + "." + vendor_cls.__qualname__
+                )
 
             llms.add(name, spec=spec, default=default)
             gr.Info(f"LLM {name} created successfully")
+        except gr.Error:
+            raise
         except Exception as e:
             raise gr.Error(f"Failed to create LLM {name}: {e}")
 
@@ -470,18 +560,66 @@ class LLMManagement(BasePage):
 
         return ""
 
-    def refresh_ollama_models(self):
-        """Обновить список моделей из Ollama."""
+    def refresh_ollama_models(self, server_name=None):
+        """Обновить список моделей из Ollama (с выбранного сервера или по умолчанию)."""
+        base_url = None
+        if server_name:
+            s = ollama_servers_manager.get(server_name)
+            if s:
+                base_url = s["base_url"]
         try:
-            models = get_ollama_models()
+            models = get_ollama_models(base_url)
             if models:
                 choices = [model["name"] for model in models]
                 return gr.update(choices=choices, value=choices[0] if choices else None)
-            else:
-                return gr.update(choices=[], value=None)
+            return gr.update(choices=[], value=None)
         except Exception as e:
             gr.Warning(f"Не удалось получить список моделей Ollama: {e}")
             return gr.update(choices=[], value=None)
+
+    def on_ollama_server_selected(self, server_name, num_ctx):
+        """При выборе сервера Ollama обновить spec и список моделей."""
+        if not server_name:
+            return gr.update(), gr.update(), gr.update()
+        s = ollama_servers_manager.get(server_name)
+        if not s:
+            return gr.update(), gr.update(), gr.update()
+        base_url_lc = server_url_to_langchain_base(s["base_url"])
+        num_ctx_val = int(num_ctx) if num_ctx is not None else s["num_ctx"]
+        try:
+            spec = yaml.load(self._current_ollama_spec_template(), Loader=YAMLNoDateSafeLoader)
+        except Exception:
+            spec = {"__type__": ""}
+        spec["base_url"] = base_url_lc
+        spec["num_ctx"] = num_ctx_val
+        spec_yaml = yaml.dump(spec)
+        models = get_ollama_models(s["base_url"])
+        choices = [m["name"] for m in models] if models else []
+        return (
+            gr.update(value=spec_yaml),
+            gr.update(choices=choices, value=choices[0] if choices else None),
+            gr.update(value=s["num_ctx"]),
+        )
+
+    def _current_ollama_spec_template(self):
+        """Минимальный spec для LCOllamaChat (для подстановки base_url, model, num_ctx)."""
+        vendor_cls = llms.vendors().get("LCOllamaChat")
+        if not vendor_cls:
+            return "base_url: ''\nmodel: ''\nnum_ctx: 8192"
+        desc = vendor_cls.describe()
+        required = {k: None for k, v in desc["params"].items() if v.get("required", False)}
+        required.setdefault("num_ctx", 8192)
+        return yaml.dump(required)
+
+    def on_ollama_num_ctx_change(self, server_name, num_ctx, current_spec):
+        """Обновить num_ctx в spec при изменении поля."""
+        try:
+            spec = yaml.load(current_spec, Loader=YAMLNoDateSafeLoader)
+            spec["num_ctx"] = int(num_ctx) if num_ctx is not None else 8192
+            return gr.update(value=yaml.dump(spec))
+        except Exception:
+            return gr.update()
+
 
     def on_ollama_model_selected(self, model_name: str, current_spec: str):
         """Заполнить поле model в spec при выборе модели из списка."""
@@ -506,19 +644,27 @@ class LLMManagement(BasePage):
         except Exception:
             return gr.update(value=current_spec)
 
-    def pull_ollama_model_ui(self, model_name: str):
+    def pull_ollama_model_ui(self, server_name: str, model_name: str):
         """Загрузить модель из Ollama с отображением прогресса."""
         if not model_name:
             gr.Warning("Введите имя модели для загрузки")
             yield gr.update(visible=False, value=""), gr.update()
             return
 
+        base_url = None
+        if server_name:
+            s = ollama_servers_manager.get(server_name)
+            if s:
+                base_url = s["base_url"]
+
         progress_html = "<div style='padding: 10px;'>"
         progress_html += f"<p>Загрузка модели <strong>{model_name}</strong>...</p>"
         yield gr.update(visible=True, value=progress_html), gr.update()
 
         try:
-            for response in pull_ollama_model(model_name=model_name):
+            for response in pull_ollama_model(
+                base_url=base_url, model_name=model_name
+            ):
                 status = response.get("status", "")
                 completed = response.get("completed", 0)
                 total = response.get("total", 0)
@@ -550,7 +696,7 @@ class LLMManagement(BasePage):
                     """
                     gr.Info(f"Модель {model_name} успешно загружена")
                     # Обновить список моделей
-                    models = get_ollama_models()
+                    models = get_ollama_models(base_url)
                     choices = [m["name"] for m in models]
                     yield gr.update(visible=True, value=progress_html), gr.update(
                         choices=choices, value=model_name
