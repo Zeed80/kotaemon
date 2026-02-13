@@ -14,10 +14,39 @@ def generate_gpt4v(
     prompt: str,
     max_tokens: int = 512,
     max_images: int = 10,
+    model: str | None = None,
 ) -> str:
-    # OpenAI API Key
-    api_key = config("AZURE_OPENAI_API_KEY", default="")
-    headers = {"Content-Type": "application/json", "api-key": api_key}
+    """Генерировать ответ от VLM для изображений.
+
+    Args:
+        endpoint: URL endpoint для VLM (OpenAI-compatible или Ollama).
+        images: Изображение(я) в формате data URL или список data URLs.
+        prompt: Текст промпта для VLM.
+        max_tokens: Максимальное количество токенов в ответе.
+        max_images: Максимальное количество изображений для обработки.
+        model: Имя модели (обязательно для Ollama, опционально для других провайдеров).
+
+    Returns:
+        str: Текст ответа от VLM.
+    """
+    # Определяем тип провайдера по endpoint
+    # Ollama использует OpenAI-compatible API на порту 11434
+    # Проверяем по порту 11434 или по отсутствию известных доменов OpenAI/Azure
+    known_providers = ["openai.com", "azure.com", "api.openai.com", "api.groq.com"]
+    has_known_provider = any(provider in endpoint for provider in known_providers)
+    is_ollama = (
+        "/v1/chat/completions" in endpoint 
+        and ":11434" in endpoint
+        and not has_known_provider
+    )
+    
+    # Для Ollama не нужен api-key в заголовках
+    if is_ollama:
+        headers = {"Content-Type": "application/json"}
+    else:
+        # OpenAI API Key для Azure OpenAI / OpenAI
+        api_key = config("AZURE_OPENAI_API_KEY", default="")
+        headers = {"Content-Type": "application/json", "api-key": api_key}
 
     if isinstance(images, str):
         images = [images]
@@ -42,8 +71,19 @@ def generate_gpt4v(
         "temperature": 0,
     }
 
+    # Для Ollama обязательно нужен параметр model
+    if is_ollama and model:
+        payload["model"] = model
+    elif is_ollama and not model:
+        logger.warning(
+            f"Ollama endpoint detected but no model provided: {endpoint}. "
+            "Model parameter is required for Ollama."
+        )
+
     if len(images) > max_images:
-        print(f"Truncated to {max_images} images (original {len(images)} images")
+        logger.warning(
+            f"Truncated to {max_images} images (original {len(images)} images)"
+        )
 
     response = requests.post(endpoint, headers=headers, json=payload)
 
@@ -64,10 +104,39 @@ def stream_gpt4v(
     prompt: str,
     max_tokens: int = 512,
     max_images: int = 10,
+    model: str | None = None,
 ) -> Any:
-    # OpenAI API Key
-    api_key = config("AZURE_OPENAI_API_KEY", default="")
-    headers = {"Content-Type": "application/json", "api-key": api_key}
+    """Потоковая генерация ответа от VLM для изображений.
+
+    Args:
+        endpoint: URL endpoint для VLM (OpenAI-compatible или Ollama).
+        images: Изображение(я) в формате data URL или список data URLs.
+        prompt: Текст промпта для VLM.
+        max_tokens: Максимальное количество токенов в ответе.
+        max_images: Максимальное количество изображений для обработки.
+        model: Имя модели (обязательно для Ollama, опционально для других провайдеров).
+
+    Yields:
+        tuple[str, List[float]]: (chunk текста, logprobs).
+    """
+    # Определяем тип провайдера по endpoint
+    # Ollama использует OpenAI-compatible API на порту 11434
+    # Проверяем по порту 11434 или по отсутствию известных доменов OpenAI/Azure
+    known_providers = ["openai.com", "azure.com", "api.openai.com", "api.groq.com"]
+    has_known_provider = any(provider in endpoint for provider in known_providers)
+    is_ollama = (
+        "/v1/chat/completions" in endpoint 
+        and ":11434" in endpoint
+        and not has_known_provider
+    )
+    
+    # Для Ollama не нужен api-key в заголовках
+    if is_ollama:
+        headers = {"Content-Type": "application/json"}
+    else:
+        # OpenAI API Key для Azure OpenAI / OpenAI
+        api_key = config("AZURE_OPENAI_API_KEY", default="")
+        headers = {"Content-Type": "application/json", "api-key": api_key}
 
     if isinstance(images, str):
         images = [images]
@@ -93,8 +162,20 @@ def stream_gpt4v(
         "logprobs": True,
         "temperature": 0,
     }
+
+    # Для Ollama обязательно нужен параметр model
+    if is_ollama and model:
+        payload["model"] = model
+    elif is_ollama and not model:
+        logger.warning(
+            f"Ollama endpoint detected but no model provided: {endpoint}. "
+            "Model parameter is required for Ollama."
+        )
+
     if len(images) > max_images:
-        print(f"Truncated to {max_images} images (original {len(images)} images")
+        logger.warning(
+            f"Truncated to {max_images} images (original {len(images)} images)"
+        )
     try:
         response = requests.post(endpoint, headers=headers, json=payload, stream=True)
         assert response.status_code == 200, str(response.content)

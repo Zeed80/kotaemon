@@ -687,17 +687,19 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
             try:
                 from ktem.vlms import vlms_manager
 
-                vlm_endpoint = vlms_manager.get_endpoint(self.vlm_model)
+                vlm_endpoint, vlm_model = vlms_manager.get_endpoint_and_model(self.vlm_model)
             except Exception:
                 vlm_endpoint = ""
+                vlm_model = ""
             if not vlm_endpoint:
                 vlm_endpoint = getattr(
                     flowsettings,
                     "get_vlm_endpoint",
                     lambda v: getattr(flowsettings, "KH_VLM_ENDPOINT", ""),
                 )("default")
-            vision_reader = VisionOCRReader(vlm_endpoint=vlm_endpoint)
-            docling_reader_with_vlm = DoclingReader(vlm_endpoint=vlm_endpoint)
+                vlm_model = ""
+            vision_reader = VisionOCRReader(vlm_endpoint=vlm_endpoint, vlm_model=vlm_model)
+            docling_reader_with_vlm = DoclingReader(vlm_endpoint=vlm_endpoint, vlm_model=vlm_model)
             for ext in (".png", ".jpeg", ".jpg", ".tiff", ".tif"):
                 if ext in readers:
                     readers[ext] = vision_reader

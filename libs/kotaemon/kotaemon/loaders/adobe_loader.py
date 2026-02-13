@@ -125,10 +125,24 @@ class AdobeReader(BaseReader):
                     texts[page_number].append(item_text)
 
         # get figure caption using GPT-4V
+        # Определяем модель из endpoint если возможно
+        vlm_model = None
+        if self.vlm_endpoint:
+            try:
+                from ktem.vlms import vlms_manager
+                for vlm_name in vlms_manager.list():
+                    vlm_ep, vlm_mod = vlms_manager.get_endpoint_and_model(vlm_name["name"])
+                    if vlm_ep == self.vlm_endpoint:
+                        vlm_model = vlm_mod
+                        break
+            except Exception:
+                pass
+        
         figure_captions = generate_figure_captions(
             self.vlm_endpoint,
             [item[1] for item in figures],
             self.max_figures_to_caption,
+            vlm_model=vlm_model,
         )
         for item, caption in zip(figures, figure_captions):
             # update figure caption

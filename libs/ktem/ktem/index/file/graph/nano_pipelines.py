@@ -25,6 +25,7 @@ from kotaemon.base.schema import AIMessage, HumanMessage, SystemMessage
 
 from ..pipelines import BaseFileIndexRetriever
 from .pipelines import GraphRAGIndexingPipeline
+from .prompt_adaptation import PromptAdapter, get_prompt_adapter
 from .visualize import create_knowledge_graph, visualize_graph
 
 try:
@@ -47,6 +48,8 @@ except ImportError:
 
 
 logging.getLogger("nano-graphrag").setLevel(logging.INFO)
+
+logger = logging.getLogger(__name__)
 
 
 filestorage_path = Path(settings.KH_FILESTORAGE_PATH) / "nano_graphrag"
@@ -240,6 +243,10 @@ class NanoGraphRAGIndexingPipeline(GraphRAGIndexingPipeline):
     prompts: dict[str, str] = {}
     collection_graph_id: str
     index_batch_size: int = INDEX_BATCHSIZE
+    use_dynamic_prompts: bool = Param(
+        default=True,
+        help="Использовать динамическую адаптацию промптов на основе типа задачи",
+    )
 
     def store_file_id_with_graph_id(self, file_ids: list[str | None]):
         if not settings.USE_GLOBAL_GRAPHRAG:
@@ -407,6 +414,10 @@ class NanoGraphRAGRetrieverPipeline(BaseFileIndexRetriever):
     Index = Param(help="The SQLAlchemy Index table")
     file_ids: list[str] = []
     search_type: str = "local"
+    use_dynamic_prompts: bool = Param(
+        default=True,
+        help="Использовать динамическую адаптацию промптов на основе запроса пользователя",
+    )
 
     @classmethod
     def get_user_settings(cls) -> dict:
@@ -417,7 +428,16 @@ class NanoGraphRAGRetrieverPipeline(BaseFileIndexRetriever):
                 "choices": ["local", "global"],
                 "component": "dropdown",
                 "info": "Whether to use local or global search in the graph.",
-            }
+            },
+            "use_dynamic_prompts": {
+                "name": "Use dynamic prompts",
+                "value": True,
+                "component": "checkbox",
+                "info": (
+                    "Адаптировать промпты на основе запроса пользователя и типа задачи. "
+                    "Улучшает качество извлечения информации для разных типов запросов."
+                ),
+            },
         }
 
     def _build_graph_search(self):
@@ -505,6 +525,28 @@ class NanoGraphRAGRetrieverPipeline(BaseFileIndexRetriever):
     ) -> list[RetrievedDocument]:
         if not self.file_ids:
             return []
+
+        # Адаптация промптов на основе запроса пользователя
+        if self.use_dynamic_prompts:
+            try:
+                from nano_graphrag.prompt import PROMPTS
+
+                prompt_adapter = get_prompt_adapter()
+                task_type = prompt_adapter.detect_task_type(text)
+                logger.info(f"Определен тип задачи для запроса '{text[:50]}...': {task_type}")
+
+                # Адаптируем промпты на основе запроса
+                adapted_prompts = prompt_adapter.adapt_prompts_dict(
+                    dict(PROMPTS), text, task_type
+                )
+
+                # Применяем адаптированные промпты
+                for prompt_name, adapted_content in adapted_prompts.items():
+                    if prompt_name in PROMPTS:
+                        PROMPTS[prompt_name] = adapted_content
+                        logger.debug(f"Адаптирован промпт '{prompt_name}' для задачи {task_type}")
+            except Exception as e:
+                logger.warning(f"Не удалось адаптировать промпты: {e}")
 
         graphrag_func, query_params = self._build_graph_search()
 

@@ -22,6 +22,13 @@ class DoclingReader(BaseReader):
             "If not provided, will not caption the figures"
         )
     )
+    vlm_model: str = Param(
+        default="",
+        help=(
+            "VLM model name (required for Ollama). "
+            "If not provided, will try to detect from endpoint or VLM manager."
+        ),
+    )
 
     max_figure_to_caption: int = Param(
         100,
@@ -155,7 +162,7 @@ class DoclingReader(BaseReader):
             else:
                 gen_caption_count += 1
                 gen_caption = generate_single_figure_caption(
-                    figure=img_base64, vlm_endpoint=self.vlm_endpoint
+                    figure=img_base64, vlm_endpoint=self.vlm_endpoint, vlm_model=self.vlm_model or None
                 )
 
             # join the extractive and generative captions

@@ -29,7 +29,10 @@ _IMAGE_MIME = {
 
 EXTRACT_TEXT_PROMPT = (
     "Extract all text from this document image, preserving structure and reading order. "
-    "Output only the extracted text, with no commentary or explanation. "
+    "Read text carefully, including numbers, dates, names, and special characters. "
+    "Maintain the original layout: preserve paragraphs, lists, tables, and line breaks. "
+    "Output only the extracted text, with no commentary, explanation, or additional text. "
+    "If the image contains multiple languages, extract text in all languages present. "
     "Use line breaks where appropriate to keep paragraphs and lists readable."
 )
 
@@ -58,6 +61,13 @@ class VisionOCRReader(BaseReader):
         help=(
             "VLM endpoint for text extraction. "
             "If not provided, uses KH_VLM_ENDPOINT from flow settings."
+        ),
+    )
+    vlm_model: str = Param(
+        default="",
+        help=(
+            "VLM model name (required for Ollama). "
+            "If not provided, will try to detect from endpoint or VLM manager."
         ),
     )
     max_tokens: int = Param(
@@ -113,6 +123,8 @@ class VisionOCRReader(BaseReader):
         data_url = f"data:{mime};base64,{b64}"
 
         endpoint = self.vlm_endpoint or ""
+        model = self.vlm_model or ""
+        
         if not endpoint:
             try:
                 from theflow.settings import settings as flowsettings
@@ -120,6 +132,20 @@ class VisionOCRReader(BaseReader):
                 endpoint = getattr(flowsettings, "KH_VLM_ENDPOINT", "") or ""
             except Exception:
                 pass
+        
+        # Если модель не указана, пытаемся получить её из VLM manager
+        if not model and endpoint:
+            try:
+                from ktem.vlms import vlms_manager
+                # Пытаемся найти VLM по endpoint
+                for vlm_name in vlms_manager.list():
+                    vlm_endpoint, vlm_model = vlms_manager.get_endpoint_and_model(vlm_name["name"])
+                    if vlm_endpoint == endpoint:
+                        model = vlm_model
+                        break
+            except Exception:
+                pass
+        
         if not endpoint:
             logger.warning(
                 "VisionOCRReader: no vlm_endpoint or KH_VLM_ENDPOINT; "
@@ -142,6 +168,7 @@ class VisionOCRReader(BaseReader):
                 prompt=EXTRACT_TEXT_PROMPT,
                 images=data_url,
                 max_tokens=self.max_tokens,
+                model=model if model else None,
             )
         except Exception as e:
             logger.exception("VLM text extraction failed for %s: %s", file_path, e)

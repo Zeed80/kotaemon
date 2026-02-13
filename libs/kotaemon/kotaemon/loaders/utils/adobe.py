@@ -202,16 +202,36 @@ def parse_figure_paths(file_paths: List[Path]) -> Union[bytes, str]:
     return content
 
 
-def generate_single_figure_caption(vlm_endpoint: str, figure: str) -> str:
+def generate_single_figure_caption(vlm_endpoint: str, figure: str, vlm_model: str | None = None) -> str:
+    """Summarize a single figure using GPT-4V.
+    
+    Args:
+        vlm_endpoint: URL endpoint для VLM.
+        figure: Base64 encoded image в формате data URL.
+        vlm_model: Имя модели (опционально, будет определено автоматически для Ollama если не указано).
+    """
     output = ""
-
-    """Summarize a single figure using GPT-4V"""
     if figure:
+        # Если модель не указана, пытаемся определить её из VLM manager
+        model = vlm_model
+        if not model and vlm_endpoint:
+            try:
+                from ktem.vlms import vlms_manager
+                # Пытаемся найти VLM по endpoint
+                for vlm_name in vlms_manager.list():
+                    vlm_ep, vlm_mod = vlms_manager.get_endpoint_and_model(vlm_name["name"])
+                    if vlm_ep == vlm_endpoint:
+                        model = vlm_mod
+                        break
+            except Exception:
+                pass
+        
         try:
             output = generate_gpt4v(
                 endpoint=vlm_endpoint,
                 prompt="Provide a short 2 sentence summary of this image?",
                 images=figure,
+                model=model if model else None,
             )
             if "sorry" in output.lower():
                 output = ""
@@ -222,7 +242,7 @@ def generate_single_figure_caption(vlm_endpoint: str, figure: str) -> str:
 
 
 def generate_figure_captions(
-    vlm_endpoint: str, figures: List, max_figures_to_process: int
+    vlm_endpoint: str, figures: List, max_figures_to_process: int, vlm_model: str | None = None
 ) -> List:
     """Summarize several figures using GPT-4V.
     Args:
@@ -230,6 +250,7 @@ def generate_figure_captions(
         figures (List): list of base64 images
         max_figures_to_process (int): the maximum number of figures will be summarized,
         the rest are ignored.
+        vlm_model (str | None): имя модели VLM (опционально).
 
     Returns:
         results (List[str]): list of all figure captions and empty strings for
@@ -241,7 +262,8 @@ def generate_figure_captions(
     with ThreadPoolExecutor() as executor:
         futures = [
             executor.submit(
-                lambda: generate_single_figure_caption(vlm_endpoint, figure)
+                lambda fig: generate_single_figure_caption(vlm_endpoint, fig, vlm_model),
+                figure
             )
             for figure in to_gen_figures
         ]

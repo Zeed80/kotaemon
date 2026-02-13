@@ -90,19 +90,42 @@ class VLMManager:
         Для provider ollama — собирается из ollama_server + model.
         Если name пустой или 'default', возвращается пустая строка (caller подставит KH_VLM_ENDPOINT).
         """
+        endpoint, _ = self.get_endpoint_and_model(name)
+        return endpoint
+
+    def get_model(self, name: str) -> str:
+        """Вернуть имя модели для VLM по имени.
+
+        Для provider ollama — model из spec.
+        Для provider azure_openai/openai — пустая строка (модель в endpoint URL).
+        """
+        _, model = self.get_endpoint_and_model(name)
+        return model
+
+    def get_endpoint_and_model(self, name: str) -> tuple[str, str]:
+        """Вернуть URL endpoint и имя модели для вызова VLM по имени.
+
+        Returns:
+            tuple[str, str]: (endpoint_url, model_name)
+            Для provider azure_openai/openai — (endpoint_url, "").
+            Для provider ollama — (endpoint_url, model_name).
+        """
         if not name or name == "default":
-            return ""
+            return "", ""
         v = self.get(name)
         if not v:
-            return ""
+            return "", ""
         spec = v["spec"] or {}
         provider = (spec.get("provider") or "").strip().lower()
         if provider == "ollama":
-            return _build_ollama_vlm_endpoint(
+            model = (spec.get("model") or "llava").strip()
+            endpoint = _build_ollama_vlm_endpoint(
                 spec.get("ollama_server") or "",
-                spec.get("model") or "llava",
+                model,
             )
-        return (spec.get("endpoint_url") or "").strip()
+            return endpoint, model
+        endpoint = (spec.get("endpoint_url") or "").strip()
+        return endpoint, ""
 
     def options_for_dropdown(self) -> list[tuple[str, str]]:
         """Список (display_name, value) для выпадающего списка."""

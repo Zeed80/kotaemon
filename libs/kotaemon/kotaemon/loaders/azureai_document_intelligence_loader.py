@@ -93,6 +93,13 @@ class AzureAIDocumentIntelligenceLoader(BaseReader):
             "caption the figures"
         )
     )
+    vlm_model: str = Param(
+        default="",
+        help=(
+            "VLM model name (required for Ollama). "
+            "If not provided, will try to detect from endpoint or VLM manager."
+        ),
+    )
     figure_friendly_filetypes: list[str] = Param(
         [".pdf", ".jpeg", ".jpg", ".png", ".bmp", ".tiff", ".heif", ".tif"],
         help=(
@@ -174,7 +181,7 @@ class AzureAIDocumentIntelligenceLoader(BaseReader):
 
             # caption the image
             caption = generate_single_figure_caption(
-                figure=img_base64, vlm_endpoint=self.vlm_endpoint
+                figure=img_base64, vlm_endpoint=self.vlm_endpoint, vlm_model=self.vlm_model or None
             )
 
             # store the image into document
