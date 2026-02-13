@@ -137,10 +137,14 @@ class VisionOCRReader(BaseReader):
         mime = _IMAGE_MIME.get(suffix, "image/png")
         ingestion_id = (extra_info or {}).get("ingestion_id", "n/a")
         
-        # Проверяем размер файла
+        # Check file size - raise error if exceeds limit
         file_size = file_path.stat().st_size
         if file_size > MAX_IMAGE_FILE_SIZE:
-            logger.warning(
+            logger.error(
+                f"Image file too large: {file_path.name} ({file_size / 1024 / 1024:.2f} MB). "
+                f"Maximum allowed: {MAX_IMAGE_FILE_SIZE / 1024 / 1024:.2f} MB"
+            )
+            raise ValueError(
                 f"Image file too large: {file_path.name} ({file_size / 1024 / 1024:.2f} MB). "
                 f"Maximum allowed: {MAX_IMAGE_FILE_SIZE / 1024 / 1024:.2f} MB"
             )
@@ -248,23 +252,35 @@ class VisionOCRReader(BaseReader):
         if not endpoint:
             logger.warning(
                 "VisionOCRReader: no vlm_endpoint or KH_VLM_ENDPOINT; "
-                "cannot extract text from image."
+                "attempting fallback to UnstructuredReader."
             )
-            return [
-                Document(
-                    text="",
-                    metadata={
-                        "file_name": file_path.name,
-                        "file_path": str(file_path),
-                        "type": "image",
-                        "extraction_status": "failed",
-                        "extraction_error_code": "missing_endpoint",
-                        "extracted_text_length": 0,
-                        "ingestion_id": ingestion_id,
-                        **(extra_info or {}),
-                    },
-                )
-            ]
+            # Fallback to UnstructuredReader when VLM is not available
+            try:
+                from .unstructured_loader import UnstructuredReader
+                unstructured = UnstructuredReader()
+                docs = unstructured.load_data(file_path, extra_info)
+                for doc in docs:
+                    doc.metadata["extraction_status"] = "fallback_unstructured"
+                    doc.metadata["extraction_method"] = "unstructured_fallback"
+                return docs
+            except Exception as fallback_error:
+                logger.error(f"Fallback to UnstructuredReader failed: {fallback_error}")
+                return [
+                    Document(
+                        text="",
+                        metadata={
+                            "file_name": file_path.name,
+                            "file_path": str(file_path),
+                            "type": "image",
+                            "extraction_status": "failed",
+                            "extraction_error_code": "missing_endpoint_and_fallback_failed",
+                            "extracted_text_length": 0,
+                            "ingestion_id": ingestion_id,
+                            "fallback_error": str(fallback_error),
+                            **(extra_info or {}),
+                        },
+                    )
+                ]
 
         start_time = time.time()
         extraction_status = "success"

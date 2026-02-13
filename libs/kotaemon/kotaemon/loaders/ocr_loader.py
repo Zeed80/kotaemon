@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import requests
 from llama_index.core.readers.base import BaseReader
-from tenacity import after_log, retry, stop_after_attempt, wait_exponential
+from tenacity import after_log, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from kotaemon.base import Document
 
@@ -21,6 +21,7 @@ DEFAULT_OCR_ENDPOINT = "http://127.0.0.1:8000/v2/ai/infer/"
 @retry(
     stop=stop_after_attempt(6),
     wait=wait_exponential(multiplier=20, exp_base=2, min=1, max=1000),
+    retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout)),
     after=after_log(logger, logging.WARNING),
 )
 def tenacious_api_post(url, file_path, table_only, **kwargs):
@@ -30,6 +31,17 @@ def tenacious_api_post(url, file_path, table_only, **kwargs):
         resp = requests.post(url=url, files=files, data=data, **kwargs)
         resp.raise_for_status()
     return resp
+
+
+def _get_fallback_reader():
+    """Get fallback reader (DoclingReader) for when FullOCR API is unavailable."""
+    try:
+        from .docling_loader import DoclingReader
+
+        return DoclingReader(ocr_backend="auto")
+    except ImportError as e:
+        logger.warning(f"DoclingReader not available as fallback: {e}")
+        return None
 
 
 class OCRReader(BaseReader):
@@ -79,11 +91,32 @@ class OCRReader(BaseReader):
             # overriding response content if specified
             ocr_results = kwargs["response_content"]
         else:
-            # call original API
-            resp = tenacious_api_post(
-                url=self.ocr_endpoint, file_path=file_path, table_only=not self.use_ocr
-            )
-            ocr_results = resp.json()["result"]
+            # call original API with fallback on failure
+            try:
+                resp = tenacious_api_post(
+                    url=self.ocr_endpoint, file_path=file_path, table_only=not self.use_ocr
+                )
+                ocr_results = resp.json()["result"]
+            except Exception as e:
+                logger.warning(
+                    f"FullOCR API unavailable ({self.ocr_endpoint}): {e}. "
+                    "Attempting fallback to DoclingReader."
+                )
+                # Try fallback reader
+                fallback_reader = _get_fallback_reader()
+                if fallback_reader:
+                    try:
+                        docs = fallback_reader.load_data(file_path, extra_info)
+                        # Add metadata to indicate fallback was used
+                        for doc in docs:
+                            doc.metadata["extraction_status"] = "fallback_docling"
+                            doc.metadata["extraction_method"] = "docling_fallback"
+                        return docs
+                    except Exception as fallback_error:
+                        logger.error(f"Fallback DoclingReader failed: {fallback_error}")
+
+                # If no fallback or fallback failed, raise original error
+                raise
 
         debug_path = kwargs.pop("debug_path", None)
         artifact_path = kwargs.pop("artifact_path", None)

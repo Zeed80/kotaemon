@@ -321,6 +321,8 @@ class FileIndexPage(BasePage):
 
     def on_building_ui(self):
         """Build the UI of the app"""
+        self.progress = gr.Progress()
+        
         with gr.Row():
             with gr.Column(scale=1):
                 with gr.Column() as self.upload:
@@ -913,6 +915,7 @@ class FileIndexPage(BasePage):
                     self.reindex,
                     self._app.settings_state,
                     self._app.user_id,
+                    self.progress,
                 ],
                 outputs=[self.upload_result, self.upload_info],
                 concurrency_limit=20,
@@ -1130,7 +1133,7 @@ class FileIndexPage(BasePage):
         return remaining_files, errors
 
     def index_fn(
-        self, files, urls, reindex: bool, settings, user_id
+        self, files, urls, reindex: bool, settings, user_id, progress=lambda x: None
     ) -> Generator[tuple[str, str], None, None]:
         """Upload and index the files
 
@@ -1140,6 +1143,7 @@ class FileIndexPage(BasePage):
             reindex: whether to reindex the files
             selected_files: the list of files already selected
             settings: the settings of the app
+            progress: Gradio progress tracker
         """
         if urls:
             files = [it.strip() for it in urls.split("\n")]
@@ -1178,31 +1182,45 @@ class FileIndexPage(BasePage):
 
         outputs, debugs = [], []
         debugs.append(_format_upload_runtime_info(runtime_settings, ingestion_id))
+        
+        # Use progress tracker
+        total_files = len(files)
+        
         # stream the output
         output_stream = indexing_pipeline.stream(
             files,
             reindex=reindex,
             ingestion_id=ingestion_id,
         )
+        
+        file_index = 0
         try:
             while True:
                 response = next(output_stream)
                 if response is None:
                     continue
                 if response.channel == "index":
+                    # Update progress
+                    file_index += 1
+                    progress(file_index / total_files, f"Processing {response.content.get('file_name', 'file')}...")
+                    
                     if response.content["status"] == "success":
                         msg = f"\u2705 | {response.content['file_name']}"
                         extraction_status = response.content.get("extraction_status")
+                        extraction_error_code = response.content.get("extraction_error_code")
                         if extraction_status:
-                            msg += (
-                                f" | extraction_status={extraction_status}"
-                                f" | endpoint_type={response.content.get('endpoint_type', 'n/a')}"
-                            )
+                            msg += f" | status={extraction_status}"
+                            if extraction_error_code:
+                                msg += f" | error={extraction_error_code}"
+                            msg += f" | endpoint={response.content.get('endpoint_type', 'n/a')}"
                         outputs.append(msg)
                     elif response.content["status"] == "failed":
+                        error_msg = response.content.get("message", "Unknown error")
+                        error_code = response.content.get("extraction_error_code", "")
                         outputs.append(
                             f"\u274c | {response.content['file_name']}: "
-                            f"{response.content['message']}"
+                            f"{error_msg}"
+                            + (f" ({error_code})" if error_code else "")
                         )
                 elif response.channel == "debug":
                     debugs.append(response.text)
