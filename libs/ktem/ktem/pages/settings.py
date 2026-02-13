@@ -377,6 +377,12 @@ class SettingsPage(BasePage):
 
         id2name = {k: v.name for k, v in self._app.index_manager.info().items()}
         with gr.Tab("Retrieval settings", visible=self._render_index_tab):
+            gr.Markdown(
+                "Document recognition modes:\n"
+                "- `ocr`: classic OCR/readers (stable fallback)\n"
+                "- `vlm`: multimodal extraction (requires a working VLM endpoint/model)\n\n"
+                "For Ollama VLM, make sure server and model are available before indexing."
+            )
             for pn, sig in self._default_settings.index.options.items():
                 name = id2name.get(pn, f"<id {pn}>")
                 with gr.Tab(name):

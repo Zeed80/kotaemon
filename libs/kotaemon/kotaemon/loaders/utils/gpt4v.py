@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import time
+from urllib.parse import urlparse
 from typing import Any, List
 
 import requests
@@ -15,6 +16,44 @@ from tenacity import (
 )
 
 logger = logging.getLogger(__name__)
+
+_KNOWN_OPENAI_PROVIDERS = ("openai.com", "azure.com", "api.openai.com", "api.groq.com")
+
+
+def is_ollama_endpoint(endpoint: str) -> bool:
+    """Определить, относится ли endpoint к Ollama."""
+    if not endpoint:
+        return False
+    lowered = endpoint.lower()
+    if any(provider in lowered for provider in _KNOWN_OPENAI_PROVIDERS):
+        return False
+    if "ollama" in lowered:
+        return True
+    if "/api/chat" in lowered or "/api/generate" in lowered:
+        return True
+    if "/v1/chat/completions" in lowered:
+        return True
+    parsed = urlparse(endpoint)
+    if parsed.hostname in {"localhost", "127.0.0.1"} and parsed.port == 11434:
+        return True
+    if parsed.port == 11434:
+        return True
+    return False
+
+
+def normalize_ollama_chat_endpoint(endpoint: str) -> str:
+    """Преобразовать URL к Ollama native endpoint `/api/chat`."""
+    if not endpoint:
+        return endpoint
+    endpoint = endpoint.rstrip("/")
+    if endpoint.endswith("/api/chat"):
+        return endpoint
+    if endpoint.endswith("/v1/chat/completions"):
+        return endpoint[: -len("/v1/chat/completions")] + "/api/chat"
+    parsed = urlparse(endpoint)
+    if parsed.scheme and parsed.netloc:
+        return f"{parsed.scheme}://{parsed.netloc}/api/chat"
+    return f"{endpoint}/api/chat"
 
 
 @retry(
@@ -31,6 +70,7 @@ def generate_gpt4v(
     max_images: int = 10,
     model: str | None = None,
     timeout: int = 300,
+    ingestion_id: str = "",
 ) -> str:
     """Генерировать ответ от VLM для изображений.
 
@@ -49,41 +89,16 @@ def generate_gpt4v(
     # Определяем тип провайдера по endpoint
     # Ollama использует OpenAI-compatible API на порту 11434 для LLM,
     # но для vision моделей лучше использовать нативный API /api/chat
-    known_providers = ["openai.com", "azure.com", "api.openai.com", "api.groq.com"]
-    has_known_provider = any(provider in endpoint for provider in known_providers)
-    # Ollama endpoint обычно содержит :11434
-    # Проверяем по порту 11434 или наличию "ollama" в URL
-    is_ollama = (
-        (":11434" in endpoint or "ollama" in endpoint.lower())
-        and not has_known_provider
-    )
-    
+    is_ollama = is_ollama_endpoint(endpoint)
+
     # Для Ollama vision моделей используем нативный API вместо OpenAI-compatible
+    endpoint_type = "ollama_native" if is_ollama else "openai_compatible"
+
     # Преобразуем endpoint из /v1/chat/completions в /api/chat для Ollama
     ollama_endpoint = None
     if is_ollama:
-        # Преобразуем OpenAI-compatible endpoint в нативный Ollama API
-        if "/v1/chat/completions" in endpoint:
-            # Заменяем /v1/chat/completions на /api/chat
-            ollama_endpoint = endpoint.replace("/v1/chat/completions", "/api/chat")
-        elif "/api/chat" in endpoint:
-            # Уже правильный формат
-            ollama_endpoint = endpoint
-        else:
-            # Если endpoint не содержит ни /v1/chat/completions, ни /api/chat
-            # Извлекаем базовый URL (до последнего /) и добавляем /api/chat
-            if endpoint.endswith("/"):
-                ollama_endpoint = f"{endpoint}api/chat"
-            else:
-                # Находим базовый URL (убираем путь после последнего /)
-                parts = endpoint.rsplit("/", 1)
-                if len(parts) == 2:
-                    base_url = parts[0]
-                    ollama_endpoint = f"{base_url}/api/chat"
-                else:
-                    # Если нет / в URL, добавляем /api/chat
-                    ollama_endpoint = f"{endpoint}/api/chat"
-    
+        ollama_endpoint = normalize_ollama_chat_endpoint(endpoint)
+
     # Для Ollama не нужен api-key в заголовках
     if is_ollama:
         headers = {"Content-Type": "application/json"}
@@ -167,7 +182,7 @@ def generate_gpt4v(
     
     # Логируем параметры запроса для отладки
     logger.info(
-        f"VLM request: endpoint={actual_endpoint}, model={model}, max_tokens={max_tokens}, "
+        f"VLM request: ingestion_id={ingestion_id or 'n/a'}, endpoint={actual_endpoint}, endpoint_type={endpoint_type}, model={model}, max_tokens={max_tokens}, "
         f"timeout={timeout}s, images_count={len(images_to_send)}, "
         f"total_image_size={total_image_size / 1024:.2f} KB, is_ollama={is_ollama}, "
         f"using_native_api={is_ollama and ollama_endpoint is not None}"
@@ -179,7 +194,7 @@ def generate_gpt4v(
         response.raise_for_status()
     except requests.exceptions.Timeout as e:
         logger.error(
-            f"VLM request timeout after {timeout}s: endpoint={actual_endpoint}, model={model}, "
+            f"VLM request timeout after {timeout}s: ingestion_id={ingestion_id or 'n/a'}, endpoint={actual_endpoint}, endpoint_type={endpoint_type}, model={model}, "
             f"image_size={total_image_size / 1024:.2f} KB"
         )
         raise
@@ -188,14 +203,14 @@ def generate_gpt4v(
         error_detail = str(e)
         if "Remote end closed connection" in error_detail or "RemoteDisconnected" in str(type(e)):
             logger.error(
-                f"VLM connection closed by server (RemoteDisconnected): endpoint={actual_endpoint}, "
+                f"VLM connection closed by server (RemoteDisconnected): ingestion_id={ingestion_id or 'n/a'}, endpoint={actual_endpoint}, endpoint_type={endpoint_type}, "
                 f"model={model}, image_size={total_image_size / 1024:.2f} KB, "
                 f"timeout={timeout}s. This may indicate the image is too large or the request "
                 f"takes too long. Try reducing image size or increasing timeout."
             )
         else:
             logger.error(
-                f"VLM connection error: endpoint={actual_endpoint}, model={model}, "
+                f"VLM connection error: ingestion_id={ingestion_id or 'n/a'}, endpoint={actual_endpoint}, endpoint_type={endpoint_type}, model={model}, "
                 f"error={error_detail}, image_size={total_image_size / 1024:.2f} KB"
             )
         raise
@@ -208,7 +223,7 @@ def generate_gpt4v(
             except Exception:
                 error_text = f"Status {response.status_code}"
         logger.error(
-            f"VLM HTTP error: endpoint={actual_endpoint}, model={model}, "
+            f"VLM HTTP error: ingestion_id={ingestion_id or 'n/a'}, endpoint={actual_endpoint}, endpoint_type={endpoint_type}, model={model}, "
             f"status={response.status_code if response else 'unknown'}, "
             f"error={error_text}, image_size={total_image_size / 1024:.2f} KB"
         )
@@ -221,7 +236,7 @@ def generate_gpt4v(
             except Exception:
                 pass
         logger.exception(
-            f"Error generating gpt4v: endpoint={actual_endpoint}, model={model}, "
+            f"Error generating gpt4v: ingestion_id={ingestion_id or 'n/a'}, endpoint={actual_endpoint}, endpoint_type={endpoint_type}, model={model}, "
             f"response={error_text}, error={e}, image_size={total_image_size / 1024:.2f} KB"
         )
         raise
@@ -266,16 +281,8 @@ def stream_gpt4v(
     # Определяем тип провайдера по endpoint
     # Ollama использует OpenAI-compatible API на порту 11434
     # Проверяем по порту 11434 или по отсутствию известных доменов OpenAI/Azure
-    known_providers = ["openai.com", "azure.com", "api.openai.com", "api.groq.com"]
-    has_known_provider = any(provider in endpoint for provider in known_providers)
-    # Ollama endpoint обычно содержит :11434 и /v1/chat/completions
-    # Также проверяем по отсутствию известных провайдеров и наличию /v1/chat/completions
-    is_ollama = (
-        "/v1/chat/completions" in endpoint 
-        and (":11434" in endpoint or "ollama" in endpoint.lower())
-        and not has_known_provider
-    )
-    
+    is_ollama = is_ollama_endpoint(endpoint)
+
     # Для Ollama не нужен api-key в заголовках
     if is_ollama:
         headers = {"Content-Type": "application/json"}
@@ -314,8 +321,10 @@ def stream_gpt4v(
             f"Truncated to {max_images} images (original {len(images)} images)"
         )
     
+    actual_endpoint = endpoint
     # Для Ollama добавляем дополнительные параметры
     if is_ollama:
+        actual_endpoint = normalize_ollama_chat_endpoint(endpoint)
         if not model:
             logger.warning(
                 f"Ollama endpoint detected but no model provided: {endpoint}. "
@@ -323,20 +332,38 @@ def stream_gpt4v(
             )
         else:
             payload["model"] = model
-        payload["options"] = {
-            "num_ctx": 16384,  # Увеличенное контекстное окно для обработки больших изображений
-            "num_predict": max_tokens,
-            "temperature": 0,
-            "keep_alive": "5m",
+        base64_images = []
+        for image in images[:max_images]:
+            if image.startswith("data:"):
+                base64_data = image.split(",", 1)[1] if "," in image else image
+            else:
+                base64_data = image
+            base64_images.append(base64_data)
+        payload = {
+            "model": model if model else "",
+            "messages": [
+                {"role": "user", "content": prompt, "images": base64_images}
+            ],
+            "options": {
+                "num_ctx": 16384,
+                "num_predict": max_tokens,
+                "temperature": 0,
+                "keep_alive": "5m",
+            },
+            "stream": False,
         }
 
     try:
         response = requests.post(
-            endpoint, headers=headers, json=payload, stream=True, timeout=300
+            actual_endpoint, headers=headers, json=payload, stream=True, timeout=300
         )
         assert response.status_code == 200, str(response.content)
         output = ""
         logprobs = []
+        if is_ollama:
+            content = response.json().get("message", {}).get("content", "")
+            yield content, []
+            return content, []
         for line in response.iter_lines():
             if line:
                 if line.startswith(b"\xef\xbb\xbf"):

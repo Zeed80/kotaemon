@@ -79,6 +79,27 @@ def dev_settings():
 _default_token_func = tiktoken.encoding_for_model("gpt-3.5-turbo").encode
 
 
+def _has_non_empty_text(doc: Document) -> bool:
+    text = doc.text if isinstance(doc.text, str) else ""
+    return bool(text.strip())
+
+
+def _filter_indexable_docs(docs: list[Document]) -> tuple[list[Document], list[Document]]:
+    """Оставить только документы, пригодные для индексации."""
+    kept: list[Document] = []
+    dropped: list[Document] = []
+    for doc in docs:
+        doc_type = doc.metadata.get("type", "text")
+        if doc_type == "thumbnail":
+            kept.append(doc)
+            continue
+        if _has_non_empty_text(doc):
+            kept.append(doc)
+        else:
+            dropped.append(doc)
+    return kept, dropped
+
+
 class DocumentRetrievalPipeline(BaseFileIndexRetriever):
     """Retrieve relevant document
 
@@ -353,6 +374,19 @@ class IndexPipeline(BaseComponent):
 
     def handle_docs(self, docs, file_id, file_name) -> Generator[Document, None, int]:
         s_time = time.time()
+        ingestion_id = ""
+        if docs and isinstance(docs[0], Document):
+            ingestion_id = docs[0].metadata.get("ingestion_id", "")
+        filtered_docs, dropped_docs = _filter_indexable_docs(docs)
+        if dropped_docs:
+            logger.warning(
+                "Dropping %s empty documents before indexing: file=%s ingestion_id=%s",
+                len(dropped_docs),
+                file_name,
+                ingestion_id or "n/a",
+            )
+        docs = filtered_docs
+
         text_docs = []
         non_text_docs = []
         thumbnail_docs = []
@@ -367,6 +401,12 @@ class IndexPipeline(BaseComponent):
                 non_text_docs.append(doc)
 
         print(f"Got {len(thumbnail_docs)} page thumbnails")
+        if not text_docs and not non_text_docs:
+            raise ValueError(
+                "No indexable text extracted from file. "
+                "Check OCR/VLM configuration and logs for extraction errors."
+            )
+
         page_label_to_thumbnail = {
             doc.metadata["page_label"]: doc.doc_id for doc in thumbnail_docs
         }
@@ -644,16 +684,21 @@ class IndexPipeline(BaseComponent):
 
         extra_info["file_id"] = file_id
         extra_info["collection_name"] = self.collection_name
+        extra_info["ingestion_id"] = kwargs.get("ingestion_id", "")
 
         yield Document(f" => Converting {file_name} to text", channel="debug")
-        docs = self.loader.load_data(file_path, extra_info=extra_info)
-        yield Document(f" => Converted {file_name} to text", channel="debug")
-        yield from self.handle_docs(docs, file_id, file_name)
+        try:
+            docs = self.loader.load_data(file_path, extra_info=extra_info)
+            yield Document(f" => Converted {file_name} to text", channel="debug")
+            yield from self.handle_docs(docs, file_id, file_name)
 
-        self.finish(file_id, file_path)
-
-        yield Document(f" => Finished indexing {file_name}", channel="debug")
-        return file_id, docs
+            self.finish(file_id, file_path)
+            yield Document(f" => Finished indexing {file_name}", channel="debug")
+            return file_id, docs
+        except Exception:
+            if file_id:
+                self.delete_file(file_id)
+            raise
 
 
 class IndexDocumentPipeline(BaseFileIndexIndexing):
@@ -810,6 +855,13 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         print(f"Chunk size: {chunk_size}, chunk overlap: {chunk_overlap}")
 
         print("Using reader", reader)
+        logger.info(
+            "Index route selected: mode=%s reader=%s chunk_size=%s chunk_overlap=%s",
+            self.document_recognition_mode,
+            reader.__class__.__name__,
+            chunk_size,
+            chunk_overlap,
+        )
         pipeline: IndexPipeline = IndexPipeline(
             loader=reader,
             splitter=TokenSplitter(
@@ -861,25 +913,58 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                 content=f"Indexing [{idx + 1}/{n_files}]: {file_name}",
                 channel="debug",
             )
+            ingestion_id = kwargs.get("ingestion_id", "")
+            forwarded_kwargs = dict(kwargs)
+            forwarded_kwargs["ingestion_id"] = ingestion_id
 
             try:
                 pipeline = self.route(file_path)
                 file_id, docs = yield from pipeline.stream(
-                    file_path, reindex=reindex, **kwargs
+                    file_path, reindex=reindex, **forwarded_kwargs
                 )
                 all_docs.extend(docs)
                 file_ids.append(file_id)
                 errors.append(None)
+                extraction_status = ""
+                extraction_error_code = ""
+                endpoint_type = ""
+                if docs:
+                    extraction_status = docs[0].metadata.get("extraction_status", "")
+                    extraction_error_code = docs[0].metadata.get("extraction_error_code", "")
+                    endpoint_type = docs[0].metadata.get("endpoint_type", "")
+                logger.info(
+                    "Index success: ingestion_id=%s file=%s mode=%s reader=%s endpoint_type=%s extraction_status=%s extraction_error_code=%s",
+                    ingestion_id or "n/a",
+                    file_name,
+                    self.document_recognition_mode,
+                    pipeline.loader.__class__.__name__,
+                    endpoint_type or "n/a",
+                    extraction_status or "n/a",
+                    extraction_error_code or "n/a",
+                )
                 yield Document(
                     content={
                         "file_path": file_path,
                         "file_name": file_name,
                         "status": "success",
+                        "ingestion_id": ingestion_id,
+                        "reader": pipeline.loader.__class__.__name__,
+                        "mode": self.document_recognition_mode,
+                        "extraction_status": extraction_status,
+                        "extraction_error_code": extraction_error_code,
+                        "endpoint_type": endpoint_type,
                     },
                     channel="index",
                 )
             except Exception as e:
                 logger.exception(e)
+                logger.error(
+                    "Index failed: ingestion_id=%s file=%s mode=%s error=%s",
+                    ingestion_id or "n/a",
+                    file_name,
+                    self.document_recognition_mode,
+                    str(e),
+                )
                 file_ids.append(None)
                 errors.append(str(e))
                 yield Document(
@@ -887,6 +972,8 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                         "file_path": file_path,
                         "file_name": file_name,
                         "status": "failed",
+                        "ingestion_id": ingestion_id,
+                        "mode": self.document_recognition_mode,
                         "message": str(e),
                     },
                     channel="index",

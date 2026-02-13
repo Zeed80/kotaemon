@@ -78,11 +78,15 @@ class VectorIndexing(BaseIndexing):
                     f.write(markdown_content)
 
     def add_to_docstore(self, docs: list[Document]):
+        if not docs:
+            return
         if self.doc_store:
             print("Adding documents to doc store")
             self.doc_store.add(docs)
 
     def add_to_vectorstore(self, docs: list[Document]):
+        if not docs:
+            return
         # in case we want to skip embedding
         if self.vector_store:
             print(f"Getting embeddings for {len(docs)} nodes")

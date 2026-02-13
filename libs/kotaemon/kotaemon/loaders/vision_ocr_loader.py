@@ -14,7 +14,7 @@ from kotaemon.base import Document, Param
 
 from .base import BaseReader
 from .utils.adobe import encode_image_base64
-from .utils.gpt4v import generate_gpt4v
+from .utils.gpt4v import generate_gpt4v, is_ollama_endpoint
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +135,7 @@ class VisionOCRReader(BaseReader):
                 "VisionOCRReader: unsupported extension %s, attempting anyway", suffix
             )
         mime = _IMAGE_MIME.get(suffix, "image/png")
+        ingestion_id = (extra_info or {}).get("ingestion_id", "n/a")
         
         # Проверяем размер файла
         file_size = file_path.stat().st_size
@@ -203,6 +204,11 @@ class VisionOCRReader(BaseReader):
                     metadata={
                         "file_name": file_path.name,
                         "file_path": str(file_path),
+                        "type": "image",
+                        "extraction_status": "failed",
+                        "extraction_error_code": "image_read_error",
+                        "extracted_text_length": 0,
+                        "ingestion_id": ingestion_id,
                         "error": str(e),
                     },
                 )
@@ -250,12 +256,20 @@ class VisionOCRReader(BaseReader):
                     metadata={
                         "file_name": file_path.name,
                         "file_path": str(file_path),
+                        "type": "image",
+                        "extraction_status": "failed",
+                        "extraction_error_code": "missing_endpoint",
+                        "extracted_text_length": 0,
+                        "ingestion_id": ingestion_id,
                         **(extra_info or {}),
                     },
                 )
             ]
 
         start_time = time.time()
+        extraction_status = "success"
+        extraction_error_code = ""
+        text = ""
         
         try:
             # Определяем таймаут на основе размера изображения
@@ -267,11 +281,8 @@ class VisionOCRReader(BaseReader):
                 timeout = 450  # 7.5 минут для больших изображений
             
             # Определяем, используется ли Ollama
-            is_ollama = (
-                "/v1/chat/completions" in endpoint 
-                and (":11434" in endpoint or "ollama" in endpoint.lower())
-                and not any(provider in endpoint for provider in ["openai.com", "azure.com", "api.openai.com", "api.groq.com"])
-            )
+            is_ollama = is_ollama_endpoint(endpoint)
+            endpoint_type = "ollama_native" if is_ollama else "openai_compatible"
             
             # Предупреждение для больших изображений в Ollama
             if is_ollama and b64_size > 2 * 1024 * 1024:  # > 2MB
@@ -284,9 +295,10 @@ class VisionOCRReader(BaseReader):
             
             logger.info(
                 f"Starting VLM extraction: file={file_path.name}, "
+                f"ingestion_id={ingestion_id}, "
                 f"endpoint={endpoint}, model={model}, "
                 f"max_tokens={self.max_tokens}, timeout={timeout}s, "
-                f"image_size={b64_size / 1024:.2f} KB, is_ollama={is_ollama}"
+                f"image_size={b64_size / 1024:.2f} KB, endpoint_type={endpoint_type}, is_ollama={is_ollama}"
             )
             
             text = generate_gpt4v(
@@ -296,19 +308,27 @@ class VisionOCRReader(BaseReader):
                 max_tokens=self.max_tokens,
                 model=model if model else None,
                 timeout=timeout,
+                ingestion_id=ingestion_id,
             )
             
             elapsed_time = time.time() - start_time
             text_length = len(text) if text else 0
             logger.info(
                 f"VLM extraction completed: file={file_path.name}, "
-                f"extracted_text_length={text_length}, elapsed_time={elapsed_time:.2f}s"
+                f"ingestion_id={ingestion_id}, "
+                f"extracted_text_length={text_length}, elapsed_time={elapsed_time:.2f}s, endpoint_type={endpoint_type}"
             )
+            if not text or not text.strip():
+                extraction_status = "failed"
+                extraction_error_code = "no_text_extracted"
             
         except requests.exceptions.Timeout as e:
             elapsed_time = time.time() - start_time
+            extraction_status = "failed"
+            extraction_error_code = "timeout"
             logger.error(
                 f"VLM extraction timeout: file={file_path.name}, "
+                f"ingestion_id={ingestion_id}, "
                 f"endpoint={endpoint}, model={model}, "
                 f"timeout={timeout}s, elapsed_time={elapsed_time:.2f}s, "
                 f"image_size={b64_size / 1024:.2f} KB. "
@@ -318,14 +338,18 @@ class VisionOCRReader(BaseReader):
         except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as e:
             elapsed_time = time.time() - start_time
             error_str = str(e)
+            extraction_status = "failed"
+            extraction_error_code = "connection_error"
             is_remote_disconnected = (
                 "Remote end closed connection" in error_str 
                 or "RemoteDisconnected" in str(type(e))
             )
             
             if is_remote_disconnected:
+                extraction_error_code = "remote_disconnected"
                 logger.error(
                     f"VLM connection closed by server (RemoteDisconnected): file={file_path.name}, "
+                    f"ingestion_id={ingestion_id}, "
                     f"endpoint={endpoint}, model={model}, "
                     f"elapsed_time={elapsed_time:.2f}s, image_size={b64_size / 1024:.2f} KB. "
                     f"This usually means the image is too large for the model or the request takes too long. "
@@ -335,6 +359,7 @@ class VisionOCRReader(BaseReader):
             else:
                 logger.error(
                     f"VLM connection error: file={file_path.name}, "
+                    f"ingestion_id={ingestion_id}, "
                     f"endpoint={endpoint}, model={model}, "
                     f"elapsed_time={elapsed_time:.2f}s, image_size={b64_size / 1024:.2f} KB, "
                     f"error={error_str}. Check if Ollama is running and accessible."
@@ -343,8 +368,11 @@ class VisionOCRReader(BaseReader):
         except requests.exceptions.HTTPError as e:
             elapsed_time = time.time() - start_time
             status_code = getattr(e.response, "status_code", "unknown") if hasattr(e, "response") else "unknown"
+            extraction_status = "failed"
+            extraction_error_code = "http_error"
             logger.error(
                 f"VLM HTTP error: file={file_path.name}, "
+                f"ingestion_id={ingestion_id}, "
                 f"endpoint={endpoint}, model={model}, "
                 f"status={status_code}, elapsed_time={elapsed_time:.2f}s, "
                 f"image_size={b64_size / 1024:.2f} KB, error={e}"
@@ -352,8 +380,11 @@ class VisionOCRReader(BaseReader):
             text = ""
         except Exception as e:
             elapsed_time = time.time() - start_time
+            extraction_status = "failed"
+            extraction_error_code = "unexpected_error"
             logger.exception(
                 f"VLM text extraction failed: file={file_path.name}, "
+                f"ingestion_id={ingestion_id}, "
                 f"endpoint={endpoint}, model={model}, "
                 f"max_tokens={self.max_tokens}, elapsed_time={elapsed_time:.2f}s, "
                 f"image_size={b64_size / 1024:.2f} KB, error={e}"
@@ -364,6 +395,15 @@ class VisionOCRReader(BaseReader):
             "file_name": file_path.name,
             "file_path": str(file_path),
             "type": "image",
+            "extraction_status": extraction_status,
+            "extraction_error_code": extraction_error_code,
+            "extracted_text_length": len(text.strip()) if text else 0,
+            "ingestion_id": ingestion_id,
+            "endpoint": endpoint,
+            "endpoint_type": "ollama_native"
+            if is_ollama_endpoint(endpoint)
+            else "openai_compatible",
+            "model": model,
         }
         if extra_info:
             metadata.update(extra_info)

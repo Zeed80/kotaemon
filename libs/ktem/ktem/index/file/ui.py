@@ -1,8 +1,10 @@
 import html
 import json
+import logging
 import os
 import shutil
 import tempfile
+import uuid
 import zipfile
 from copy import deepcopy
 from pathlib import Path
@@ -28,6 +30,7 @@ KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
 DOWNLOAD_MESSAGE = "Start download"
 MAX_FILENAME_LENGTH = 20
 MAX_FILE_COUNT = 200
+logger = logging.getLogger(__name__)
 
 chat_input_focus_js = """
 function() {
@@ -73,6 +76,39 @@ function(file_list) {
 """.replace(
     "web_search", WEB_SEARCH_COMMAND
 )
+
+
+def _read_index_runtime_settings(settings: dict, index_id: int) -> dict:
+    prefix = f"index.options.{index_id}."
+    doc_mode = settings.get(f"{prefix}document_recognition_mode", "ocr")
+    vlm_model = settings.get(f"{prefix}vlm_model", "default")
+    llm_model = settings.get(f"{prefix}llm_model", "")
+    return {
+        "document_recognition_mode": doc_mode,
+        "vlm_model": vlm_model,
+        "llm_model": llm_model,
+    }
+
+
+def _format_quick_upload_status(indexed_ids: list[str] | None) -> str:
+    count = len(indexed_ids or [])
+    if count == 0:
+        return "Indexing finished with errors. No files were indexed."
+    if count == 1:
+        return "Indexing completed: 1 file indexed."
+    return f"Indexing completed: {count} files indexed."
+
+
+def _format_upload_runtime_info(runtime: dict, ingestion_id: str) -> str:
+    mode = runtime.get("document_recognition_mode", "ocr")
+    vlm_model = runtime.get("vlm_model", "default")
+    llm_model = runtime.get("llm_model", "")
+    return (
+        f"ingestion_id={ingestion_id}\n"
+        f"document_recognition_mode={mode}\n"
+        f"vlm_model={vlm_model}\n"
+        f"llm_model={llm_model or '(default)'}"
+    )
 
 
 class File(gr.File):
@@ -646,7 +682,10 @@ class FileIndexPage(BasePage):
                             outputs=self._app.chat_page._indices_input[1],
                         )
                         .then(
-                            fn=lambda: gr.update(value="Indexing completed."),
+                            fn=lambda ids: gr.update(
+                                value=_format_quick_upload_status(ids)
+                            ),
+                            inputs=self.quick_upload_state,
                             outputs=self._app.chat_page.quick_file_upload_status,
                         )
                         .then(
@@ -701,7 +740,8 @@ class FileIndexPage(BasePage):
                     inputs=self.quick_upload_state,
                     outputs=self._app.chat_page._indices_input[1],
                 ).then(
-                    fn=lambda: gr.update(value="Indexing completed."),
+                    fn=lambda ids: gr.update(value=_format_quick_upload_status(ids)),
+                    inputs=self.quick_upload_state,
                     outputs=self._app.chat_page.quick_file_upload_status,
                 )
 
@@ -1121,13 +1161,29 @@ class FileIndexPage(BasePage):
             return
 
         gr.Info(f"Start indexing {len(files)} files...")
+        ingestion_id = uuid.uuid4().hex
+        runtime_settings = _read_index_runtime_settings(settings, self._index.id)
 
         # get the pipeline
         indexing_pipeline = self._index.get_indexing_pipeline(settings, user_id)
+        logger.info(
+            "Start file ingestion: ingestion_id=%s files=%s index_id=%s mode=%s vlm_model=%s llm_model=%s",
+            ingestion_id,
+            len(files),
+            self._index.id,
+            runtime_settings.get("document_recognition_mode", "ocr"),
+            runtime_settings.get("vlm_model", "default"),
+            runtime_settings.get("llm_model", ""),
+        )
 
         outputs, debugs = [], []
+        debugs.append(_format_upload_runtime_info(runtime_settings, ingestion_id))
         # stream the output
-        output_stream = indexing_pipeline.stream(files, reindex=reindex)
+        output_stream = indexing_pipeline.stream(
+            files,
+            reindex=reindex,
+            ingestion_id=ingestion_id,
+        )
         try:
             while True:
                 response = next(output_stream)
@@ -1135,7 +1191,14 @@ class FileIndexPage(BasePage):
                     continue
                 if response.channel == "index":
                     if response.content["status"] == "success":
-                        outputs.append(f"\u2705 | {response.content['file_name']}")
+                        msg = f"\u2705 | {response.content['file_name']}"
+                        extraction_status = response.content.get("extraction_status")
+                        if extraction_status:
+                            msg += (
+                                f" | extraction_status={extraction_status}"
+                                f" | endpoint_type={response.content.get('endpoint_type', 'n/a')}"
+                            )
+                        outputs.append(msg)
                     elif response.content["status"] == "failed":
                         outputs.append(
                             f"\u274c | {response.content['file_name']}: "
@@ -1188,7 +1251,6 @@ class FileIndexPage(BasePage):
 
         returned_ids = []
         settings = deepcopy(settings)
-        settings[f"index.options.{self._index.id}.document_recognition_mode"] = "ocr"
         settings[f"index.options.{self._index.id}.quick_index_mode"] = True
         if to_process_files:
             _iter = self.index_fn(to_process_files, [], reindex, settings, user_id)
@@ -1213,7 +1275,6 @@ class FileIndexPage(BasePage):
 
         returned_ids: list[str] = []
         settings = deepcopy(settings)
-        settings[f"index.options.{self._index.id}.document_recognition_mode"] = "ocr"
         settings[f"index.options.{self._index.id}.quick_index_mode"] = True
 
         if KH_DEMO_MODE:
