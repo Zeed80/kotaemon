@@ -47,21 +47,28 @@ class OllamaServersManagement(BasePage):
                     size="sm",
                 )
             with gr.Column(visible=False) as self._edit_panel:
+                gr.Markdown("### Основные параметры")
                 self.edit_name = gr.Textbox(label="Имя", interactive=False)
+                gr.Markdown("### Подключение")
                 with gr.Row():
                     self.edit_base_url = gr.Textbox(
                         label="Ollama API URL",
                         info="Проверка выполняется на сервере Kotaemon. localhost — машина, где запущено приложение.",
+                        placeholder="http://localhost:11434/v1/",
+                        scale=4,
                     )
                     self.edit_status_html = gr.HTML(
                         value=_ollama_status_html(False, "unreachable"),
                         elem_classes=["ollama-status"],
+                        scale=0,
                     )
-                    self.btn_check_edit = gr.Button("Проверить", size="sm", min_width=80)
+                    self.btn_check_edit = gr.Button("Проверить", size="sm", min_width=80, scale=0)
+                gr.Markdown("### Настройки модели")
                 self.edit_num_ctx = gr.Number(
                     label="Макс. контекст (num_ctx)",
                     value=8192,
                     precision=0,
+                    info="Размер контекстного окна по умолчанию для моделей на этом сервере.",
                 )
                 with gr.Row():
                     self.btn_save = gr.Button("Сохранить", variant="primary")
@@ -76,21 +83,27 @@ class OllamaServersManagement(BasePage):
                 self.selected_server_name = gr.Textbox(value="", visible=False)
 
         with gr.Tab(label="Add"):
+            gr.Markdown("### Основные параметры")
             self.add_name = gr.Textbox(
                 label="Имя",
                 info="Уникальное имя сервера (например: local, dev)",
+                placeholder="local",
             )
+            gr.Markdown("### Подключение")
             with gr.Row():
                 self.add_base_url = gr.Textbox(
                     label="Ollama API URL",
                     info="Проверка выполняется на сервере Kotaemon. localhost — машина, где запущено приложение.",
                     placeholder="http://localhost:11434/v1/",
+                    scale=4,
                 )
                 self.add_status_html = gr.HTML(
                     value=_ollama_status_html(False, "unreachable"),
                     elem_classes=["ollama-status"],
+                    scale=0,
                 )
-                self.btn_check_add = gr.Button("Проверить", size="sm", min_width=80)
+                self.btn_check_add = gr.Button("Проверить", size="sm", min_width=80, scale=0)
+            gr.Markdown("### Настройки модели")
             self.add_num_ctx = gr.Number(
                 label="Макс. контекст (num_ctx)",
                 value=8192,
@@ -303,7 +316,7 @@ class OllamaServersManagement(BasePage):
         )
 
     def on_select_server(self, df, ev: gr.SelectData):
-        if not ev.selected or not df or df.empty:
+        if not ev.selected or df is None or df.empty:
             return (
                 gr.update(visible=False),
                 "",
