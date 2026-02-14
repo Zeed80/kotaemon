@@ -75,7 +75,7 @@ Kotaemon — установка и развёртывание
 
 GPU (Unstructured/Docling):
   Локально:  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-  Docker:    TORCH_DEVICE=cu121 docker compose build   (в .env задать TORCH_DEVICE=cu121)
+  Docker:    GPU включён по умолчанию; для CPU: docker compose -f docker-compose.yml -f docker-compose.cpu.yml up -d
   Требуется NVIDIA GPU и NVIDIA Container Toolkit для Docker.
 EOF
 }
@@ -300,10 +300,12 @@ run_docker_install() {
     fi
 
     print_step "Сборка и запуск контейнера (Docker Compose)"
-    docker compose up -d --build
+    docker compose build --ssh default
+    docker compose up -d
     print_ok "Контейнер запущен."
     echo ""
     echo "  Интерфейс:  http://localhost:${KOTAEMON_PORT:-7860}"
+    echo "  Обновление: ./scripts/docker-update.sh"
     echo "  Логи:       docker compose logs -f"
     echo "  Остановка:  docker compose down"
     echo "  Ollama отдельным контейнером: docker compose --profile ollama up -d"

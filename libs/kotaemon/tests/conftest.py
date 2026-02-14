@@ -41,10 +41,16 @@ def if_haystack_not_installed():
 
 
 def if_sentence_bert_not_installed():
+    """Check sentence_transformers import; skip on torch/torchvision conflicts too."""
     try:
         import sentence_transformers  # noqa: F401
     except ImportError:
         return True
+    except RuntimeError as e:
+        # torchvision::nms and similar torch mismatches break import
+        if "nms" in str(e) or "torch" in str(e).lower():
+            return True
+        raise
     else:
         return False
 
@@ -98,9 +104,15 @@ def if_voyageai_not_installed():
 
 
 def if_milvus_not_installed():
+    """Check pymilvus+milvus_lite and llama-index Milvus store.
+
+    Note: milvus_lite is NOT supported on Windows; use Linux/Mac or Milvus
+    Standalone (Docker) for local testing.
+    """
     try:
-        import milvus_lite  # noqa: F401
+        import milvus_lite  # noqa: F401  # not available on Windows
         import pymilvus  # noqa: F401
+        from llama_index.vector_stores.milvus import MilvusVectorStore  # noqa: F401
     except ImportError:
         return True
     else:

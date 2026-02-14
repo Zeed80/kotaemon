@@ -3,13 +3,17 @@
 # Использование:
 #   1. Скопировать .env.example в .env и задать ключи API.
 #   2. Сборка и запуск:
-#      docker compose up -d --build
+#      docker compose build --ssh default
+#      docker compose up -d
 #   3. После запуска: http://localhost:7860
+#
+# Обновление без полной пересборки (исходники монтируются):
+#   ./scripts/docker-update.sh
 #
 # Образ включает все инструменты: MS GraphRAG, Nano GraphRAG, LightRAG, Unstructured, Docling.
 #
-# GPU: для сборки с CUDA: docker compose build --build-arg TORCH_DEVICE=cu121
-# Требуется NVIDIA Container Toolkit. Раскомментируйте deploy ниже.
+# GPU: по умолчанию включён (cu121). Требуется NVIDIA Container Toolkit.
+# Для CPU-only: задайте TORCH_DEVICE=cpu в .env и закомментируйте deploy ниже.
 
 x-common-env: &common-env
   GRADIO_SERVER_NAME: "0.0.0.0"
@@ -17,6 +21,8 @@ x-common-env: &common-env
 
 x-common-volumes: &common-volumes
   - ktem_app_data:/app/ktem_app_data
+  # Монтирование исходников: быстрые обновления (git pull + restart) и отладка
+  - .:/app
 
 services:
   app:
@@ -24,7 +30,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        TORCH_DEVICE: ${TORCH_DEVICE:-cpu}
+        TORCH_DEVICE: ${TORCH_DEVICE:-cu121}
     image: kotaemon:latest
     container_name: kotaemon
     ports:
@@ -40,14 +46,14 @@ services:
       - searxng
     volumes: *common-volumes
     restart: unless-stopped
-    # GPU: раскомментируйте для использования NVIDIA GPU (требуется nvidia-container-toolkit)
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+    # GPU: по умолчанию включён. Для CPU-only закомментируйте.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     healthcheck:
       test:
         [
