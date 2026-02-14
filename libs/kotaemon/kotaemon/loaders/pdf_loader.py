@@ -1,13 +1,12 @@
 import base64
 from io import BytesIO
 from pathlib import Path
-from typing import Dict, List, Optional
 
-from decouple import config
 from fsspec import AbstractFileSystem
 from llama_index.readers.file import PDFReader
 from PIL import Image
 
+from flowsettings_config import config
 from kotaemon.base import Document
 
 PDF_LOADER_DPI = config("PDF_LOADER_DPI", default=40, cast=int)
@@ -15,7 +14,7 @@ PDF_LOADER_DPI = config("PDF_LOADER_DPI", default=40, cast=int)
 
 def get_page_thumbnails(
     file_path: Path, pages: list[int], dpi: int = PDF_LOADER_DPI
-) -> List[Image.Image]:
+) -> list[Image.Image]:
     """Get image thumbnails of the pages in the PDF file.
 
     Args:
@@ -68,9 +67,9 @@ class PDFThumbnailReader(PDFReader):
     def load_data(
         self,
         file: Path,
-        extra_info: Optional[Dict] = None,
-        fs: Optional[AbstractFileSystem] = None,
-    ) -> List[Document]:
+        extra_info: dict | None = None,
+        fs: AbstractFileSystem | None = None,
+    ) -> list[Document]:
         """Parse file."""
         documents = super().load_data(file, extra_info, fs)
 
@@ -108,7 +107,7 @@ class PDFThumbnailReader(PDFReader):
                     },
                 )
                 for (page_thumbnail, page_number) in zip(
-                    page_thumbnails, page_numbers_str
+                    page_thumbnails, page_numbers_str, strict=False
                 )
                 if is_int_page_number[page_number]
             ]

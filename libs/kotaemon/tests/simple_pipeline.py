@@ -1,5 +1,4 @@
 import tempfile
-from typing import List
 
 from kotaemon.base import BaseComponent, LLMInterface, lazy
 from kotaemon.embeddings import LCAzureOpenAIEmbeddings
@@ -29,5 +28,5 @@ class Pipeline(BaseComponent):
     )
 
     def run(self, text: str) -> LLMInterface:
-        matched_texts: List[str] = self.retrieving_pipeline(text)
+        matched_texts: list[str] = self.retrieving_pipeline(text)
         return self.llm("\n".join(matched_texts))

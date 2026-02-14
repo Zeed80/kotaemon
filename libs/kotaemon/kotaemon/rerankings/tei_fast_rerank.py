@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import requests
 
 from kotaemon.base import Document, Param
@@ -19,7 +17,7 @@ class TeiFastReranking(BaseReranking):
     endpoint_url: str = Param(
         None, help="TEI Reranking service api base URL", required=True
     )
-    model_name: Optional[str] = Param(
+    model_name: str | None = Param(
         None,
         help=(
             "ID of the model to use. You can go to [Supported Models]"
@@ -28,8 +26,8 @@ class TeiFastReranking(BaseReranking):
             "#supported-models) to see the supported models"
         ),
     )
-    is_truncated: Optional[bool] = Param(True, help="Whether to truncate the inputs")
-    max_tokens: Optional[int] = Param(
+    is_truncated: bool | None = Param(True, help="Whether to truncate the inputs")
+    max_tokens: int | None = Param(
         512,
         help=(
             "This option is used to specify the "

@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import os
 
-from decouple import config
-
+from flowsettings_config import config
 from kotaemon.base import Document, Param
 
 from .base import BaseReranking
@@ -38,7 +37,7 @@ class CohereReranking(BaseReranking):
             import cohere
         except ImportError:
             raise ImportError(
-                "Please install Cohere " "`pip install cohere` to use Cohere Reranking"
+                "Please install Cohere `pip install cohere` to use Cohere Reranking"
             )
 
         if not self.cohere_api_key or "COHERE_API_KEY" in self.cohere_api_key:

@@ -3,11 +3,11 @@ import os
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from decouple import config
 from llama_index.core.readers.base import BaseReader
 
+from flowsettings_config import config
 from kotaemon.base import Document
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ class AdobeReader(BaseReader):
 
     def __init__(
         self,
-        vlm_endpoint: Optional[str] = None,
+        vlm_endpoint: str | None = None,
         max_figures_to_caption: int = 100,
         *args: Any,
         **kwargs: Any,
@@ -54,8 +54,8 @@ class AdobeReader(BaseReader):
         self.max_figures_to_caption = max_figures_to_caption
 
     def load_data(
-        self, file: Path, extra_info: Optional[Dict] = None, **kwargs
-    ) -> List[Document]:
+        self, file: Path, extra_info: dict | None = None, **kwargs
+    ) -> list[Document]:
         """Load data by calling to the Adobe's API
 
         Args:
@@ -130,21 +130,24 @@ class AdobeReader(BaseReader):
         if self.vlm_endpoint:
             try:
                 from ktem.vlms import vlms_manager
+
                 for vlm_name in vlms_manager.list():
-                    vlm_ep, vlm_mod = vlms_manager.get_endpoint_and_model(vlm_name["name"])
+                    vlm_ep, vlm_mod = vlms_manager.get_endpoint_and_model(
+                        vlm_name["name"]
+                    )
                     if vlm_ep == self.vlm_endpoint:
                         vlm_model = vlm_mod
                         break
             except Exception:
                 pass
-        
+
         figure_captions = generate_figure_captions(
             self.vlm_endpoint,
             [item[1] for item in figures],
             self.max_figures_to_caption,
             vlm_model=vlm_model,
         )
-        for item, caption in zip(figures, figure_captions):
+        for item, caption in zip(figures, figure_captions, strict=False):
             # update figure caption
             item[2] += " " + caption
 

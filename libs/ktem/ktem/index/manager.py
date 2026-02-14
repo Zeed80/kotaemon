@@ -1,9 +1,8 @@
-from typing import Optional, Type
-
-from ktem.db.models import engine
 from sqlmodel import Session, select
 from theflow.settings import settings
 from theflow.utils.modules import import_dotted_string
+
+from ktem.db.models import engine
 
 from .base import BaseIndex
 from .models import Index
@@ -23,7 +22,7 @@ class IndexManager:
     def __init__(self, app):
         self._app = app
         self._indices = []
-        self._index_types: dict[str, Type[BaseIndex]] = {}
+        self._index_types: dict[str, type[BaseIndex]] = {}
 
     @property
     def index_types(self) -> dict:
@@ -110,7 +109,7 @@ class IndexManager:
 
     def delete_index(self, id: int):
         """Delete the index from the database"""
-        index: Optional[BaseIndex] = None
+        index: BaseIndex | None = None
         for _ in self._indices:
             if _.id == id:
                 index = _
@@ -152,10 +151,10 @@ class IndexManager:
 
         # developer-defined custom index types
         for index_str in settings.KH_INDEX_TYPES:
-            cls: Type[BaseIndex] = import_dotted_string(index_str, safe=False)
+            cls: type[BaseIndex] = import_dotted_string(index_str, safe=False)
             self._index_types[f"{cls.__module__}.{cls.__qualname__}"] = cls
 
-    def exists(self, id: Optional[int] = None, name: Optional[str] = None) -> bool:
+    def exists(self, id: int | None = None, name: str | None = None) -> bool:
         """Check if the index exists
 
         Args:

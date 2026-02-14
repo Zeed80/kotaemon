@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import threading
 import uuid
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence, cast
+from typing import cast
 
 from theflow.settings import settings as flowsettings
 
@@ -27,9 +28,9 @@ class VectorIndexing(BaseIndexing):
         - List of texts
     """
 
-    cache_dir: Optional[str] = getattr(flowsettings, "KH_CHUNKS_OUTPUT_DIR", None)
+    cache_dir: str | None = getattr(flowsettings, "KH_CHUNKS_OUTPUT_DIR", None)
     vector_store: BaseVectorStore
-    doc_store: Optional[BaseDocumentStore] = None
+    doc_store: BaseDocumentStore | None = None
     embedding: BaseEmbeddings
     count_: int = 0
 
@@ -71,7 +72,7 @@ class VectorIndexing(BaseIndexing):
                     markdown_content += f"\ntext:\n{docs[i].text}"
 
                 with open(
-                    Path(self.cache_dir) / f"{file_name.stem}_{self.count_+i}.md",
+                    Path(self.cache_dir) / f"{file_name.stem}_{self.count_ + i}.md",
                     "w",
                     encoding="utf-8",
                 ) as f:
@@ -122,7 +123,7 @@ class VectorRetrieval(BaseRetrieval):
     """Retrieve list of documents from vector store"""
 
     vector_store: BaseVectorStore
-    doc_store: Optional[BaseDocumentStore] = None
+    doc_store: BaseDocumentStore | None = None
     embedding: BaseEmbeddings
     rerankers: Sequence[BaseReranking] = []
     top_k: int = 5
@@ -137,7 +138,7 @@ class VectorRetrieval(BaseRetrieval):
         return documents
 
     def run(
-        self, text: str | Document, top_k: Optional[int] = None, **kwargs
+        self, text: str | Document, top_k: int | None = None, **kwargs
     ) -> list[RetrievedDocument]:
         """Retrieve a list of documents from vector store
 
@@ -178,7 +179,7 @@ class VectorRetrieval(BaseRetrieval):
             docs = self.doc_store.get(ids)
             result = [
                 RetrievedDocument(**doc.to_dict(), score=score)
-                for doc, score in zip(docs, scores)
+                for doc, score in zip(docs, scores, strict=False)
             ]
         elif self.retrieval_mode == "text":
             query = text.text if isinstance(text, Document) else text
@@ -236,7 +237,7 @@ class VectorRetrieval(BaseRetrieval):
             ]
             result += [
                 RetrievedDocument(**doc.to_dict(), score=score)
-                for doc, score in zip(vs_docs, vs_scores)
+                for doc, score in zip(vs_docs, vs_scores, strict=False)
             ]
             print(f"Got {len(vs_docs)} from vectorstore")
             print(f"Got {len(ds_docs)} from docstore")

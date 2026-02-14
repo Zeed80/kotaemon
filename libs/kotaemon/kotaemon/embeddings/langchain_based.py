@@ -1,5 +1,3 @@
-from typing import Optional
-
 from kotaemon.base import DocumentWithEmbedding, Param
 
 from .base import BaseEmbeddings
@@ -26,7 +24,7 @@ class LCEmbeddingMixin:
 
         return [
             DocumentWithEmbedding(content=doc, embedding=each_embedding)
-            for doc, each_embedding in zip(input_docs, embeddings)
+            for doc, each_embedding in zip(input_docs, embeddings, strict=False)
         ]
 
     def __repr__(self):
@@ -92,11 +90,11 @@ class LCOpenAIEmbeddings(LCEmbeddingMixin, BaseEmbeddings):
     def __init__(
         self,
         model: str = "text-embedding-ada-002",
-        openai_api_version: Optional[str] = None,
-        openai_api_base: Optional[str] = None,
-        openai_api_type: Optional[str] = None,
-        openai_api_key: Optional[str] = None,
-        request_timeout: Optional[float] = None,
+        openai_api_version: str | None = None,
+        openai_api_base: str | None = None,
+        openai_api_type: str | None = None,
+        openai_api_key: str | None = None,
+        request_timeout: float | None = None,
         **params,
     ):
         super().__init__(
@@ -123,11 +121,11 @@ class LCAzureOpenAIEmbeddings(LCEmbeddingMixin, BaseEmbeddings):
 
     def __init__(
         self,
-        azure_endpoint: Optional[str] = None,
-        deployment: Optional[str] = None,
-        openai_api_key: Optional[str] = None,
-        api_version: Optional[str] = None,
-        request_timeout: Optional[float] = None,
+        azure_endpoint: str | None = None,
+        deployment: str | None = None,
+        openai_api_key: str | None = None,
+        api_version: str | None = None,
+        request_timeout: float | None = None,
         **params,
     ):
         super().__init__(
@@ -168,9 +166,9 @@ class LCCohereEmbeddings(LCEmbeddingMixin, BaseEmbeddings):
     def __init__(
         self,
         model: str = "embed-english-v2.0",
-        cohere_api_key: Optional[str] = None,
-        truncate: Optional[str] = None,
-        request_timeout: Optional[float] = None,
+        cohere_api_key: str | None = None,
+        truncate: str | None = None,
+        request_timeout: float | None = None,
         **params,
     ):
         super().__init__(
@@ -238,7 +236,7 @@ class LCGoogleEmbeddings(LCEmbeddingMixin, BaseEmbeddings):
     def __init__(
         self,
         model: str = "models/text-embedding-004",
-        google_api_key: Optional[str] = None,
+        google_api_key: str | None = None,
         **params,
     ):
         super().__init__(
@@ -273,7 +271,7 @@ class LCMistralEmbeddings(LCEmbeddingMixin, BaseEmbeddings):
     def __init__(
         self,
         model: str = "mistral-embed",
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         **params,
     ):
         super().__init__(

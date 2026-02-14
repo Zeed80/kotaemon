@@ -9,8 +9,9 @@ sudo apt-get install -y libmagic-dev poppler-utils libreoffice
 pip install xlrd
 
 """
+
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from llama_index.core.readers.base import BaseReader
 
@@ -51,10 +52,10 @@ class UnstructuredReader(BaseReader):
     def load_data(
         self,
         file: Path,
-        extra_info: Optional[Dict] = None,
-        split_documents: Optional[bool] = False,
+        extra_info: dict | None = None,
+        split_documents: bool | None = False,
         **kwargs,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """If api is set, parse through api"""
         file_path_str = str(file)
         if self.api:

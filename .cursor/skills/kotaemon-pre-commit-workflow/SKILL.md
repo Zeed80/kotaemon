@@ -15,17 +15,20 @@ pre-commit install
 ## Команды перед коммитом
 
 **Проверка стиля (все файлы):**
+
 ```bash
 pre-commit run --all-files
 ```
 
 **Запуск тестов:**
+
 ```bash
 cd libs/kotaemon
 pytest
 ```
 
 Или из корня:
+
 ```bash
 pytest libs/kotaemon/tests/
 ```

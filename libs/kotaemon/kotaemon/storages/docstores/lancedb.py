@@ -1,5 +1,4 @@
 import json
-from typing import List, Optional, Union
 
 from kotaemon.base import Document
 
@@ -25,8 +24,8 @@ class LanceDBDocumentStore(BaseDocumentStore):
 
     def add(
         self,
-        docs: Union[Document, List[Document]],
-        ids: Optional[Union[List[str], str]] = None,
+        docs: Document | list[Document],
+        ids: list[str] | str | None = None,
         refresh_indices: bool = True,
         **kwargs,
     ):
@@ -38,7 +37,7 @@ class LanceDBDocumentStore(BaseDocumentStore):
                 "text": doc.text,
                 "attributes": json.dumps(doc.metadata),
             }
-            for doc_id, doc in zip(doc_ids, docs)
+            for doc_id, doc in zip(doc_ids, docs, strict=False)
         ]
 
         if self.collection_name not in self.db_connection.table_names():
@@ -60,8 +59,8 @@ class LanceDBDocumentStore(BaseDocumentStore):
             )
 
     def query(
-        self, query: str, top_k: int = 10, doc_ids: Optional[list] = None
-    ) -> List[Document]:
+        self, query: str, top_k: int = 10, doc_ids: list | None = None
+    ) -> list[Document]:
         if doc_ids:
             id_filter = ", ".join([f"'{_id}'" for _id in doc_ids])
             query_filter = f"id in ({id_filter})"
@@ -93,7 +92,7 @@ class LanceDBDocumentStore(BaseDocumentStore):
             for doc in docs
         ]
 
-    def get(self, ids: Union[List[str], str]) -> List[Document]:
+    def get(self, ids: list[str] | str) -> list[Document]:
         """Get document by id"""
         if not isinstance(ids, list):
             ids = [ids]
@@ -126,7 +125,7 @@ class LanceDBDocumentStore(BaseDocumentStore):
         }
         return [doc_dict[_id] for _id in ids if _id in doc_dict]
 
-    def delete(self, ids: Union[List[str], str], refresh_indices: bool = True):
+    def delete(self, ids: list[str] | str, refresh_indices: bool = True):
         """Delete document by id"""
         if not isinstance(ids, list):
             ids = [ids]
@@ -150,7 +149,7 @@ class LanceDBDocumentStore(BaseDocumentStore):
     def count(self) -> int:
         raise NotImplementedError
 
-    def get_all(self) -> List[Document]:
+    def get_all(self) -> list[Document]:
         raise NotImplementedError
 
     def __persist_flow__(self):

@@ -1,10 +1,11 @@
 import hashlib
 
 import gradio as gr
+from sqlmodel import Session, select
+
 from ktem.app import BasePage
 from ktem.db.models import User, engine
 from ktem.pages.resources.user import create_user
-from sqlmodel import Session, select
 
 fetch_creds = """
 function() {
@@ -24,7 +25,6 @@ function(usn, pwd) {
 
 
 class LoginPage(BasePage):
-
     public_events = ["onSignIn"]
 
     def __init__(self, app):

@@ -1,12 +1,11 @@
 import logging
 from pathlib import Path
-from typing import Type
 
-from decouple import config
 from llama_index.core.readers.base import BaseReader
 from llama_index.readers.file import PDFReader
 from theflow.settings import settings as flowsettings
 
+from flowsettings_config import config
 from kotaemon.base import BaseComponent, Document, Param
 from kotaemon.indices.extractors import BaseDocParser
 from kotaemon.indices.splitters import BaseSplitter, TokenSplitter
@@ -103,9 +102,9 @@ class DocumentIngestor(BaseComponent):
         chunk_size=1024,
         chunk_overlap=256,
         separator="\n\n",
-        backup_separators=["\n", ".", " ", "\u200B"],
+        backup_separators=["\n", ".", " ", "\u200b"],
     )
-    override_file_extractors: dict[str, Type[BaseReader]] = {}
+    override_file_extractors: dict[str, type[BaseReader]] = {}
 
     def _get_reader(self, input_files: list[str | Path]):
         """Get appropriate readers for the input files based on file extension"""

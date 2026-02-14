@@ -5,7 +5,9 @@ from cachetools import TTLCache, cached
 
 HF_API_URL = "https://huggingface.co/api/daily_papers"
 ARXIV_URL = "https://arxiv.org/abs/{paper_id}"
-SEMANTIC_SCHOLAR_QUERY_URL = "https://api.semanticscholar.org/graph/v1/paper/search/match?query={paper_name}"  # noqa
+SEMANTIC_SCHOLAR_QUERY_URL = (
+    "https://api.semanticscholar.org/graph/v1/paper/search/match?query={paper_name}"  # noqa
+)
 SEMANTIC_SCHOLAR_RECOMMEND_URL = (
     "https://api.semanticscholar.org/recommendations/v1/papers/"  # noqa
 )

@@ -1,5 +1,6 @@
 from abc import abstractmethod
-from typing import Any, AsyncGenerator, Iterator, Optional
+from collections.abc import AsyncGenerator, Iterator
+from typing import Any
 
 from theflow import Function, Node, Param, lazy
 
@@ -39,21 +40,17 @@ class BaseComponent(Function):
             if isinstance(node, BaseComponent):
                 node.set_output_queue(queue)
 
-    def report_output(self, output: Optional[Document]):
+    def report_output(self, output: Document | None):
         if self._queue is not None:
             self._queue.put_nowait(output)
 
-    def invoke(self, *args, **kwargs) -> Document | list[Document] | None:
-        ...
+    def invoke(self, *args, **kwargs) -> Document | list[Document] | None: ...
 
-    async def ainvoke(self, *args, **kwargs) -> Document | list[Document] | None:
-        ...
+    async def ainvoke(self, *args, **kwargs) -> Document | list[Document] | None: ...
 
-    def stream(self, *args, **kwargs) -> Iterator[Document] | None:
-        ...
+    def stream(self, *args, **kwargs) -> Iterator[Document] | None: ...
 
-    def astream(self, *args, **kwargs) -> AsyncGenerator[Document, None] | None:
-        ...
+    def astream(self, *args, **kwargs) -> AsyncGenerator[Document, None] | None: ...
 
     @abstractmethod
     def run(

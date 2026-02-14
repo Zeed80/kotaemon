@@ -1,6 +1,7 @@
 import gradio as gr
-from ktem.app import BasePage
 from pandas import DataFrame
+
+from ktem.app import BasePage
 
 from ...utils.hf_papers import fetch_papers
 

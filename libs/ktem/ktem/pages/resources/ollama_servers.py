@@ -2,10 +2,10 @@
 
 import gradio as gr
 import pandas as pd
-from ktem.app import BasePage
-from ktem.utils.ollama import check_ollama_available
 
+from ktem.app import BasePage
 from ktem.ollama_servers import ollama_servers_manager
+from ktem.utils.ollama import check_ollama_available
 
 
 def _status_icon(ok: bool) -> str:
@@ -18,9 +18,11 @@ def _ollama_status_html(ok: bool, message: str) -> str:
         color, title = "#22c55e", "Ollama доступен"
     else:
         color = "#ef4444"
-        title = {"timeout": "Таймаут", "unreachable": "Недоступен", "error": "Ошибка"}.get(
-            message, "Недоступен"
-        )
+        title = {
+            "timeout": "Таймаут",
+            "unreachable": "Недоступен",
+            "error": "Ошибка",
+        }.get(message, "Недоступен")
     return (
         f'<span title="{title}" style="'
         "display: inline-block; width: 14px; height: 14px; border-radius: 50%; "
@@ -61,7 +63,9 @@ class OllamaServersManagement(BasePage):
                         value=_ollama_status_html(False, "unreachable"),
                         elem_classes=["ollama-status"],
                     )
-                    self.btn_check_edit = gr.Button("Проверить", size="sm", min_width=80, scale=0)
+                    self.btn_check_edit = gr.Button(
+                        "Проверить", size="sm", min_width=80, scale=0
+                    )
                 gr.Markdown("### Настройки модели")
                 self.edit_num_ctx = gr.Number(
                     label="Макс. контекст (num_ctx)",
@@ -100,7 +104,9 @@ class OllamaServersManagement(BasePage):
                     value=_ollama_status_html(False, "unreachable"),
                     elem_classes=["ollama-status"],
                 )
-                self.btn_check_add = gr.Button("Проверить", size="sm", min_width=80, scale=0)
+                self.btn_check_add = gr.Button(
+                    "Проверить", size="sm", min_width=80, scale=0
+                )
             gr.Markdown("### Настройки модели")
             self.add_num_ctx = gr.Number(
                 label="Макс. контекст (num_ctx)",
@@ -129,12 +135,14 @@ class OllamaServersManagement(BasePage):
             data = []
             for s in rows:
                 ok, _ = ollama_servers_manager.check_available(s["name"])
-                data.append({
-                    "name": s["name"],
-                    "base_url": s["base_url"],
-                    "num_ctx": s["num_ctx"],
-                    "status": _status_icon(ok),
-                })
+                data.append(
+                    {
+                        "name": s["name"],
+                        "base_url": s["base_url"],
+                        "num_ctx": s["num_ctx"],
+                        "status": _status_icon(ok),
+                    }
+                )
         else:
             data = [
                 {

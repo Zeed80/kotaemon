@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Union
+from typing import Any
 
 from kotaemon.agents.base import BaseLLM, BaseTool
 from kotaemon.agents.io import BaseScratchPad
@@ -10,9 +10,9 @@ from .prompt import few_shot_planner_prompt, zero_shot_planner_prompt
 
 class Planner(BaseComponent):
     model: BaseLLM
-    prompt_template: Optional[PromptTemplate] = None
-    examples: Optional[Union[str, List[str]]] = None
-    plugins: List[BaseTool]
+    prompt_template: PromptTemplate | None = None
+    examples: str | list[str] | None = None
+    plugins: list[BaseTool]
 
     def _compose_worker_description(self) -> str:
         """

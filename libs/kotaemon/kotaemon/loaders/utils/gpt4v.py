@@ -1,12 +1,9 @@
-import base64
 import json
 import logging
-import time
+from typing import Any
 from urllib.parse import urlparse
-from typing import Any, List
 
 import requests
-from decouple import config
 from tenacity import (
     after_log,
     retry,
@@ -14,6 +11,8 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
+
+from flowsettings_config import config
 
 logger = logging.getLogger(__name__)
 
@@ -59,12 +58,18 @@ def normalize_ollama_chat_endpoint(endpoint: str) -> str:
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=2, min=2, max=30),
-    retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ChunkedEncodingError)),
+    retry=retry_if_exception_type(
+        (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+            requests.exceptions.ChunkedEncodingError,
+        )
+    ),
     after=after_log(logger, logging.WARNING),
 )
 def generate_gpt4v(
     endpoint: str,
-    images: str | List[str],
+    images: str | list[str],
     prompt: str,
     max_tokens: int = 8192,
     max_images: int = 10,
@@ -125,7 +130,7 @@ def generate_gpt4v(
                 # Если уже base64 строка (без data: префикса)
                 base64_data = image
             base64_images.append(base64_data)
-        
+
         payload = {
             "model": model if model else "",
             "messages": [
@@ -143,7 +148,7 @@ def generate_gpt4v(
             },
             "stream": False,
         }
-        
+
         if not model:
             logger.warning(
                 f"Ollama endpoint detected but no model provided: {endpoint}. "
@@ -179,7 +184,7 @@ def generate_gpt4v(
     # Вычисляем размер изображений для логирования
     images_to_send = images[:max_images]
     total_image_size = sum(len(img) for img in images_to_send)
-    
+
     # Логируем параметры запроса для отладки
     logger.info(
         f"VLM request: ingestion_id={ingestion_id or 'n/a'}, endpoint={actual_endpoint}, endpoint_type={endpoint_type}, model={model}, max_tokens={max_tokens}, "
@@ -190,18 +195,26 @@ def generate_gpt4v(
 
     response = None
     try:
-        response = requests.post(actual_endpoint, headers=headers, json=payload, timeout=timeout)
+        response = requests.post(
+            actual_endpoint, headers=headers, json=payload, timeout=timeout
+        )
         response.raise_for_status()
-    except requests.exceptions.Timeout as e:
+    except requests.exceptions.Timeout:
         logger.error(
             f"VLM request timeout after {timeout}s: ingestion_id={ingestion_id or 'n/a'}, endpoint={actual_endpoint}, endpoint_type={endpoint_type}, model={model}, "
             f"image_size={total_image_size / 1024:.2f} KB"
         )
         raise
-    except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as e:
+    except (
+        requests.exceptions.ConnectionError,
+        requests.exceptions.ChunkedEncodingError,
+    ) as e:
         # RemoteDisconnected является подклассом ConnectionError
         error_detail = str(e)
-        if "Remote end closed connection" in error_detail or "RemoteDisconnected" in str(type(e)):
+        if (
+            "Remote end closed connection" in error_detail
+            or "RemoteDisconnected" in str(type(e))
+        ):
             logger.error(
                 f"VLM connection closed by server (RemoteDisconnected): ingestion_id={ingestion_id or 'n/a'}, endpoint={actual_endpoint}, endpoint_type={endpoint_type}, "
                 f"model={model}, image_size={total_image_size / 1024:.2f} KB, "
@@ -214,7 +227,7 @@ def generate_gpt4v(
                 f"error={error_detail}, image_size={total_image_size / 1024:.2f} KB"
             )
         raise
-    except requests.exceptions.HTTPError as e:
+    except requests.exceptions.HTTPError:
         # HTTP ошибки (4xx, 5xx)
         error_text = ""
         if response is not None:
@@ -242,7 +255,7 @@ def generate_gpt4v(
         raise
 
     output = response.json()
-    
+
     # Для Ollama нативного API формат ответа отличается
     if is_ollama:
         # Ollama возвращает {"message": {"content": "..."}}
@@ -259,7 +272,7 @@ def generate_gpt4v(
 
 def stream_gpt4v(
     endpoint: str,
-    images: str | List[str],
+    images: str | list[str],
     prompt: str,
     max_tokens: int = 512,
     max_images: int = 10,
@@ -320,7 +333,7 @@ def stream_gpt4v(
         logger.warning(
             f"Truncated to {max_images} images (original {len(images)} images)"
         )
-    
+
     actual_endpoint = endpoint
     # Для Ollama добавляем дополнительные параметры
     if is_ollama:
@@ -341,9 +354,7 @@ def stream_gpt4v(
             base64_images.append(base64_data)
         payload = {
             "model": model if model else "",
-            "messages": [
-                {"role": "user", "content": prompt, "images": base64_images}
-            ],
+            "messages": [{"role": "user", "content": prompt, "images": base64_images}],
             "options": {
                 "num_ctx": 16384,
                 "num_predict": max_tokens,

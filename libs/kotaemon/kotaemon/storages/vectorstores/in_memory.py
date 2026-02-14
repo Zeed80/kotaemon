@@ -1,5 +1,6 @@
 """Simple vector store index."""
-from typing import Any, Optional, Type
+
+from typing import Any
 
 import fsspec
 from llama_index.core.vector_stores import SimpleVectorStore as LISimpleVectorStore
@@ -9,13 +10,13 @@ from .base import LlamaIndexVectorStore
 
 
 class InMemoryVectorStore(LlamaIndexVectorStore):
-    _li_class: Type[LISimpleVectorStore] = LISimpleVectorStore
+    _li_class: type[LISimpleVectorStore] = LISimpleVectorStore
     store_text: bool = False
 
     def __init__(
         self,
-        data: Optional[SimpleVectorStoreData] = None,
-        fs: Optional[fsspec.AbstractFileSystem] = None,
+        data: SimpleVectorStoreData | None = None,
+        fs: fsspec.AbstractFileSystem | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize params."""
@@ -31,10 +32,9 @@ class InMemoryVectorStore(LlamaIndexVectorStore):
     def save(
         self,
         save_path: str,
-        fs: Optional[fsspec.AbstractFileSystem] = None,
+        fs: fsspec.AbstractFileSystem | None = None,
         **kwargs,
     ):
-
         """save a simpleVectorStore to a dictionary.
 
         Args:
@@ -43,8 +43,7 @@ class InMemoryVectorStore(LlamaIndexVectorStore):
         """
         self._client.persist(persist_path=save_path, fs=fs)
 
-    def load(self, load_path: str, fs: Optional[fsspec.AbstractFileSystem] = None):
-
+    def load(self, load_path: str, fs: fsspec.AbstractFileSystem | None = None):
         """Create a SimpleKVStore from a load directory.
 
         Args:

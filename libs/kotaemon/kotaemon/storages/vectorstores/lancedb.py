@@ -1,4 +1,4 @@
-from typing import Any, List, Type, cast
+from typing import Any, cast
 
 from llama_index.core.vector_stores.types import MetadataFilters
 from llama_index.vector_stores.lancedb import LanceDBVectorStore as LILanceDBVectorStore
@@ -28,7 +28,7 @@ base_lancedb._to_lance_filter = custom_to_lance_filter
 
 
 class LanceDBVectorStore(LlamaIndexVectorStore):
-    _li_class: Type[LILanceDBVectorStore] = LILanceDBVectorStore
+    _li_class: type[LILanceDBVectorStore] = LILanceDBVectorStore
 
     def __init__(
         self,
@@ -64,7 +64,7 @@ class LanceDBVectorStore(LlamaIndexVectorStore):
         self._client = cast(LILanceDBVectorStore, self._client)
         self._client._metadata_keys = ["file_id"]
 
-    def delete(self, ids: List[str], **kwargs):
+    def delete(self, ids: list[str], **kwargs):
         """Delete vector embeddings from vector stores
 
         Args:

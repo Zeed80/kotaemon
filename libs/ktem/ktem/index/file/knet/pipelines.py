@@ -1,8 +1,8 @@
 import base64
 import json
 import os
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence
 
 import requests
 import yaml
@@ -59,7 +59,7 @@ class KnetRetrievalPipeline(BaseFileIndexRetriever):
     def run(
         self,
         text: str,
-        doc_ids: Optional[list[str]] = None,
+        doc_ids: list[str] | None = None,
         *args,
         **kwargs,
     ) -> list[RetrievedDocument]:
@@ -108,7 +108,7 @@ class KnetRetrievalPipeline(BaseFileIndexRetriever):
                     RetrievedDocument(text=chunk["node"]["text"], metadata=metadata)
                 )
         else:
-            raise IOError(f"{response.status_code}: {response.text}")
+            raise OSError(f"{response.status_code}: {response.text}")
 
         for reranker in self.rerankers:
             docs = reranker(documents=docs, query=text)

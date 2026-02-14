@@ -1,4 +1,20 @@
+"""Pytest configuration for kotaemon tests.
+
+kotaemon modules rely on theflow settings from root-level flowsettings.py.
+This conftest ensures theflow can resolve flowsettings when tests are run
+from libs/kotaemon (e.g. `pytest libs/kotaemon`).
+"""
+
+import os
+import sys
+from pathlib import Path
+
 import pytest
+
+_repo_root = Path(__file__).resolve().parents[3]
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+os.environ.setdefault("THEFLOW_SETTINGS_MODULE", "flowsettings")
 
 
 @pytest.fixture(scope="function")
@@ -81,8 +97,8 @@ def if_voyageai_not_installed():
 
 def if_milvus_not_installed():
     try:
-        import pymilvus  # noqa: F401
         import milvus_lite  # noqa: F401
+        import pymilvus  # noqa: F401
     except ImportError:
         return True
     else:
@@ -92,6 +108,15 @@ def if_milvus_not_installed():
 def if_qdrant_not_installed():
     try:
         import qdrant_client  # noqa: F401
+    except ImportError:
+        return True
+    else:
+        return False
+
+
+def if_ddgs_not_installed():
+    try:
+        import ddgs  # noqa: F401
     except ImportError:
         return True
     else:
@@ -119,11 +144,16 @@ skip_when_cohere_not_installed = pytest.mark.skipif(
 )
 
 skip_openai_lc_wrapper_test = pytest.mark.skipif(
-    True, reason="OpenAI LC wrapper test is skipped"
+    True,
+    reason="LangChain/LangGraph tests require API mocks compatible with openai>=2",
 )
 
 skip_llama_cpp_not_installed = pytest.mark.skipif(
     if_llama_cpp_not_installed(), reason="llama_cpp is not installed"
+)
+
+skip_when_ddgs_not_installed = pytest.mark.skipif(
+    if_ddgs_not_installed(), reason="ddgs (duckduckgo-search) is not installed"
 )
 
 skip_when_voyageai_not_installed = pytest.mark.skipif(

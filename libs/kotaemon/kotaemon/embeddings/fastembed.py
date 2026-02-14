@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from kotaemon.base import Document, DocumentWithEmbedding, Param
 
@@ -28,7 +28,7 @@ class FastEmbedEmbeddings(BaseEmbeddings):
         256,
         help="Batch size for embeddings. Higher values use more memory, but are faster",
     )
-    parallel: Optional[int] = Param(
+    parallel: int | None = Param(
         None,
         help=(
             "Number of threads to use for embeddings. "
@@ -62,7 +62,7 @@ class FastEmbedEmbeddings(BaseEmbeddings):
                 content=doc,
                 embedding=list(embedding),
             )
-            for doc, embedding in zip(input_, embeddings)
+            for doc, embedding in zip(input_, embeddings, strict=False)
         ]
 
     async def ainvoke(

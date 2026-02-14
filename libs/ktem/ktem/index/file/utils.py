@@ -38,12 +38,13 @@ def download_arxiv_pdf(url, output_path):
     response = requests.get(abstract_url)
 
     # parse HTML response and get h1.title
-    from bs4 import BeautifulSoup
+    from selectolax.parser import HTMLParser
 
-    soup = BeautifulSoup(response.content, "html.parser")
-    name = clean_name(
-        soup.find("h1", class_="title").text.strip().replace("Title:", "")
-    )
+    tree = HTMLParser(response.content)
+    title_node = tree.css_first("h1.title")
+    if not title_node:
+        raise ValueError("Failed to get paper name")
+    name = clean_name(title_node.text(strip=True).replace("Title:", ""))
     if not name:
         raise ValueError("Failed to get paper name")
 

@@ -1,10 +1,9 @@
-from typing import Type
-
-from ktem.db.engine import engine
 from sqlalchemy import JSON, Boolean, Column, String
 from sqlalchemy.orm import DeclarativeBase
 from theflow.settings import settings as flowsettings
 from theflow.utils.modules import import_dotted_string
+
+from ktem.db.engine import engine
 
 
 class Base(DeclarativeBase):
@@ -21,7 +20,7 @@ class BaseLLMTable(Base):
     default = Column(Boolean, default=False)
 
 
-_base_llm: Type[BaseLLMTable] = (
+_base_llm: type[BaseLLMTable] = (
     import_dotted_string(flowsettings.KH_TABLE_LLM, safe=False)
     if hasattr(flowsettings, "KH_TABLE_LLM")
     else BaseLLMTable

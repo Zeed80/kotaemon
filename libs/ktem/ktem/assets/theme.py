@@ -1,4 +1,4 @@
-from typing import Iterable
+from collections.abc import Iterable
 
 from gradio.themes import Soft
 from gradio.themes.utils import colors, fonts, sizes
@@ -41,13 +41,13 @@ common = dict(
     block_label_shadow="none",
     layout_gap="*spacing_xxl",
     section_header_text_size="*text_lg",
-    # buttons
-    button_shadow="none",
-    button_shadow_active="*shadow_drop",
-    button_shadow_hover="none",
-    # button_large_radius="*radius_xxl",
-    # button_small_radius="*radius_xxl",
-    # -----
+    # buttons (Gradio 5: per-variant shadow keys)
+    button_primary_shadow="none",
+    button_primary_shadow_active="*shadow_drop",
+    button_primary_shadow_hover="none",
+    button_secondary_shadow="none",
+    button_secondary_shadow_active="*shadow_drop",
+    button_secondary_shadow_hover="none",
 )
 dark_mode = dict(
     # body attributes
@@ -158,16 +158,12 @@ class Kotaemon(Soft):
         spacing_size: sizes.Size | str = sizes.spacing_md,
         radius_size: sizes.Size | str = sizes.radius_md,
         text_size: sizes.Size | str = sizes.text_md,
-        font: fonts.Font
-        | str
-        | Iterable[fonts.Font | str] = (
+        font: fonts.Font | str | Iterable[fonts.Font | str] = (
             fonts.GoogleFont("Quicksand"),
             "ui-sans-serif",
             "sans-serif",
         ),
-        font_mono: fonts.Font
-        | str
-        | Iterable[fonts.Font | str] = (
+        font_mono: fonts.Font | str | Iterable[fonts.Font | str] = (
             fonts.GoogleFont("IBM Plex Mono"),
             "ui-monospace",
             "monospace",

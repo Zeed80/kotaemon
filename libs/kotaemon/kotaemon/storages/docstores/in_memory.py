@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from typing import List, Optional, Union
 
 from kotaemon.base import Document
 
@@ -15,8 +14,8 @@ class InMemoryDocumentStore(BaseDocumentStore):
 
     def add(
         self,
-        docs: Union[Document, List[Document]],
-        ids: Optional[Union[List[str], str]] = None,
+        docs: Document | list[Document],
+        ids: list[str] | str | None = None,
         **kwargs,
     ):
         """Add document into document store
@@ -36,19 +35,19 @@ class InMemoryDocumentStore(BaseDocumentStore):
             docs = [docs]
         doc_ids = ids if ids else [doc.doc_id for doc in docs]
 
-        for doc_id, doc in zip(doc_ids, docs):
+        for doc_id, doc in zip(doc_ids, docs, strict=False):
             if doc_id in self._store and not exist_ok:
                 raise ValueError(f"Document with id {doc_id} already exist")
             self._store[doc_id] = doc
 
-    def get(self, ids: Union[List[str], str]) -> List[Document]:
+    def get(self, ids: list[str] | str) -> list[Document]:
         """Get document by id"""
         if not isinstance(ids, list):
             ids = [ids]
 
         return [self._store[doc_id] for doc_id in ids]
 
-    def get_all(self) -> List[Document]:
+    def get_all(self) -> list[Document]:
         """Get all documents"""
         return list(self._store.values())
 
@@ -56,7 +55,7 @@ class InMemoryDocumentStore(BaseDocumentStore):
         """Count number of documents"""
         return len(self._store)
 
-    def delete(self, ids: Union[List[str], str]):
+    def delete(self, ids: list[str] | str):
         """Delete document by id"""
         if not isinstance(ids, list):
             ids = [ids]
@@ -64,13 +63,13 @@ class InMemoryDocumentStore(BaseDocumentStore):
         for doc_id in ids:
             del self._store[doc_id]
 
-    def save(self, path: Union[str, Path]):
+    def save(self, path: str | Path):
         """Save document to path"""
         store = {key: value.to_dict() for key, value in self._store.items()}
         with open(path, "w") as f:
             json.dump(store, f)
 
-    def load(self, path: Union[str, Path]):
+    def load(self, path: str | Path):
         """Load document store from path"""
         with open(path) as f:
             store = json.load(f)
@@ -82,8 +81,8 @@ class InMemoryDocumentStore(BaseDocumentStore):
         self._store = {key: Document.from_dict(value) for key, value in store.items()}
 
     def query(
-        self, query: str, top_k: int = 10, doc_ids: Optional[list] = None
-    ) -> List[Document]:
+        self, query: str, top_k: int = 10, doc_ids: list | None = None
+    ) -> list[Document]:
         """Perform full-text search on document store"""
         return []
 

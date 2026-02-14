@@ -1,5 +1,3 @@
-from typing import List, Optional, Union
-
 from kotaemon.base import Document
 
 from .base import BaseDocumentStore
@@ -62,8 +60,8 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
 
     def add(
         self,
-        docs: Union[Document, List[Document]],
-        ids: Optional[Union[List[str], str]] = None,
+        docs: Document | list[Document],
+        ids: list[str] | str | None = None,
         refresh_indices: bool = True,
         **kwargs,
     ):
@@ -81,7 +79,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         doc_ids = ids if ids else [doc.doc_id for doc in docs]
 
         requests = []
-        for doc_id, doc in zip(doc_ids, docs):
+        for doc_id, doc in zip(doc_ids, docs, strict=False):
             text = doc.text
             metadata = doc.metadata
             request = {
@@ -100,7 +98,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         if refresh_indices:
             self.client.indices.refresh(index=self.index_name)
 
-    def query_raw(self, query: dict) -> List[Document]:
+    def query_raw(self, query: dict) -> list[Document]:
         """Query Elasticsearch store using query format of ES client
 
         Args:
@@ -122,8 +120,8 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         return docs
 
     def query(
-        self, query: str, top_k: int = 10, doc_ids: Optional[list] = None
-    ) -> List[Document]:
+        self, query: str, top_k: int = 10, doc_ids: list | None = None
+    ) -> list[Document]:
         """Search Elasticsearch docstore using search query (BM25)
 
         Args:
@@ -140,7 +138,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         query_dict = {"query": query_dict, "size": top_k}
         return self.query_raw(query_dict)
 
-    def get(self, ids: Union[List[str], str]) -> List[Document]:
+    def get(self, ids: list[str] | str) -> list[Document]:
         """Get document by id"""
         if not isinstance(ids, list):
             ids = [ids]
@@ -154,12 +152,12 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         )
         return count
 
-    def get_all(self) -> List[Document]:
+    def get_all(self) -> list[Document]:
         """Get all documents"""
         query_dict = {"query": {"match_all": {}}, "size": MAX_DOCS_TO_GET}
         return self.query_raw(query_dict)
 
-    def delete(self, ids: Union[List[str], str]):
+    def delete(self, ids: list[str] | str):
         """Delete document by id"""
         if not isinstance(ids, list):
             ids = [ids]

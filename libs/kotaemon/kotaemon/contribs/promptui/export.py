@@ -1,8 +1,9 @@
 """Export logs into Excel file"""
+
 import os
 import pickle
 from pathlib import Path
-from typing import Any, Dict, List, Type, Union
+from typing import Any
 
 import pandas as pd
 import yaml
@@ -14,7 +15,7 @@ from kotaemon.base import BaseComponent
 from .logs import ResultLog
 
 
-def from_log_to_dict(pipeline_cls: Type[BaseComponent], log_config: dict) -> dict:
+def from_log_to_dict(pipeline_cls: type[BaseComponent], log_config: dict) -> dict:
     """Export the log to panda dataframes
 
     Args:
@@ -26,15 +27,15 @@ def from_log_to_dict(pipeline_cls: Type[BaseComponent], log_config: dict) -> dic
     """
     # get the directory
     pipeline_log_path = storage.url(pipeline_cls().config.store_result)
-    dirs = list(sorted([f.path for f in os.scandir(pipeline_log_path) if f.is_dir()]))
+    dirs = sorted([f.path for f in os.scandir(pipeline_log_path) if f.is_dir()])
 
     # get resultlog callback
     resultlog = getattr(pipeline_cls, "_promptui_resultlog", ResultLog)
     allowed_resultlog_callbacks = {i for i in dir(resultlog) if not i.startswith("__")}
 
     ids = []
-    params: Dict[str, List[Any]] = {}
-    logged_infos: Dict[str, List[Any]] = {}
+    params: dict[str, list[Any]] = {}
+    logged_infos: dict[str, list[Any]] = {}
 
     for idx, each_dir in enumerate(dirs):
         ids.append(str(Path(each_dir).name))
@@ -86,7 +87,7 @@ def export(config: dict, pipeline_def, output_path):
     if not config.get("logs", {}):
         raise ValueError(f"Pipeline {pipeline_name} has no logs to export")
 
-    pds: Dict[str, pd.DataFrame] = {}
+    pds: dict[str, pd.DataFrame] = {}
     for log_name, log_def in config["logs"].items():
         pds[log_name] = pd.DataFrame(from_log_to_dict(pipeline_def, log_def))
 
@@ -97,8 +98,8 @@ def export(config: dict, pipeline_def, output_path):
 
 
 def export_from_dict(
-    config: Union[str, dict],
-    pipeline: Union[str, Type[BaseComponent]],
+    config: str | dict,
+    pipeline: str | type[BaseComponent],
     output_path: str,
 ):
     """CLI to export the logs of a pipeline into Excel file
@@ -119,7 +120,7 @@ def export_from_dict(
         raise TypeError(f"`config` must be str or dict, not {type(config)}")
 
     pipeline_name: str
-    pipeline_cls: Type[BaseComponent]
+    pipeline_cls: type[BaseComponent]
     pipeline_config: dict
     if isinstance(pipeline, str):
         if pipeline not in config_dict:

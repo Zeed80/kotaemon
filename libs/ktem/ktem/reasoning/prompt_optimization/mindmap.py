@@ -1,10 +1,9 @@
 import logging
 from textwrap import dedent
 
-from ktem.llms.manager import llms
-
 from kotaemon.base import BaseComponent, Document, HumanMessage, Node, SystemMessage
 from kotaemon.llms import ChatLLM, PromptTemplate
+from ktem.llms.manager import llms
 
 logger = logging.getLogger(__name__)
 

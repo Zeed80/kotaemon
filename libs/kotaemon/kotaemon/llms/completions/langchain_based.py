@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from kotaemon.base import LLMInterface
 
@@ -36,8 +35,9 @@ class LCCompletionMixin:
                 f"Cannot get token usage from LLM output for {self._lc_class.__name__}"
             )
 
+        main_text = all_text[0] if len(all_text) > 0 else ""
         return LLMInterface(
-            text=all_text[0] if len(all_text) > 0 else "",
+            content=main_text,
             candidates=all_text,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
@@ -110,8 +110,8 @@ class OpenAI(LCCompletionMixin, LLM):
 
     def __init__(
         self,
-        openai_api_key: Optional[str] = None,
-        openai_api_base: Optional[str] = None,
+        openai_api_key: str | None = None,
+        openai_api_base: str | None = None,
         model_name: str = "text-davinci-003",
         temperature: float = 0.7,
         max_tokens: int = 256,
@@ -119,7 +119,7 @@ class OpenAI(LCCompletionMixin, LLM):
         frequency_penalty: float = 0,
         n: int = 1,
         best_of: int = 1,
-        request_timeout: Optional[float] = None,
+        request_timeout: float | None = None,
         max_retries: int = 2,
         streaming: bool = False,
         **params,
@@ -154,10 +154,10 @@ class AzureOpenAI(LCCompletionMixin, LLM):
 
     def __init__(
         self,
-        azure_endpoint: Optional[str] = None,
-        deployment_name: Optional[str] = None,
+        azure_endpoint: str | None = None,
+        deployment_name: str | None = None,
         openai_api_version: str = "",
-        openai_api_key: Optional[str] = None,
+        openai_api_key: str | None = None,
         model_name: str = "text-davinci-003",
         temperature: float = 0.7,
         max_tokens: int = 256,
@@ -165,7 +165,7 @@ class AzureOpenAI(LCCompletionMixin, LLM):
         frequency_penalty: float = 0,
         n: int = 1,
         best_of: int = 1,
-        request_timeout: Optional[float] = None,
+        request_timeout: float | None = None,
         max_retries: int = 2,
         streaming: bool = False,
         **params,
@@ -203,9 +203,9 @@ class LlamaCpp(LCCompletionMixin, LLM):
     def __init__(
         self,
         model_path: str,
-        lora_base: Optional[str] = None,
+        lora_base: str | None = None,
         n_ctx: int = 512,
-        n_gpu_layers: Optional[int] = None,
+        n_gpu_layers: int | None = None,
         use_mmap: bool = True,
         **params,
     ):

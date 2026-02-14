@@ -300,6 +300,7 @@ class RewooAgent(BaseAgent):
             citation = None
 
         return AgentOutput(
+            content=solver_output_text,
             text=solver_output_text,
             agent_type=self.agent_type,
             status="finished",
@@ -328,6 +329,7 @@ class RewooAgent(BaseAgent):
         print("Planner output:", planner_text_output)
         # output planner to info panel
         yield AgentOutput(
+            content="",
             text="",
             agent_type=self.agent_type,
             status="thinking",
@@ -349,6 +351,7 @@ class RewooAgent(BaseAgent):
                 current_progress += f"{e}: {worker_evidences[e]}\n"
 
             yield AgentOutput(
+                content="",
                 text="",
                 agent_type=self.agent_type,
                 status="thinking",
@@ -361,6 +364,7 @@ class RewooAgent(BaseAgent):
             solver_output_text = solver_output.text
             solver_response += solver_output_text
             yield AgentOutput(
+                content=solver_output_text,
                 text=solver_output_text,
                 agent_type=self.agent_type,
                 status="thinking",
@@ -374,6 +378,7 @@ class RewooAgent(BaseAgent):
             citation = None
 
         return AgentOutput(
+            content="",
             text="",
             agent_type=self.agent_type,
             status="finished",

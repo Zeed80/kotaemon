@@ -1,5 +1,3 @@
-from typing import List
-
 from pydantic import BaseModel, Field
 
 from kotaemon.base import BaseComponent
@@ -10,7 +8,7 @@ from kotaemon.llms import BaseLLM
 class CiteEvidence(BaseModel):
     """List of evidences (maximum 5) to support the answer."""
 
-    evidences: List[str] = Field(
+    evidences: list[str] = Field(
         ...,
         description=(
             "Each source should be a direct quote from the context, "

@@ -3,7 +3,7 @@ import logging
 import os
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Literal, NamedTuple, Optional, Union
+from typing import Any, Literal, NamedTuple
 
 from pydantic import ConfigDict
 
@@ -130,7 +130,7 @@ class BaseScratchPad:
         Stream print.
         """
 
-    def json_print(self, item: Dict[str, Any]):
+    def json_print(self, item: dict[str, Any]):
         """
         Log a JSON object.
         """
@@ -222,7 +222,7 @@ class AgentAction:
     """
 
     tool: str
-    tool_input: Union[str, dict]
+    tool_input: str | dict
     log: str
 
 
@@ -251,8 +251,13 @@ class AgentOutput(LLMInterface):
     model_config = ConfigDict(extra="allow")
 
     text: str
+
+    def __bool__(self) -> bool:
+        """False when status is 'failed', True otherwise."""
+        return self.status != "failed"
+
     type: str = "agent"
     agent_type: AgentType
     status: Literal["thinking", "finished", "stopped", "failed"]
-    error: Optional[str] = None
-    intermediate_steps: Optional[list] = None
+    error: str | None = None
+    intermediate_steps: list | None = None

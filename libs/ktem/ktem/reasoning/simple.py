@@ -1,19 +1,11 @@
 import logging
 import threading
+from collections.abc import Generator
 from textwrap import dedent
-from typing import Generator
 
-from decouple import config
-from ktem.embeddings.manager import embedding_models_manager as embeddings
-from ktem.llms.manager import llms
-from ktem.reasoning.prompt_optimization import (
-    DecomposeQuestionPipeline,
-    RewriteQuestionPipeline,
-)
-from ktem.utils.render import Render
-from ktem.utils.visualize_cited import CreateCitationVizPipeline
 from plotly.io import to_json
 
+from flowsettings_config import config
 from kotaemon.base import (
     AIMessage,
     BaseComponent,
@@ -32,6 +24,14 @@ from kotaemon.indices.qa.citation_qa_inline import AnswerWithInlineCitation
 from kotaemon.indices.qa.format_context import PrepareEvidencePipeline
 from kotaemon.indices.qa.utils import replace_think_tag_with_details
 from kotaemon.llms import ChatLLM
+from ktem.embeddings.manager import embedding_models_manager as embeddings
+from ktem.llms.manager import llms
+from ktem.reasoning.prompt_optimization import (
+    DecomposeQuestionPipeline,
+    RewriteQuestionPipeline,
+)
+from ktem.utils.render import Render
+from ktem.utils.visualize_cited import CreateCitationVizPipeline
 
 from ..utils import SUPPORTED_LANGUAGE_MAP
 from .base import BaseReasoning
@@ -40,7 +40,6 @@ logger = logging.getLogger(__name__)
 
 
 class AddQueryContextPipeline(BaseComponent):
-
     n_last_interactions: int = 5
     llm: ChatLLM = Node(default_callback=lambda _: llms.get_default())
 
@@ -274,12 +273,20 @@ class FullQAPipeline(BaseReasoning):
                 yield from without_citation
 
     async def ainvoke(  # type: ignore
-        self, message: str, conv_id: str, history: list, **kwargs  # type: ignore
+        self,
+        message: str,
+        conv_id: str,
+        history: list,
+        **kwargs,  # type: ignore
     ) -> Document:  # type: ignore
         raise NotImplementedError
 
     def stream(  # type: ignore
-        self, message: str, conv_id: str, history: list, **kwargs  # type: ignore
+        self,
+        message: str,
+        conv_id: str,
+        history: list,
+        **kwargs,  # type: ignore
     ) -> Generator[Document, None, Document]:
         if self.use_rewrite and self.rewrite_pipeline:
             print("Chosen rewrite pipeline", self.rewrite_pipeline)
@@ -519,7 +526,11 @@ class FullDecomposeQAPipeline(FullQAPipeline):
         return output_str
 
     def stream(  # type: ignore
-        self, message: str, conv_id: str, history: list, **kwargs  # type: ignore
+        self,
+        message: str,
+        conv_id: str,
+        history: list,
+        **kwargs,  # type: ignore
     ) -> Generator[Document, None, Document]:
         sub_question_answer_output = ""
         if self.rewrite_pipeline:

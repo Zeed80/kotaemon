@@ -3,8 +3,9 @@
 Pandas parser for .xlsx files.
 
 """
+
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any
 
 from llama_index.core.readers.base import BaseReader
 
@@ -29,7 +30,7 @@ class PandasExcelReader(BaseReader):
     def __init__(
         self,
         *args: Any,
-        pandas_config: Optional[dict] = None,
+        pandas_config: dict | None = None,
         row_joiner: str = "\n",
         col_joiner: str = " ",
         **kwargs: Any,
@@ -44,10 +45,10 @@ class PandasExcelReader(BaseReader):
         self,
         file: Path,
         include_sheetname: bool = False,
-        sheet_name: Optional[Union[str, int, list]] = None,
-        extra_info: Optional[dict] = None,
+        sheet_name: str | int | list | None = None,
+        extra_info: dict | None = None,
         **kwargs,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Parse file and extract values from a specific column.
 
         Args:
@@ -122,7 +123,7 @@ class ExcelReader(BaseReader):
     def __init__(
         self,
         *args: Any,
-        pandas_config: Optional[dict] = None,
+        pandas_config: dict | None = None,
         row_joiner: str = "\n",
         col_joiner: str = " ",
         **kwargs: Any,
@@ -137,10 +138,10 @@ class ExcelReader(BaseReader):
         self,
         file: Path,
         include_sheetname: bool = True,
-        sheet_name: Optional[Union[str, int, list]] = None,
-        extra_info: Optional[dict] = None,
+        sheet_name: str | int | list | None = None,
+        extra_info: dict | None = None,
         **kwargs,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Parse file and extract values from a specific column.
 
         Args:

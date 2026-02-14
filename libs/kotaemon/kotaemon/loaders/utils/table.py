@@ -1,12 +1,11 @@
 import csv
 from io import StringIO
-from typing import List, Optional, Tuple
 
 from .box import get_rect_iou
 
 
 def check_col_conflicts(
-    col_a: List[str], col_b: List[str], thres: float = 0.15
+    col_a: list[str], col_b: list[str], thres: float = 0.15
 ) -> bool:
     """Check if 2 columns A and B has non-empty content in the same row
     (to be used with merge_cols)
@@ -21,13 +20,13 @@ def check_col_conflicts(
     num_rows = len([cell for cell in col_a if cell])
     assert len(col_a) == len(col_b)
     conflict_count = 0
-    for cell_a, cell_b in zip(col_a, col_b):
+    for cell_a, cell_b in zip(col_a, col_b, strict=False):
         if cell_a and cell_b:
             conflict_count += 1
     return conflict_count > num_rows * thres
 
 
-def merge_cols(col_a: List[str], col_b: List[str]) -> List[str]:
+def merge_cols(col_a: list[str], col_b: list[str]) -> list[str]:
     """Merge column A and B if they do not have conflict rows
 
     Args:
@@ -42,7 +41,7 @@ def merge_cols(col_a: List[str], col_b: List[str]) -> List[str]:
     return col_a
 
 
-def add_index_col(csv_rows: List[List[str]]) -> List[List[str]]:
+def add_index_col(csv_rows: list[list[str]]) -> list[list[str]]:
     """Add index column as the first column of the table csv_rows
 
     Args:
@@ -56,7 +55,7 @@ def add_index_col(csv_rows: List[List[str]]) -> List[List[str]]:
     return new_csv_rows
 
 
-def compress_csv(csv_rows: List[List[str]]) -> List[List[str]]:
+def compress_csv(csv_rows: list[list[str]]) -> list[list[str]]:
     """Compress table csv_rows by merging sparse columns (merge_cols)
 
     Args:
@@ -79,7 +78,7 @@ def compress_csv(csv_rows: List[List[str]]) -> List[List[str]]:
     return csv_rows
 
 
-def get_table_from_ocr(ocr_list: List[dict], table_list: List[dict]):
+def get_table_from_ocr(ocr_list: list[dict], table_list: list[dict]):
     """Get list of text lines belong to table regions specified by table_list
 
     Args:
@@ -103,7 +102,7 @@ def get_table_from_ocr(ocr_list: List[dict], table_list: List[dict]):
     return table_texts
 
 
-def make_markdown_table(array: List[List[str]]) -> str:
+def make_markdown_table(array: list[list[str]]) -> str:
     """Convert table rows in list format to markdown string
 
     Args:
@@ -118,29 +117,29 @@ def make_markdown_table(array: List[List[str]]) -> str:
     """
     array = compress_csv(array)
     array = add_index_col(array)
-    markdown = "\n" + str("| ")
+    markdown = "\n" + "| "
 
     for e in array[0]:
-        to_add = " " + str(e) + str(" |")
+        to_add = " " + str(e) + " |"
         markdown += to_add
     markdown += "\n"
 
     markdown += "| "
     for i in range(len(array[0])):
-        markdown += str("--- | ")
+        markdown += "--- | "
     markdown += "\n"
 
     for entry in array[1:]:
-        markdown += str("| ")
+        markdown += "| "
         for e in entry:
-            to_add = str(e) + str(" | ")
+            to_add = str(e) + " | "
             markdown += to_add
         markdown += "\n"
 
     return markdown + "\n"
 
 
-def parse_csv_string_to_list(csv_str: str) -> List[List[str]]:
+def parse_csv_string_to_list(csv_str: str) -> list[list[str]]:
     """Convert CSV string to list of rows
 
     Args:
@@ -155,7 +154,7 @@ def parse_csv_string_to_list(csv_str: str) -> List[List[str]]:
     return rows
 
 
-def format_cell(cell: str, length_limit: Optional[int] = None) -> str:
+def format_cell(cell: str, length_limit: int | None = None) -> str:
     """Format cell content by remove redundant character and enforce length limit
 
     Args:
@@ -172,8 +171,8 @@ def format_cell(cell: str, length_limit: Optional[int] = None) -> str:
 
 
 def extract_tables_from_csv_string(
-    csv_content: str, table_texts: List[List[str]]
-) -> Tuple[List[str], str]:
+    csv_content: str, table_texts: list[list[str]]
+) -> tuple[list[str], str]:
     """Extract list of table from FullOCR output
     (csv_content) with the specified table_texts
 
@@ -219,7 +218,7 @@ def strip_special_chars_markdown(text: str) -> str:
     return text.replace("|", "").replace(":---:", "").replace("---", "")
 
 
-def parse_markdown_text_to_tables(text: str) -> Tuple[List[str], List[str]]:
+def parse_markdown_text_to_tables(text: str) -> tuple[list[str], list[str]]:
     """Convert markdown text to list of non-table spans and table spans
 
     Args:
@@ -235,7 +234,7 @@ def parse_markdown_text_to_tables(text: str) -> Tuple[List[str], List[str]]:
     # split input by line break
     lines = text.split("\n")
     cur_table = []
-    cur_text: List[str] = []
+    cur_text: list[str] = []
     for line in lines:
         line = line.strip()
         if line.startswith("|"):
@@ -255,7 +254,7 @@ def parse_markdown_text_to_tables(text: str) -> Tuple[List[str], List[str]]:
     return table_texts, non_table_texts
 
 
-def table_cells_to_markdown(cells: List[dict]):
+def table_cells_to_markdown(cells: list[dict]):
     """Convert list of cells with attached text to Markdown table"""
 
     if len(cells) == 0:

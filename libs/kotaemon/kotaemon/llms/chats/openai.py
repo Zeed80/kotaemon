@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, AsyncGenerator, Iterator, Optional, Type
+from collections.abc import AsyncGenerator, Iterator
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from theflow.utils.modules import import_dotted_string
@@ -34,12 +35,12 @@ class BaseChatOpenAI(ChatLLM):
     _capabilities = ["chat", "text"]  # consider as mixin
 
     api_key: str = Param(help="API key", required=True)
-    timeout: Optional[float] = Param(None, help="Timeout for the API request")
-    max_retries: Optional[int] = Param(
+    timeout: float | None = Param(None, help="Timeout for the API request")
+    max_retries: int | None = Param(
         None, help="Maximum number of retries for the API request"
     )
 
-    temperature: Optional[float] = Param(
+    temperature: float | None = Param(
         None,
         help=(
             "Number between 0 and 2 that controls the randomness of the generated "
@@ -47,7 +48,7 @@ class BaseChatOpenAI(ChatLLM):
             "values make the model more random."
         ),
     )
-    max_tokens: Optional[int] = Param(
+    max_tokens: int | None = Param(
         None,
         help=(
             "Maximum number of tokens to generate. The total length of input tokens "
@@ -61,7 +62,7 @@ class BaseChatOpenAI(ChatLLM):
             "for each prompt."
         ),
     )
-    stop: Optional[str | list[str]] = Param(
+    stop: str | list[str] | None = Param(
         None,
         help=(
             "Stop sequence. If a stop sequence is detected, generation will stop "
@@ -69,7 +70,7 @@ class BaseChatOpenAI(ChatLLM):
             "maximum token length is reached."
         ),
     )
-    frequency_penalty: Optional[float] = Param(
+    frequency_penalty: float | None = Param(
         None,
         help=(
             "Number between -2.0 and 2.0. Positive values penalize new tokens "
@@ -77,7 +78,7 @@ class BaseChatOpenAI(ChatLLM):
             "model's likelihood of repeating the same text."
         ),
     )
-    presence_penalty: Optional[float] = Param(
+    presence_penalty: float | None = Param(
         None,
         help=(
             "Number between -2.0 and 2.0. Positive values penalize new tokens "
@@ -85,32 +86,32 @@ class BaseChatOpenAI(ChatLLM):
             "model's likelihood of repeating the same text."
         ),
     )
-    tool_choice: Optional[str] = Param(
+    tool_choice: str | None = Param(
         None,
         help=(
             "Choice of tool to use for the completion. Available choices are: "
             "auto, default."
         ),
     )
-    tools: Optional[list[str]] = Param(
+    tools: list[str] | None = Param(
         None,
         help="List of tools to use for the completion.",
     )
-    logprobs: Optional[bool] = Param(
+    logprobs: bool | None = Param(
         None,
         help=(
             "Include log probabilities on the logprobs most likely tokens, "
             "as well as the chosen token."
         ),
     )
-    logit_bias: Optional[dict] = Param(
+    logit_bias: dict | None = Param(
         None,
         help=(
             "Dictionary of logit bias values to add to the logits of the tokens "
             "in the vocabulary."
         ),
     )
-    top_logprobs: Optional[int] = Param(
+    top_logprobs: int | None = Param(
         None,
         help=(
             "An integer between 0 and 5 specifying the number of most likely tokens "
@@ -119,7 +120,7 @@ class BaseChatOpenAI(ChatLLM):
             "is used."
         ),
     )
-    top_p: Optional[float] = Param(
+    top_p: float | None = Param(
         None,
         help=(
             "An alternative to sampling with temperature, called nucleus sampling, "
@@ -146,7 +147,7 @@ class BaseChatOpenAI(ChatLLM):
             list[dict]: List of messages in OpenAI format
         """
         input_: list[BaseMessage] = []
-        output_: list["ChatCompletionMessageParam"] = []
+        output_: list[ChatCompletionMessageParam] = []
 
         if isinstance(messages, str):
             input_ = [HumanMessage(content=messages)]
@@ -278,8 +279,8 @@ class BaseChatOpenAI(ChatLLM):
 class ChatOpenAI(BaseChatOpenAI):
     """OpenAI chat model"""
 
-    base_url: Optional[str] = Param(None, help="OpenAI base URL")
-    organization: Optional[str] = Param(None, help="OpenAI organization")
+    base_url: str | None = Param(None, help="OpenAI base URL")
+    organization: str | None = Param(None, help="OpenAI organization")
     model: str = Param(help="OpenAI model", required=True)
 
     def prepare_client(self, async_version: bool = False):
@@ -341,7 +342,7 @@ class ChatOpenAI(BaseChatOpenAI):
 class StructuredOutputChatOpenAI(ChatOpenAI):
     """OpenAI chat model that returns structured output"""
 
-    response_schema: Type[BaseModel] = Param(
+    response_schema: type[BaseModel] = Param(
         help="class that subclasses pydantics BaseModel", required=True
     )
 
@@ -433,8 +434,8 @@ class AzureChatOpenAI(BaseChatOpenAI):
     )
     azure_deployment: str = Param(help="Azure deployment name", required=True)
     api_version: str = Param(help="Azure model version", required=True)
-    azure_ad_token: Optional[str] = Param(None, help="Azure AD token")
-    azure_ad_token_provider: Optional[str] = Param(None, help="Azure AD token provider")
+    azure_ad_token: str | None = Param(None, help="Azure AD token")
+    azure_ad_token_provider: str | None = Param(None, help="Azure AD token provider")
 
     @Param.auto(depends_on=["azure_ad_token_provider"])
     def azure_ad_token_provider_(self):

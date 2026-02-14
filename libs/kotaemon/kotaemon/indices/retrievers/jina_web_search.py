@@ -1,6 +1,6 @@
 import requests
-from decouple import config
 
+from flowsettings_config import config
 from kotaemon.base import BaseComponent, RetrievedDocument
 
 JINA_API_KEY = config("JINA_API_KEY", default="")
@@ -37,10 +37,7 @@ class WebSearch(BaseComponent):
         return [
             RetrievedDocument(
                 text=(
-                    "###URL: [{url}]({url})\n\n"
-                    "####{title}\n\n"
-                    "{description}\n"
-                    "{content}"
+                    "###URL: [{url}]({url})\n\n####{title}\n\n{description}\n{content}"
                 ).format(
                     url=item["url"],
                     title=item["title"],

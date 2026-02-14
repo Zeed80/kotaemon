@@ -8,7 +8,7 @@
 
 import json
 import logging
-from typing import Iterator
+from collections.abc import Iterator
 
 import requests
 from theflow.settings import settings as flowsettings
@@ -63,7 +63,9 @@ def get_ollama_base_url_for_langchain() -> str:
     if not url:
         url = getattr(flowsettings, "KH_OLLAMA_URL", "http://localhost:11434/v1/")
     # Убираем /v1/ и /api, оставляем только базовый URL
-    base_url = url.replace("/v1/", "").replace("/v1", "").replace("/api", "").rstrip("/")
+    base_url = (
+        url.replace("/v1/", "").replace("/v1", "").replace("/api", "").rstrip("/")
+    )
     # Убеждаемся, что URL заканчивается на порт или имеет слеш в конце
     if not base_url.endswith("/") and not base_url.endswith(":11434"):
         base_url = f"{base_url}/"
@@ -103,7 +105,9 @@ def check_ollama_available(base_url: str | None = None) -> tuple[bool, str]:
     if base_url is None or not (base_url or "").strip():
         base_url = get_application_setting("kh_ollama_url")
         if not base_url:
-            base_url = getattr(flowsettings, "KH_OLLAMA_URL", "http://localhost:11434/v1/")
+            base_url = getattr(
+                flowsettings, "KH_OLLAMA_URL", "http://localhost:11434/v1/"
+            )
     api_url = _normalize_url_to_api(base_url)
     if not api_url:
         return False, "empty_url"

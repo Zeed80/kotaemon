@@ -1,5 +1,3 @@
-from typing import Optional, Type
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from theflow.settings import settings as flowsettings
@@ -17,7 +15,7 @@ class RerankingManager:
         self._models: dict[str, BaseReranking] = {}
         self._info: dict[str, dict] = {}
         self._default: str = ""
-        self._vendors: list[Type] = []
+        self._vendors: list[type] = []
 
         # populate the pool if empty
         if hasattr(flowsettings, "KH_RERANKINGS"):
@@ -59,7 +57,12 @@ class RerankingManager:
             VoyageAIReranking,
         )
 
-        self._vendors = [TeiFastReranking, CohereReranking, VoyageAIReranking, OllamaReranking]
+        self._vendors = [
+            TeiFastReranking,
+            CohereReranking,
+            VoyageAIReranking,
+            OllamaReranking,
+        ]
 
     def __getitem__(self, key: str) -> BaseReranking:
         """Get model by name"""
@@ -70,8 +73,8 @@ class RerankingManager:
         return key in self._models
 
     def get(
-        self, key: str, default: Optional[BaseReranking] = None
-    ) -> Optional[BaseReranking]:
+        self, key: str, default: BaseReranking | None = None
+    ) -> BaseReranking | None:
         """Get model by name with default value"""
         return self._models.get(key, default)
 
@@ -174,7 +177,6 @@ class RerankingManager:
 
         try:
             with Session(engine) as sess:
-
                 if default:
                     # turn all models to non-default
                     sess.query(RerankingTable).update({"default": False})

@@ -1,7 +1,6 @@
 import logging
 import re
 from functools import partial
-from typing import Optional
 
 import tiktoken
 
@@ -25,7 +24,7 @@ class ReactAgent(BaseAgent):
     agent_type: AgentType = AgentType.react
     description: str = "ReactAgent for answering multi-step reasoning questions"
     llm: BaseLLM
-    prompt_template: Optional[PromptTemplate] = None
+    prompt_template: PromptTemplate | None = None
     output_lang: str = "English"
     plugins: list[BaseTool] = Param(
         default_callback=lambda _: [], help="List of tools to be used in the agent. "
@@ -71,7 +70,7 @@ class ReactAgent(BaseAgent):
             thoughts += f"\nObservation: {observation}\nThought:"
         return thoughts
 
-    def _parse_output(self, text: str) -> Optional[AgentAction | AgentFinish]:
+    def _parse_output(self, text: str) -> AgentAction | AgentFinish | None:
         """
         Parse text output from LLM for the next Action or Final Answer
         Using Regex to parse "Action:\n Action Input:\n" for the next Action
@@ -85,7 +84,7 @@ class ReactAgent(BaseAgent):
             r"Action\s*\d*\s*:[\s]*(.*?)[\s]*Action\s*\d*\s*Input\s*\d*\s*:[\s]*(.*)"
         )
         action_match = re.search(regex, text, re.DOTALL)
-        action_output: Optional[AgentAction | AgentFinish] = None
+        action_output: AgentAction | AgentFinish | None = None
         if action_match:
             if includes_answer:
                 raise Exception(
@@ -238,7 +237,8 @@ class ReactAgent(BaseAgent):
             status = "stopped"
 
         return AgentOutput(
-            text=response_text,
+            content=response_text or "",
+            text=response_text or "",
             agent_type=self.agent_type,
             status=status,
             total_tokens=total_token,
@@ -311,6 +311,7 @@ class ReactAgent(BaseAgent):
                 logging.info(f"Finished after {step_count} steps.")
                 status = "finished"
                 yield AgentOutput(
+                    content=result,
                     text=result,
                     agent_type=self.agent_type,
                     status=status,
@@ -319,6 +320,7 @@ class ReactAgent(BaseAgent):
                 break
             else:
                 yield AgentOutput(
+                    content="",
                     text="",
                     agent_type=self.agent_type,
                     status="thinking",
@@ -328,6 +330,7 @@ class ReactAgent(BaseAgent):
         else:
             status = "stopped"
             yield AgentOutput(
+                content="",
                 text="",
                 agent_type=self.agent_type,
                 status=status,
@@ -335,7 +338,8 @@ class ReactAgent(BaseAgent):
             )
 
         return AgentOutput(
-            text=response_text,
+            content=response_text or "",
+            text=response_text or "",
             agent_type=self.agent_type,
             status=status,
             total_tokens=total_token,

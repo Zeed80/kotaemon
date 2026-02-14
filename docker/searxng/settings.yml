@@ -1,0 +1,10 @@
+# Minimal SearXNG settings for Kotaemon web search.
+# Enables JSON API (required for KH_WEB_SEARCH_BACKEND).
+# Inherits all other defaults from SearXNG.
+
+use_default_settings: true
+
+search:
+  formats:
+    - html
+    - json

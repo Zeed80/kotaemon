@@ -1,8 +1,9 @@
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
-from ktem.db.engine import engine
 from sqlalchemy.orm import Session
+
+from ktem.db.engine import engine
 
 from ..base import BaseFileIndexIndexing, BaseFileIndexRetriever
 from .graph_index import GraphRAGIndex
@@ -12,7 +13,7 @@ from .lightrag_pipelines import LightRAGIndexingPipeline, LightRAGRetrieverPipel
 class LightRAGIndex(GraphRAGIndex):
     def __init__(self, app, id: int, name: str, config: dict):
         super().__init__(app, id, name, config)
-        self._collection_graph_id: Optional[str] = None
+        self._collection_graph_id: str | None = None
 
     def _setup_indexing_cls(self):
         self._indexing_pipeline_cls = LightRAGIndexingPipeline

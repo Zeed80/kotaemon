@@ -1,5 +1,4 @@
 from itertools import islice
-from typing import Optional
 
 import numpy as np
 import openai
@@ -48,19 +47,19 @@ class BaseOpenAIEmbeddings(BaseEmbeddings):
     _dependencies = ["openai"]
 
     api_key: str = Param(None, help="API key", required=True)
-    timeout: Optional[float] = Param(None, help="Timeout for the API request.")
-    max_retries: Optional[int] = Param(
+    timeout: float | None = Param(None, help="Timeout for the API request.")
+    max_retries: int | None = Param(
         None, help="Maximum number of retries for the API request."
     )
 
-    dimensions: Optional[int] = Param(
+    dimensions: int | None = Param(
         None,
         help=(
             "The number of dimensions the resulting output embeddings should have. "
             "Only supported in `text-embedding-3` and later models."
         ),
     )
-    context_length: Optional[int] = Param(
+    context_length: int | None = Param(
         None, help="The maximum context length of the embedding model"
     )
 
@@ -102,7 +101,7 @@ class BaseOpenAIEmbeddings(BaseEmbeddings):
                 input_.append(text.text)
 
         resp = self.openai_response(client, input=input_, **kwargs).dict()
-        output_ = list(sorted(resp["data"], key=lambda x: x["index"]))
+        output_ = sorted(resp["data"], key=lambda x: x["index"])
 
         output = []
         for idx, doc in enumerate(input_doc):
@@ -135,15 +134,15 @@ class BaseOpenAIEmbeddings(BaseEmbeddings):
         output_ = sorted(resp["data"], key=lambda x: x["index"])
         return [
             DocumentWithEmbedding(embedding=o["embedding"], content=i)
-            for i, o in zip(input_, output_)
+            for i, o in zip(input_, output_, strict=False)
         ]
 
 
 class OpenAIEmbeddings(BaseOpenAIEmbeddings):
     """OpenAI chat model"""
 
-    base_url: Optional[str] = Param(None, help="OpenAI base URL")
-    organization: Optional[str] = Param(None, help="OpenAI organization")
+    base_url: str | None = Param(None, help="OpenAI base URL")
+    organization: str | None = Param(None, help="OpenAI organization")
     model: str = Param(
         None,
         help=(
@@ -206,8 +205,8 @@ class AzureOpenAIEmbeddings(BaseOpenAIEmbeddings):
     )
     azure_deployment: str = Param(None, help="Azure deployment name", required=True)
     api_version: str = Param(None, help="Azure model version", required=True)
-    azure_ad_token: Optional[str] = Param(None, help="Azure AD token")
-    azure_ad_token_provider: Optional[str] = Param(None, help="Azure AD token provider")
+    azure_ad_token: str | None = Param(None, help="Azure AD token")
+    azure_ad_token_provider: str | None = Param(None, help="Azure AD token provider")
 
     @Param.auto(depends_on=["azure_ad_token_provider"])
     def azure_ad_token_provider_(self):

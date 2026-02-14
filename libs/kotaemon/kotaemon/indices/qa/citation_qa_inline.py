@@ -1,8 +1,8 @@
 import re
 import threading
 from collections import defaultdict
+from collections.abc import Generator
 from dataclasses import dataclass
-from typing import Generator
 
 import numpy as np
 
@@ -258,6 +258,7 @@ class AnswerWithInlineCitation(AnswerWithContextPipeline):
             # try streaming first
             print("Trying LLM streaming")
             for out_msg in self.llm.stream(messages):
+                chunk_text = out_msg.text
                 if evidence:
                     if START_ANSWER in output:
                         if not final_answer:
@@ -268,21 +269,21 @@ class AnswerWithInlineCitation(AnswerWithContextPipeline):
                             except IndexError:
                                 left_over_answer = ""
                             if left_over_answer:
-                                out_msg.text = left_over_answer + out_msg.text
+                                chunk_text = left_over_answer + out_msg.text
 
                         final_answer += (
-                            out_msg.text.lstrip() if not final_answer else out_msg.text
+                            chunk_text.lstrip() if not final_answer else chunk_text
                         )
-                        yield Document(channel="chat", content=out_msg.text)
+                        yield Document(channel="chat", content=chunk_text)
 
                         # check for the edge case of citation list is repeated
                         # with smaller LLMs
-                        if START_CITATION in out_msg.text:
+                        if START_CITATION in chunk_text:
                             break
-                else:
-                    yield Document(channel="chat", content=out_msg.text)
+                    else:
+                        yield Document(channel="chat", content=chunk_text)
 
-                output += out_msg.text
+                output += chunk_text
                 logprobs += out_msg.logprobs
         except NotImplementedError:
             print("Streaming is not supported, falling back to normal processing")

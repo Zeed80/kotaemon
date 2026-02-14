@@ -1,20 +1,20 @@
 import os
 import shutil
 import subprocess
+from collections.abc import Generator
 from pathlib import Path
 from shutil import rmtree
-from typing import Generator
 from uuid import uuid4
 
 import pandas as pd
 import tiktoken
 import yaml
-from decouple import config
-from ktem.db.models import engine
 from sqlalchemy.orm import Session
 from theflow.settings import settings
 
+from flowsettings_config import config
 from kotaemon.base import Document, Param, RetrievedDocument
+from ktem.db.models import engine
 
 from ..pipelines import BaseFileIndexRetriever, IndexDocumentPipeline, IndexPipeline
 from .visualize import create_knowledge_graph, visualize_graph
@@ -36,11 +36,9 @@ try:
     from graphrag.vector_stores.lancedb import LanceDBVectorStore
 except ImportError:
     print(
-        (
-            "GraphRAG dependencies not installed. "
-            "Try `pip install graphrag future` to install. "
-            "GraphRAG retriever pipeline will not work properly."
-        )
+        "GraphRAG dependencies not installed. "
+        "Try `pip install graphrag future` to install. "
+        "GraphRAG retriever pipeline will not work properly."
     )
 
 
@@ -259,7 +257,7 @@ class GraphRAGRetrieverPipeline(BaseFileIndexRetriever):
         # use customized GraphRAG settings if the flag is set
         if config("USE_CUSTOMIZED_GRAPHRAG_SETTING", default="value").lower() == "true":
             settings_yaml_path = Path(root_path) / "settings.yaml"
-            with open(settings_yaml_path, "r") as f:
+            with open(settings_yaml_path) as f:
                 settings = yaml.safe_load(f)
             if settings["embeddings"]["llm"]["model"]:
                 embedding_model = settings["embeddings"]["llm"]["model"]

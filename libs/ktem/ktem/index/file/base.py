@@ -1,11 +1,10 @@
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator, Optional
 
 from kotaemon.base import BaseComponent, Document, Param
 
 
 class BaseFileIndexRetriever(BaseComponent):
-
     Source = Param(help="The SQLAlchemy Source table")
     Index = Param(help="The SQLAlchemy Index table")
     VS = Param(help="The VectorStore")
@@ -28,7 +27,7 @@ class BaseFileIndexRetriever(BaseComponent):
         cls,
         user_settings: dict,
         index_settings: dict,
-        selected: Optional[list] = None,
+        selected: list | None = None,
     ) -> "BaseFileIndexRetriever":
         raise NotImplementedError
 

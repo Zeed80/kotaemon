@@ -3,7 +3,6 @@
 import logging
 from functools import cache
 from pathlib import Path
-from typing import Optional
 
 from theflow.settings import settings
 from theflow.utils.modules import deserialize
@@ -53,10 +52,10 @@ class ModelPool:
             if model.get("default", False):
                 self._default.append(name)
 
-        self._accuracy = list(
-            sorted(conf, key=lambda x: conf[x].get("accuracy", float("-inf")))
+        self._accuracy = sorted(
+            conf, key=lambda x: conf[x].get("accuracy", float("-inf"))
         )
-        self._cost = list(sorted(conf, key=lambda x: conf[x].get("cost", float("inf"))))
+        self._cost = sorted(conf, key=lambda x: conf[x].get("cost", float("inf")))
 
     def __getitem__(self, key: str) -> BaseComponent:
         """Get model by name"""
@@ -75,8 +74,8 @@ class ModelPool:
         return key in self._models
 
     def get(
-        self, key: str, default: Optional[BaseComponent] = None
-    ) -> Optional[BaseComponent]:
+        self, key: str, default: BaseComponent | None = None
+    ) -> BaseComponent | None:
         """Get model by name with default value"""
         return self._models.get(key, default)
 

@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Iterator, Optional, cast
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, cast
 
 from kotaemon.base import BaseMessage, HumanMessage, LLMInterface, Param
 
@@ -12,13 +13,13 @@ if TYPE_CHECKING:
 class LlamaCppChat(ChatLLM):
     """Wrapper around the llama-cpp-python's Llama model"""
 
-    model_path: Optional[str] = Param(
+    model_path: str | None = Param(
         help="Path to the model file. This is required to load the model.",
     )
-    repo_id: Optional[str] = Param(
+    repo_id: str | None = Param(
         help="Id of a repo on the HuggingFace Hub in the form of `user_name/repo_name`."
     )
-    filename: Optional[str] = Param(
+    filename: str | None = Param(
         help="A filename or glob pattern to match the model file in the repo."
     )
     chat_format: str = Param(
@@ -29,17 +30,17 @@ class LlamaCppChat(ChatLLM):
         ),
         required=True,
     )
-    lora_base: Optional[str] = Param(None, help="Path to the base Lora model")
-    n_ctx: Optional[int] = Param(512, help="Text context, 0 = from model")
-    n_gpu_layers: Optional[int] = Param(
+    lora_base: str | None = Param(None, help="Path to the base Lora model")
+    n_ctx: int | None = Param(512, help="Text context, 0 = from model")
+    n_gpu_layers: int | None = Param(
         0,
         help="Number of layers to offload to GPU. If -1, all layers are offloaded",
     )
-    use_mmap: Optional[bool] = Param(
+    use_mmap: bool | None = Param(
         True,
         help=(),
     )
-    vocab_only: Optional[bool] = Param(
+    vocab_only: bool | None = Param(
         False,
         help="If True, only the vocabulary is loaded. This is useful for debugging.",
     )
@@ -121,8 +122,7 @@ class LlamaCppChat(ChatLLM):
     def invoke(
         self, messages: str | BaseMessage | list[BaseMessage], **kwargs
     ) -> LLMInterface:
-
-        pred: "CCCR" = self.client_object.create_chat_completion(
+        pred: CCCR = self.client_object.create_chat_completion(
             messages=self.prepare_message(messages),
             stream=False,
         )

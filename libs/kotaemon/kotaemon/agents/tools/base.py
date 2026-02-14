@@ -1,4 +1,5 @@
-from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
+from collections.abc import Callable
+from typing import Any
 
 from langchain.agents import Tool as LCTool
 from pydantic import BaseModel
@@ -24,19 +25,17 @@ class BaseTool(BaseComponent):
     You can provide few-shot examples as a part of the description. This will be
     input to the prompt of LLM.
     """
-    args_schema: Optional[Type[BaseModel]] = None
+    args_schema: type[BaseModel] | None = None
     """Pydantic model class to validate and parse the tool's input arguments."""
     verbose: bool = False
     """Whether to log the tool's progress."""
-    handle_tool_error: Optional[
-        Union[bool, str, Callable[[ToolException], str]]
-    ] = False
+    handle_tool_error: bool | str | Callable[[ToolException], str] | None = False
     """Handle the content of the ToolException thrown."""
 
     def _parse_input(
         self,
-        tool_input: Union[str, Dict],
-    ) -> Union[str, Dict[str, Any]]:
+        tool_input: str | dict,
+    ) -> str | dict[str, Any]:
         """Convert tool input to pydantic model."""
         args_schema = self.args_schema
         if isinstance(tool_input, str):
@@ -58,7 +57,7 @@ class BaseTool(BaseComponent):
         """Call tool."""
         raise NotImplementedError(f"_run_tool is not implemented for {self.name}")
 
-    def _to_args_and_kwargs(self, tool_input: Union[str, Dict]) -> Tuple[Tuple, Dict]:
+    def _to_args_and_kwargs(self, tool_input: str | dict) -> tuple[tuple, dict]:
         # For backwards compatibility, if run_input is a string,
         # pass as a positional argument.
         if isinstance(tool_input, str):
@@ -93,8 +92,8 @@ class BaseTool(BaseComponent):
 
     def run(
         self,
-        tool_input: Union[str, Dict],
-        verbose: Optional[bool] = None,
+        tool_input: str | dict,
+        verbose: bool | None = None,
         **kwargs: Any,
     ) -> Any:
         """Run the tool."""
@@ -129,7 +128,7 @@ class ComponentTool(BaseTool):
     """
 
     component: BaseComponent
-    postprocessor: Optional[Callable] = None
+    postprocessor: Callable | None = None
 
     def _run_tool(self, *args: Any, **kwargs: Any) -> Any:
         output = self.component(*args, **kwargs)

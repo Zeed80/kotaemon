@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
-from langchain.schema.messages import AIMessage as LCAIMessage
-from langchain.schema.messages import HumanMessage as LCHumanMessage
-from langchain.schema.messages import SystemMessage as LCSystemMessage
+from langchain_core.messages import AIMessage as LCAIMessage
+from langchain_core.messages import HumanMessage as LCHumanMessage
+from langchain_core.messages import SystemMessage as LCSystemMessage
 from llama_index.core.bridge.pydantic import Field
 from llama_index.core.schema import Document as BaseDocument
 
@@ -37,10 +37,10 @@ class Document(BaseDocument):
     """
 
     content: Any = None
-    source: Optional[str] = None
-    channel: Optional[Literal["chat", "info", "index", "debug", "plot"]] = None
+    source: str | None = None
+    channel: Literal["chat", "info", "index", "debug", "plot"] | None = None
 
-    def __init__(self, content: Optional[Any] = None, *args, **kwargs):
+    def __init__(self, content: Any | None = None, *args, **kwargs):
         if content is None:
             if kwargs.get("text", None) is not None:
                 kwargs["content"] = kwargs["text"]
@@ -65,14 +65,14 @@ class Document(BaseDocument):
         return bool(self.content)
 
     @classmethod
-    def example(cls) -> "Document":
+    def example(cls) -> Document:
         document = Document(
             text=SAMPLE_TEXT,
             metadata={"filename": "README.md", "category": "codebase"},
         )
         return document
 
-    def to_haystack_format(self) -> "HaystackDocument":
+    def to_haystack_format(self) -> HaystackDocument:
         """Convert struct to Haystack document format."""
         from haystack.schema import Document as HaystackDocument
 
@@ -96,26 +96,43 @@ class DocumentWithEmbedding(Document):
 
 
 class BaseMessage(Document):
+    """Base for kotaemon message types. Uses Document for storage compatibility."""
+
     def __add__(self, other: Any):
         raise NotImplementedError
 
-    def to_openai_format(self) -> "ChatCompletionMessageParam":
+    def to_openai_format(self) -> ChatCompletionMessageParam:
         raise NotImplementedError
 
 
-class SystemMessage(BaseMessage, LCSystemMessage):
-    def to_openai_format(self) -> "ChatCompletionMessageParam":
-        return {"role": "system", "content": self.content}
+# Message classes inherit from langchain_core (pydantic v2) for compatibility
+# with LangChain/LangGraph. BaseMessage kept for reference; not used in multiple
+# inheritance to avoid metaclass conflict (llama_index uses pydantic v1).
+def _msg_content(msg: Any) -> Any:
+    c = getattr(msg, "content", "")
+    return c if c is not None else ""
 
 
-class AIMessage(BaseMessage, LCAIMessage):
-    def to_openai_format(self) -> "ChatCompletionMessageParam":
-        return {"role": "assistant", "content": self.content}
+class SystemMessage(LCSystemMessage):
+    """System message compatible with LangChain and OpenAI format."""
+
+    def to_openai_format(self) -> ChatCompletionMessageParam:
+        return {"role": "system", "content": _msg_content(self) or ""}
 
 
-class HumanMessage(BaseMessage, LCHumanMessage):
-    def to_openai_format(self) -> "ChatCompletionMessageParam":
-        return {"role": "user", "content": self.content}
+class AIMessage(LCAIMessage):
+    """AI/assistant message compatible with LangChain and OpenAI format."""
+
+    def to_openai_format(self) -> ChatCompletionMessageParam:
+        return {"role": "assistant", "content": _msg_content(self) or ""}
+
+
+class HumanMessage(LCHumanMessage):
+    """Human/user message compatible with LangChain and OpenAI format."""
+
+    def to_openai_format(self) -> ChatCompletionMessageParam:
+        content = _msg_content(self)
+        return {"role": "user", "content": content if content else ""}
 
 
 class RetrievedDocument(Document):
@@ -141,6 +158,12 @@ class LLMInterface(AIMessage):
     logits: list[list[float]] = Field(default_factory=list)
     messages: list[AIMessage] = Field(default_factory=list)
     logprobs: list[float] = []
+
+    @property
+    def text(self) -> str:
+        """Alias for content; langchain_core uses .text as method, we need property."""
+        c = getattr(self, "content", "")
+        return c if isinstance(c, str) else (str(c) if c else "")
 
 
 class StructuredOutputLLMInterface(LLMInterface):

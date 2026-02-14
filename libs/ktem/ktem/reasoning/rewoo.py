@@ -1,12 +1,9 @@
 import html
 import logging
+from collections.abc import Generator
 from difflib import SequenceMatcher
-from typing import AnyStr, Generator, Optional, Type
+from typing import AnyStr
 
-from ktem.llms.manager import llms
-from ktem.reasoning.base import BaseReasoning
-from ktem.utils.generator import Generator as GeneratorWrapper
-from ktem.utils.render import Render
 from langchain.text_splitter import CharacterTextSplitter
 from pydantic import BaseModel, Field
 
@@ -19,6 +16,10 @@ from kotaemon.agents import (
 )
 from kotaemon.base import BaseComponent, Document, HumanMessage, Node, SystemMessage
 from kotaemon.llms import ChatLLM, PromptTemplate
+from ktem.llms.manager import llms
+from ktem.reasoning.base import BaseReasoning
+from ktem.utils.generator import Generator as GeneratorWrapper
+from ktem.utils.render import Render
 
 from ..utils import SUPPORTED_LANGUAGE_MAP
 
@@ -76,7 +77,7 @@ class DocSearchTool(BaseTool):
         "this document storage, you just need to do normal search. If possible, "
         "formulate the search query as specific as possible."
     )
-    args_schema: Optional[Type[BaseModel]] = DocSearchArgs
+    args_schema: type[BaseModel] | None = DocSearchArgs
     retrievers: list[BaseComponent] = []
 
     def _run_tool(self, query: AnyStr) -> AnyStr:
@@ -137,7 +138,7 @@ class DocSearchTool(BaseTool):
                         + " \n<br>"
                     )
 
-            print("Retrieved #{}: {}".format(_id, retrieved_content))
+            print(f"Retrieved #{_id}: {retrieved_content}")
             print("Score", retrieved_item.metadata.get("reranking_score", None))
 
         # trim context by trim_len
@@ -287,7 +288,7 @@ class RewooAgentPipeline(BaseReasoning):
             spans.append(context[split_indices[-1] :])
 
             prev = 0
-            for span, start_idx in list(zip(spans, split_indices)):
+            for span, start_idx in list(zip(spans, split_indices, strict=False)):
                 if start_idx in start_indices:
                     text += Render.highlight(span)
                 else:
@@ -332,7 +333,11 @@ class RewooAgentPipeline(BaseReasoning):
         return outputs
 
     async def ainvoke(  # type: ignore
-        self, message, conv_id: str, history: list, **kwargs  # type: ignore
+        self,
+        message,
+        conv_id: str,
+        history: list,
+        **kwargs,  # type: ignore
     ) -> Document:
         answer = self.agent(message, use_citation=True)
         self.report_output(Document(content=answer.text, channel="chat"))
@@ -345,7 +350,11 @@ class RewooAgentPipeline(BaseReasoning):
         return answer
 
     def stream(  # type: ignore
-        self, message, conv_id: str, history: list, **kwargs  # type: ignore
+        self,
+        message,
+        conv_id: str,
+        history: list,
+        **kwargs,  # type: ignore
     ) -> Generator[Document, None, Document] | None:
         if self.use_rewrite:
             rewrite = self.rewrite_pipeline(question=message)
@@ -432,7 +441,6 @@ class RewooAgentPipeline(BaseReasoning):
 
     @classmethod
     def get_user_settings(cls) -> dict:
-
         llm = ""
         llm_choices = [("(default)", "")]
         try:

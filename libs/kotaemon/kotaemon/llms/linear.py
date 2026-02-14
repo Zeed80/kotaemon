@@ -1,4 +1,5 @@
-from typing import Any, Callable, Optional, Union
+from collections.abc import Callable
+from typing import Any
 
 from ..base import BaseComponent
 from ..base.schema import Document, IO_Type
@@ -46,14 +47,14 @@ class SimpleLinearPipeline(BaseComponent):
     """
 
     prompt: BasePromptComponent
-    llm: Union[ChatLLM, LLM]
-    post_processor: Union[BaseComponent, Callable[[IO_Type], IO_Type]]
+    llm: ChatLLM | LLM
+    post_processor: BaseComponent | Callable[[IO_Type], IO_Type]
 
     def run(
         self,
         *,
-        llm_kwargs: Optional[dict] = {},
-        post_processor_kwargs: Optional[dict] = {},
+        llm_kwargs: dict | None = {},
+        post_processor_kwargs: dict | None = {},
         **prompt_kwargs,
     ):
         """
@@ -120,9 +121,9 @@ class GatedLinearPipeline(SimpleLinearPipeline):
     def run(
         self,
         *,
-        condition_text: Optional[str] = None,
-        llm_kwargs: Optional[dict] = {},
-        post_processor_kwargs: Optional[dict] = {},
+        condition_text: str | None = None,
+        llm_kwargs: dict | None = {},
+        post_processor_kwargs: dict | None = {},
         **prompt_kwargs,
     ) -> Document:
         """

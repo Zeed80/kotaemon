@@ -1,4 +1,4 @@
-from typing import AsyncGenerator, Iterator
+from collections.abc import AsyncGenerator, Iterator
 
 from langchain_core.language_models.base import BaseLanguageModel
 

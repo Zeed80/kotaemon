@@ -1,5 +1,4 @@
 from kotaemon.base import Document
-
 from ktem.index.file.pipelines import _filter_indexable_docs
 
 

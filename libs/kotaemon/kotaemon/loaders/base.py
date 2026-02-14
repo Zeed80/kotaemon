@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, List, Type, Union
+from typing import TYPE_CHECKING, Any
 
 from kotaemon.base import BaseComponent, Document
 
@@ -16,7 +16,7 @@ class BaseReader(BaseComponent):
 class AutoReader(BaseReader):
     """General auto reader for a variety of files. (based on llama-hub)"""
 
-    def __init__(self, reader_type: Union[str, Type["LIBaseReader"]]) -> None:
+    def __init__(self, reader_type: str | type["LIBaseReader"]) -> None:
         """Init reader using string identifier or class name from llama-hub"""
 
         if isinstance(reader_type, str):
@@ -27,14 +27,14 @@ class AutoReader(BaseReader):
             self._reader = reader_type()
         super().__init__()
 
-    def load_data(self, file: Union[Path, str], **kwargs: Any) -> List[Document]:
+    def load_data(self, file: Path | str, **kwargs: Any) -> list[Document]:
         documents = self._reader.load_data(file=file, **kwargs)
 
         # convert Document to new base class from kotaemon
         converted_documents = [Document.from_dict(doc.to_dict()) for doc in documents]
         return converted_documents
 
-    def run(self, file: Union[Path, str], **kwargs: Any) -> List[Document]:
+    def run(self, file: Path | str, **kwargs: Any) -> list[Document]:
         return self.load_data(file=file, **kwargs)
 
 
@@ -55,7 +55,7 @@ class LIReaderMixin(BaseComponent):
         ```
     """
 
-    def _get_wrapped_class(self) -> Type["LIBaseReader"]:
+    def _get_wrapped_class(self) -> type["LIBaseReader"]:
         raise NotImplementedError(
             "Please return the relevant llama-index class in in _get_wrapped_class"
         )
@@ -74,12 +74,12 @@ class LIReaderMixin(BaseComponent):
     def __getattr__(self, name: str) -> Any:
         return getattr(self._reader, name)
 
-    def load_data(self, *args, **kwargs: Any) -> List[Document]:
+    def load_data(self, *args, **kwargs: Any) -> list[Document]:
         documents = self._reader.load_data(*args, **kwargs)
 
         # convert Document to new base class from kotaemon
         converted_documents = [Document.from_dict(doc.to_dict()) for doc in documents]
         return converted_documents
 
-    def run(self, *args, **kwargs: Any) -> List[Document]:
+    def run(self, *args, **kwargs: Any) -> list[Document]:
         return self.load_data(*args, **kwargs)

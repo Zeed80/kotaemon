@@ -4,6 +4,8 @@ FROM python:3.10-slim
 # Setup args
 ARG TARGETPLATFORM
 ARG TARGETARCH
+# TORCH_DEVICE: cpu | cu121 | cu124 — для Unstructured/Docling на GPU
+ARG TORCH_DEVICE=cpu
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -65,15 +67,21 @@ RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/pip  \
     if [ "$TARGETARCH" = "amd64" ]; then pip install "graphrag<=0.3.6" future; fi
 
-# Install torch and torchvision for unstructured
+# Install torch and torchvision for Unstructured/Docling
+# TORCH_DEVICE: cpu (default) | cu121 | cu124
 # Очищаем кэш перед установкой torch для избежания проблем с поврежденными wheel файлами
-# Удаляем поврежденные nvidia wheel файлы из кэша
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/pip,sharing=locked  \
     rm -rf /root/.cache/pip/wheels/*nvidia* || true \
     && rm -rf /root/.cache/pip/wheels/*torch* || true \
     && pip cache purge || true \
-    && pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+    && if [ "$TORCH_DEVICE" = "cpu" ]; then \
+        pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu; \
+    elif [ "$TORCH_DEVICE" = "cu121" ]; then \
+        pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121; \
+    else \
+        pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124; \
+    fi
 
 # Install Unstructured
 RUN --mount=type=ssh  \

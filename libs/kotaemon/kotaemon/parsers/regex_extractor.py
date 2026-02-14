@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Callable
+from collections.abc import Callable
 
 from kotaemon.base import BaseComponent, Document, ExtractorOutput, Param
 
@@ -119,6 +119,16 @@ class RegexExtractor(BaseComponent):
                 input_.append(item)
             elif isinstance(item, Document):
                 input_.append(item.text)
+            elif hasattr(item, "content"):
+                c = getattr(item, "content", "")
+                input_.append(c if isinstance(c, str) else str(c) if c else "")
+            elif hasattr(item, "text"):
+                t = getattr(item, "text", "")
+                input_.append(
+                    t()
+                    if callable(t)
+                    else (t if isinstance(t, str) else str(t) if t else "")
+                )
             else:
                 raise ValueError(
                     f"Invalid input type {type(item)}, should be str or Document"

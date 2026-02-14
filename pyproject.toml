@@ -46,3 +46,78 @@ check-filenames = ""
 
 [tool.isort]
 known_first_party = ["kotaemon"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4"]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "E203",  # whitespace before ':' (black compat)
+    "E402",  # module level import not at top (app.py patch must run first)
+    "B006",  # mutable default
+    "B007",  # loop variable not used
+    "B008",  # function call in default
+    "B017",  # pytest.raises(Exception)
+    "B018",  # useless expression (pytest context)
+    "B019",  # lru_cache on methods
+    "B023",  # function does not bind loop variable
+    "B027",  # empty method in ABC
+    "B028",  # no explicit stacklevel in warn
+    "B904",  # raise without from
+    "C400",  # unnecessary generator
+    "C403",  # unnecessary list comp -> set comp
+    "C408",  # unnecessary dict() call
+    "C414",  # unnecessary list() in sorted()
+    "C416",  # unnecessary dict comprehension
+    "N803",  # argument should be lowercase (G for graph)
+    "N806",  # variable should be lowercase
+    "N817",  # CamelCase imported as acronym
+    "N818",  # Exception name suffix (ToolException is public API)
+    "N999",  # invalid module name (cookiecutter template)
+    "UP030",  # implicit format fields
+    "UP031",  # percent format
+    "UP038",  # isinstance X|Y
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["kotaemon", "ktem"]
+
+[tool.ruff.lint.per-file-ignores]
+"app.py" = ["E402"]
+"templates/**" = ["N999"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+exclude = "build|\\.venv|\\.venv_check"
+
+[[tool.mypy.overrides]]
+module = "kotaemon.loaders.html_loader"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "kotaemon.loaders.vision_ocr_loader"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "ktem.ollama_servers.manager"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "ktem.vlms.manager"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "ktem.pages.resources.vlms"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "ktem.llms.ui"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "ktem.pages.settings"
+ignore_errors = true

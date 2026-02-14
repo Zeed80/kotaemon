@@ -1,6 +1,5 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Union
 
 from .box import (
     bbox_to_points,
@@ -20,7 +19,7 @@ IOU_THRES = 0.5
 PADDING_THRES = 1.1
 
 
-def read_pdf_unstructured(input_path: Union[Path, str]):
+def read_pdf_unstructured(input_path: Path | str):
     """Convert PDF from specified path to list of text items with
     location information
 
@@ -59,7 +58,7 @@ def read_pdf_unstructured(input_path: Union[Path, str]):
 
 
 def merge_ocr_and_pdf_texts(
-    ocr_list: List[dict], pdf_text_list: List[dict], debug_info=None
+    ocr_list: list[dict], pdf_text_list: list[dict], debug_info=None
 ):
     """Merge PDF and OCR text using IOU overlapping location
     Args:
@@ -114,7 +113,7 @@ def merge_ocr_and_pdf_texts(
 
 
 def merge_table_cell_and_ocr(
-    table_list: List[dict], ocr_list: List[dict], pdf_list: List[dict], debug_info=None
+    table_list: list[dict], ocr_list: list[dict], pdf_list: list[dict], debug_info=None
 ):
     """Merge table items with OCR text using IOU overlapping location
     Args:
@@ -226,10 +225,10 @@ def merge_table_cell_and_ocr(
 
 
 def parse_ocr_output(
-    ocr_page_items: List[dict],
-    pdf_page_items: Dict[int, List[dict]],
-    artifact_path: Optional[str] = None,
-    debug_path: Optional[str] = None,
+    ocr_page_items: list[dict],
+    pdf_page_items: dict[int, list[dict]],
+    artifact_path: str | None = None,
+    debug_path: str | None = None,
 ):
     """Main function to combine OCR output and PDF text to
     form list of table / non-table regions
@@ -291,6 +290,6 @@ def parse_ocr_output(
 
         # export debug image to debug_path
         if debug_path:
-            cv2.imwrite(str(Path(debug_path) / "page_{}.png".format(page_id)), image)
+            cv2.imwrite(str(Path(debug_path) / f"page_{page_id}.png"), image)
 
     return all_tables, all_texts

@@ -3,9 +3,8 @@ import logging
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
-    from ktem.app import BasePage
-
     from kotaemon.base import BaseComponent
+    from ktem.app import BasePage
 
 
 logger = logging.getLogger(__name__)
@@ -109,7 +108,7 @@ class BaseIndex(abc.ABC):
 
     @abc.abstractmethod
     def get_indexing_pipeline(
-        self, settings: dict, user_id: Optional[int]
+        self, settings: dict, user_id: int | None
     ) -> "BaseComponent":
         """Return the indexing pipeline that populates the entities into the index
 

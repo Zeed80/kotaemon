@@ -1,6 +1,7 @@
 """Simple file vector store index."""
+
 from pathlib import Path
-from typing import Any, Optional, Type
+from typing import Any
 
 import fsspec
 from llama_index.core.vector_stores import SimpleVectorStore as LISimpleVectorStore
@@ -14,15 +15,15 @@ from .base import LlamaIndexVectorStore
 class SimpleFileVectorStore(LlamaIndexVectorStore):
     """Similar to InMemoryVectorStore but is backed by file by default"""
 
-    _li_class: Type[LISimpleVectorStore] = LISimpleVectorStore
+    _li_class: type[LISimpleVectorStore] = LISimpleVectorStore
     store_text: bool = False
 
     def __init__(
         self,
         path: str | Path,
         collection_name: str = "default",
-        data: Optional[SimpleVectorStoreData] = None,
-        fs: Optional[fsspec.AbstractFileSystem] = None,
+        data: SimpleVectorStoreData | None = None,
+        fs: fsspec.AbstractFileSystem | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize params."""
@@ -46,8 +47,8 @@ class SimpleFileVectorStore(LlamaIndexVectorStore):
     def add(
         self,
         embeddings: list[list[float]] | list[DocumentWithEmbedding],
-        metadatas: Optional[list[dict]] = None,
-        ids: Optional[list[str]] = None,
+        metadatas: list[dict] | None = None,
+        ids: list[str] | None = None,
     ):
         r = super().add(embeddings, metadatas, ids)
         self._client.persist(str(self._save_path), self._fs)

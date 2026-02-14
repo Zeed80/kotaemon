@@ -1,5 +1,4 @@
 import os
-from typing import List
 
 from kotaemon.base import BaseComponent, Document, LLMInterface, Node, Param, lazy
 from kotaemon.contribs.promptui.logs import ResultLog
@@ -16,7 +15,6 @@ class QAResultLog(ResultLog):
 
 
 class QuestionAnsweringPipeline(BaseComponent):
-
     _promptui_resultlog = QAResultLog
     _promptui_outputs: list = [
         {
@@ -59,7 +57,7 @@ class QuestionAnsweringPipeline(BaseComponent):
 
     def run(self, text: str) -> LLMInterface:
         # retrieve relevant documents as context
-        matched_texts: List[str] = [
+        matched_texts: list[str] = [
             _.text
             for _ in self.retrieving_pipeline(text, top_k=int(self.retrieval_top_k))
         ]
@@ -73,7 +71,6 @@ class QuestionAnsweringPipeline(BaseComponent):
 
 
 class IndexingPipeline(VectorIndexing):
-
     vector_store: ChromaVectorStore = Param(
         lazy(ChromaVectorStore).withx(path="./tmp"),
         ignore_ui=True,

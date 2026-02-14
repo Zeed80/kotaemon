@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from kotaemon.base import BaseComponent, Document, Param
 
 from .linear import GatedLinearPipeline
@@ -49,7 +47,7 @@ class SimpleBranchingPipeline(BaseComponent):
         ```
     """
 
-    branches: List[BaseComponent] = Param(default_callback=lambda *_: [])
+    branches: list[BaseComponent] = Param(default_callback=lambda *_: [])
 
     def add_branch(self, component: BaseComponent):
         """
@@ -125,7 +123,7 @@ class GatedBranchingPipeline(SimpleBranchingPipeline):
         ```
     """
 
-    def run(self, *, condition_text: Optional[str] = None, **prompt_kwargs):
+    def run(self, *, condition_text: str | None = None, **prompt_kwargs):
         """
         Execute the pipeline by running each branch and return the output of the first
             branch that returns a non-empty output based on the provided condition.

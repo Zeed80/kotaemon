@@ -4,14 +4,15 @@ from ktem.utils.httplib2_patch import patch_httplib2_pyparsing  # noqa
 patch_httplib2_pyparsing()
 
 import gradio as gr
-from decouple import config
+from theflow.settings import settings as flowsettings
+
+from flowsettings_config import config
 from ktem.app import BaseApp
 from ktem.pages.chat import ChatPage
 from ktem.pages.help import HelpPage
 from ktem.pages.resources import ResourcesTab
 from ktem.pages.settings import SettingsPage
 from ktem.pages.setup import SetupPage
-from theflow.settings import settings as flowsettings
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
@@ -131,9 +132,10 @@ class App(BaseApp):
 
     def on_subscribe_public_events(self):
         if self.f_user_management:
+            from sqlmodel import Session, select
+
             from ktem.db.engine import engine
             from ktem.db.models import User
-            from sqlmodel import Session, select
 
             def toggle_login_visibility(user_id):
                 if not user_id:

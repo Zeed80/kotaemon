@@ -72,6 +72,11 @@ Kotaemon — установка и развёртывание
 После установки:
   Локально:  python app.py   (или активируйте .venv и запустите app.py)
   Docker:    http://localhost:7860   (порт настраивается в .env: KOTAEMON_PORT)
+
+GPU (Unstructured/Docling):
+  Локально:  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+  Docker:    TORCH_DEVICE=cu121 docker compose build   (в .env задать TORCH_DEVICE=cu121)
+  Требуется NVIDIA GPU и NVIDIA Container Toolkit для Docker.
 EOF
 }
 

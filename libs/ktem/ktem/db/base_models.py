@@ -1,6 +1,5 @@
 import datetime
 import uuid
-from typing import Optional
 
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
@@ -95,8 +94,8 @@ class BaseIssueReport(SQLModel):
 
     __table_args__ = {"extend_existing": True}
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     issues: dict = Field(default={}, sa_column=Column(JSON))
-    chat: Optional[dict] = Field(default=None, sa_column=Column(JSON))
-    settings: Optional[dict] = Field(default=None, sa_column=Column(JSON))
-    user: Optional[str] = Field(default=None)
+    chat: dict | None = Field(default=None, sa_column=Column(JSON))
+    settings: dict | None = Field(default=None, sa_column=Column(JSON))
+    user: str | None = Field(default=None)

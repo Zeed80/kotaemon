@@ -2,7 +2,6 @@ import base64
 import os
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
 
 from PIL import Image
 
@@ -127,12 +126,12 @@ class AzureAIDocumentIntelligenceLoader(BaseReader):
         )
 
     def run(
-        self, file_path: str | Path, extra_info: Optional[dict] = None, **kwargs
+        self, file_path: str | Path, extra_info: dict | None = None, **kwargs
     ) -> list[Document]:
         return self.load_data(Path(file_path), extra_info=extra_info, **kwargs)
 
     def load_data(
-        self, file_path: Path, extra_info: Optional[dict] = None, **kwargs
+        self, file_path: Path, extra_info: dict | None = None, **kwargs
     ) -> list[Document]:
         """Extract the input file, allowing multi-modal extraction"""
         metadata = extra_info or {}
@@ -181,7 +180,9 @@ class AzureAIDocumentIntelligenceLoader(BaseReader):
 
             # caption the image
             caption = generate_single_figure_caption(
-                figure=img_base64, vlm_endpoint=self.vlm_endpoint, vlm_model=self.vlm_model or None
+                figure=img_base64,
+                vlm_endpoint=self.vlm_endpoint,
+                vlm_model=self.vlm_model or None,
             )
 
             # store the image into document

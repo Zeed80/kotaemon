@@ -1,11 +1,7 @@
 import html
 import logging
-from typing import AnyStr, Optional, Type
+from typing import AnyStr
 
-from ktem.llms.manager import llms
-from ktem.reasoning.base import BaseReasoning
-from ktem.utils.generator import Generator
-from ktem.utils.render import Render
 from langchain.text_splitter import CharacterTextSplitter
 from pydantic import BaseModel, Field
 
@@ -18,6 +14,10 @@ from kotaemon.agents import (
 )
 from kotaemon.base import BaseComponent, Document, HumanMessage, Node, SystemMessage
 from kotaemon.llms import ChatLLM, PromptTemplate
+from ktem.llms.manager import llms
+from ktem.reasoning.base import BaseReasoning
+from ktem.utils.generator import Generator
+from ktem.utils.render import Render
 
 from ..utils import SUPPORTED_LANGUAGE_MAP
 
@@ -39,7 +39,7 @@ class DocSearchTool(BaseTool):
         "this document storage, you just need to do normal search. If possible, "
         "formulate the search query as specific as possible."
     )
-    args_schema: Optional[Type[BaseModel]] = DocSearchArgs
+    args_schema: type[BaseModel] | None = DocSearchArgs
     retrievers: list[BaseComponent] = []
 
     def _run_tool(self, query: AnyStr) -> AnyStr:
@@ -99,7 +99,7 @@ class DocSearchTool(BaseTool):
                         + " \n<br>"
                     )
 
-            print("Retrieved #{}: {}".format(_id, retrieved_content[:100]))
+            print(f"Retrieved #{_id}: {retrieved_content[:100]}")
             print("Score", retrieved_item.metadata.get("reranking_score", None))
 
         # trim context by trim_len
@@ -188,7 +188,7 @@ class ReactAgentPipeline(BaseReasoning):
     use_rewrite: bool = False
 
     def prepare_citation(self, step_id, step, output, status) -> Document:
-        header = "<b>Step {id}</b>: {log}".format(id=step_id, log=step.log)
+        header = f"<b>Step {step_id}</b>: {step.log}"
         content = (
             "<b>Action</b>: <em>{tool}[{input}]</em>\n\n<b>Output</b>: {output}"
         ).format(
@@ -208,7 +208,11 @@ class ReactAgentPipeline(BaseReasoning):
         )
 
     async def ainvoke(  # type: ignore
-        self, message, conv_id: str, history: list, **kwargs  # type: ignore
+        self,
+        message,
+        conv_id: str,
+        history: list,
+        **kwargs,  # type: ignore
     ) -> Document:
         if self.use_rewrite:
             rewrite = await self.rewrite_pipeline(question=message)

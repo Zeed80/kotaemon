@@ -11,7 +11,7 @@ httplib2 использует устаревший API pyparsing (DelimitedList 
 
 def patch_httplib2_pyparsing():
     """Применить патч для совместимости httplib2 с pyparsing 3.x.
-    
+
     Патч должен быть применен ДО импорта httplib2 или любых модулей,
     которые импортируют httplib2 (например, google.generativeai).
     """

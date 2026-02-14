@@ -6,20 +6,21 @@ import shutil
 import tempfile
 import uuid
 import zipfile
+from collections.abc import Generator
 from copy import deepcopy
 from pathlib import Path
-from typing import Generator
 
 import gradio as gr
 import pandas as pd
 from gradio.data_classes import FileData
 from gradio.utils import NamedString
-from ktem.app import BasePage
-from ktem.db.engine import engine
-from ktem.utils.render import Render
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from theflow.settings import settings as flowsettings
+
+from ktem.app import BasePage
+from ktem.db.engine import engine
+from ktem.utils.render import Render
 
 from ...utils.commands import WEB_SEARCH_COMMAND
 from ...utils.rate_limit import check_rate_limit
@@ -73,9 +74,7 @@ function(file_list) {
     tribute.detach(input_box);
     tribute.attach(input_box);
 }
-""".replace(
-    "web_search", WEB_SEARCH_COMMAND
-)
+""".replace("web_search", WEB_SEARCH_COMMAND)
 
 
 def _read_index_runtime_settings(settings: dict, index_id: int) -> dict:
@@ -204,8 +203,7 @@ class FileIndexPage(BasePage):
             value="",
             label="Filter by name:",
             info=(
-                "(1) Case-insensitive. "
-                "(2) Search with empty string to show all files."
+                "(1) Case-insensitive. (2) Search with empty string to show all files."
             ),
         )
         self.file_list_state = gr.State(value=None)
@@ -225,7 +223,6 @@ class FileIndexPage(BasePage):
         )
 
         with gr.Row():
-
             self.chat_button = gr.Button(
                 "Go to Chat",
                 visible=False,
@@ -322,7 +319,7 @@ class FileIndexPage(BasePage):
     def on_building_ui(self):
         """Build the UI of the app"""
         self.progress = gr.Progress()
-        
+
         with gr.Row():
             with gr.Column(scale=1):
                 with gr.Column() as self.upload:
@@ -464,7 +461,7 @@ class FileIndexPage(BasePage):
                             url=doc.metadata.get("image_origin", ""), text=doc.text
                         )
 
-                    header_prefix = f"[{idx+1}/{len(docs)}]"
+                    header_prefix = f"[{idx + 1}/{len(docs)}]"
                     if doc.metadata.get("page_label"):
                         header_prefix += f" [Page {doc.metadata['page_label']}]"
 
@@ -1182,17 +1179,17 @@ class FileIndexPage(BasePage):
 
         outputs, debugs = [], []
         debugs.append(_format_upload_runtime_info(runtime_settings, ingestion_id))
-        
+
         # Use progress tracker
         total_files = len(files)
-        
+
         # stream the output
         output_stream = indexing_pipeline.stream(
             files,
             reindex=reindex,
             ingestion_id=ingestion_id,
         )
-        
+
         file_index = 0
         try:
             while True:
@@ -1202,12 +1199,17 @@ class FileIndexPage(BasePage):
                 if response.channel == "index":
                     # Update progress
                     file_index += 1
-                    progress(file_index / total_files, f"Processing {response.content.get('file_name', 'file')}...")
-                    
+                    progress(
+                        file_index / total_files,
+                        f"Processing {response.content.get('file_name', 'file')}...",
+                    )
+
                     if response.content["status"] == "success":
                         msg = f"\u2705 | {response.content['file_name']}"
                         extraction_status = response.content.get("extraction_status")
-                        extraction_error_code = response.content.get("extraction_error_code")
+                        extraction_error_code = response.content.get(
+                            "extraction_error_code"
+                        )
                         if extraction_status:
                             msg += f" | status={extraction_status}"
                             if extraction_error_code:
@@ -1219,8 +1221,7 @@ class FileIndexPage(BasePage):
                         error_code = response.content.get("extraction_error_code", "")
                         outputs.append(
                             f"\u274c | {response.content['file_name']}: "
-                            f"{error_msg}"
-                            + (f" ({error_code})" if error_code else "")
+                            f"{error_msg}" + (f" ({error_code})" if error_code else "")
                         )
                 elif response.channel == "debug":
                     debugs.append(response.text)

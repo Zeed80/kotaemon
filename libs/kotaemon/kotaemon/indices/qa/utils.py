@@ -33,8 +33,9 @@ def find_text(search_span, context, min_length=5):
 
     if matches_span:
         # merge all matches into one span
-        final_span = min(start for start, _ in matches_span), max(
-            end for _, end in matches_span
+        final_span = (
+            min(start for start, _ in matches_span),
+            max(end for _, end in matches_span),
         )
         matches_span = [final_span]
 

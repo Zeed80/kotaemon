@@ -1,5 +1,5 @@
 import os
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 from kotaemon.base import DocumentWithEmbedding
 
@@ -26,7 +26,7 @@ class MilvusVectorStore(LlamaIndexVectorStore):
         self,
         uri: str = "./milvus.db",  # or "http://localhost:19530"
         collection_name: str = "default",
-        token: Optional[str] = None,
+        token: str | None = None,
         **kwargs: Any,
     ):
         self._uri = uri
@@ -36,7 +36,7 @@ class MilvusVectorStore(LlamaIndexVectorStore):
         self._path = kwargs.get("path", None)
         self._inited = False
 
-    def _lazy_init(self, dim: Optional[int] = None):
+    def _lazy_init(self, dim: int | None = None):
         """
         Lazy init the client.
         Because the LlamaIndex init method requires the dim parameter,
@@ -67,8 +67,8 @@ class MilvusVectorStore(LlamaIndexVectorStore):
     def add(
         self,
         embeddings: list[list[float]] | list[DocumentWithEmbedding],
-        metadatas: Optional[list[dict]] = None,
-        ids: Optional[list[str]] = None,
+        metadatas: list[dict] | None = None,
+        ids: list[str] | None = None,
     ):
         if not self._inited:
             if isinstance(embeddings[0], list):
@@ -83,7 +83,7 @@ class MilvusVectorStore(LlamaIndexVectorStore):
         self,
         embedding: list[float],
         top_k: int = 1,
-        ids: Optional[list[str]] = None,
+        ids: list[str] | None = None,
         **kwargs,
     ) -> tuple[list[list[float]], list[float], list[str]]:
         self._lazy_init(len(embedding))

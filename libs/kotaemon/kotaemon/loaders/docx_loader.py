@@ -1,6 +1,5 @@
 import unicodedata
 from pathlib import Path
-from typing import List, Optional
 
 import pandas as pd
 from llama_index.core.readers.base import BaseReader
@@ -27,7 +26,7 @@ class DocxReader(BaseReader):
                 "Please install it using `pip install python-docx`"
             )
 
-    def _load_single_table(self, table) -> List[List[str]]:
+    def _load_single_table(self, table) -> list[list[str]]:
         """Extract content from tables. Return a list of columns: list[str]
         Some merged cells will share duplicated content.
         """
@@ -43,8 +42,8 @@ class DocxReader(BaseReader):
         return arrays
 
     def load_data(
-        self, file_path: Path, extra_info: Optional[dict] = None, **kwargs
-    ) -> List[Document]:
+        self, file_path: Path, extra_info: dict | None = None, **kwargs
+    ) -> list[Document]:
         """Load data using Docx reader
 
         Args:

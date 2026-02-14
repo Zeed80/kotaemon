@@ -1,4 +1,4 @@
-from typing import Optional, Type, overload
+from typing import overload
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -17,7 +17,7 @@ class LLMManager:
         self._models: dict[str, ChatLLM] = {}
         self._info: dict[str, dict] = {}
         self._default: str = ""
-        self._vendors: list[Type] = []
+        self._vendors: list[type] = []
 
         if hasattr(flowsettings, "KH_LLMS"):
             for name, model in flowsettings.KH_LLMS.items():
@@ -86,14 +86,12 @@ class LLMManager:
         return key in self._models
 
     @overload
-    def get(self, key: str, default: None) -> Optional[ChatLLM]:
-        ...
+    def get(self, key: str, default: None) -> ChatLLM | None: ...
 
     @overload
-    def get(self, key: str, default: ChatLLM) -> ChatLLM:
-        ...
+    def get(self, key: str, default: ChatLLM) -> ChatLLM: ...
 
-    def get(self, key: str, default: Optional[ChatLLM] = None) -> Optional[ChatLLM]:
+    def get(self, key: str, default: ChatLLM | None = None) -> ChatLLM | None:
         """Get model by name with default value"""
         return self._models.get(key, default)
 
@@ -166,7 +164,6 @@ class LLMManager:
 
         try:
             with Session(engine) as session:
-
                 if default:
                     # turn all models to non-default
                     session.query(LLMTable).update({"default": False})
@@ -199,7 +196,6 @@ class LLMManager:
 
         try:
             with Session(engine) as session:
-
                 if default:
                     # turn all models to non-default
                     session.query(LLMTable).update({"default": False})

@@ -1,5 +1,5 @@
+from collections.abc import Callable
 from copy import deepcopy
-from typing import Callable, List
 
 from theflow import Function, Node, Param
 
@@ -95,7 +95,7 @@ class Thought(BaseComponent):
 
         return Document(response)
 
-    def get_variables(self) -> List[str]:
+    def get_variables(self) -> list[str]:
         return []
 
     def __add__(self, next_thought: "Thought") -> "ManualSequentialChainOfThought":
@@ -144,7 +144,7 @@ class ManualSequentialChainOfThought(BaseComponent):
     returns False.
     """
 
-    thoughts: List[Thought] = Param(
+    thoughts: list[Thought] = Param(
         default_callback=lambda *_: [], help="List of Thought"
     )
     llm: LLM = Param(help="The LLM model to use (base of kotaemon.llms.BaseLLM)")

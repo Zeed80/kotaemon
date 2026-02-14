@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Type
+from typing import Any
 
 from llama_index.core.node_parser.interface import NodeParser
 
@@ -22,8 +22,7 @@ class DocTransformer(BaseComponent):
         self,
         documents: list[Document],
         **kwargs,
-    ) -> list[Document]:
-        ...
+    ) -> list[Document]: ...
 
 
 class LlamaIndexDocTransformerMixin:
@@ -41,7 +40,7 @@ class LlamaIndexDocTransformerMixin:
         2. Overwrite `_get_li_class` to return the relevant LlamaIndex component.
     """
 
-    def _get_li_class(self) -> Type[NodeParser]:
+    def _get_li_class(self) -> type[NodeParser]:
         raise NotImplementedError(
             "Please return the relevant LlamaIndex class in _get_li_class"
         )
@@ -119,5 +118,4 @@ class BaseRetrieval(BaseComponent):
     """Define the base interface for retrieval pipeline"""
 
     @abstractmethod
-    def run(self, *args, **kwargs) -> list[RetrievedDocument]:
-        ...
+    def run(self, *args, **kwargs) -> list[RetrievedDocument]: ...

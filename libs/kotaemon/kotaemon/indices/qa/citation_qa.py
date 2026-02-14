@@ -1,11 +1,11 @@
 import threading
 from collections import defaultdict
-from typing import Generator
+from collections.abc import Generator
 
 import numpy as np
-from decouple import config
 from theflow.settings import settings as flowsettings
 
+from flowsettings_config import config
 from kotaemon.base import (
     AIMessage,
     BaseComponent,
@@ -376,7 +376,7 @@ class AnswerWithContextPipeline(BaseComponent):
                 )
             )
 
-        print("Got {} cited docs".format(len(with_citation)))
+        print(f"Got {len(with_citation)} cited docs")
 
         sorted_not_detected_items_with_scores = [
             (id_, id2docs[id_].metadata.get("llm_trulens_score", 0.0))
@@ -388,8 +388,7 @@ class AnswerWithContextPipeline(BaseComponent):
             doc = id2docs[id_]
             doc_score = doc.metadata.get("llm_trulens_score", 0.0)
             is_open = not has_llm_score or (
-                doc_score
-                > CONTEXT_RELEVANT_WARNING_SCORE
+                doc_score > CONTEXT_RELEVANT_WARNING_SCORE
                 # and len(with_citation) == 0
             )
             without_citation.append(

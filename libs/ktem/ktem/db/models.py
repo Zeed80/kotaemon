@@ -1,8 +1,9 @@
-import ktem.db.base_models as base_models
-from ktem.db.engine import engine
 from sqlmodel import SQLModel
 from theflow.settings import settings
 from theflow.utils.modules import import_dotted_string
+
+import ktem.db.base_models as base_models
+from ktem.db.engine import engine
 
 _base_conv = (
     import_dotted_string(settings.KH_TABLE_CONV, safe=False)

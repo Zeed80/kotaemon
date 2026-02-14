@@ -1,7 +1,8 @@
 """Get config from Pipeline"""
+
 import inspect
 from pathlib import Path
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any
 
 import yaml
 
@@ -82,14 +83,14 @@ def handle_node(node: dict) -> dict:
     return config
 
 
-def handle_input(pipeline: Union[BaseComponent, Type[BaseComponent]]) -> dict:
+def handle_input(pipeline: BaseComponent | type[BaseComponent]) -> dict:
     """Get the input from the pipeline"""
     signature = inspect.signature(pipeline.run)
-    inputs: Dict[str, Dict] = {}
+    inputs: dict[str, dict] = {}
     for name, param in signature.parameters.items():
         if name in ["self", "args", "kwargs"]:
             continue
-        input_def: Dict[str, Optional[Any]] = {"component": "text"}
+        input_def: dict[str, Any | None] = {"component": "text"}
         default = param.default
         if default is param.empty:
             inputs[name] = input_def
@@ -111,8 +112,8 @@ def handle_input(pipeline: Union[BaseComponent, Type[BaseComponent]]) -> dict:
 
 
 def export_pipeline_to_config(
-    pipeline: Union[BaseComponent, Type[BaseComponent]],
-    path: Optional[str] = None,
+    pipeline: BaseComponent | type[BaseComponent],
+    path: str | None = None,
 ) -> dict:
     """Export a pipeline to a promptui-compliant config dict"""
     if inspect.isclass(pipeline):

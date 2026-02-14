@@ -13,15 +13,15 @@ description: Паттерны RAG-пайплайнов kotaemon. Использ�
 
 ## flowsettings (flowsettings.py)
 
-| Константа      | Назначение                    |
-|----------------|-------------------------------|
-| KH_DOCSTORE    | Хранилище документов          |
-| KH_VECTORSTORE | Векторное хранилище           |
-| KH_REASONINGS  | Список пайплайнов reasoning   |
-| KH_INDEX_TYPES | Типы индексации               |
-| KH_LLMS        | LLM-провайдеры                |
-| KH_EMBEDDINGS  | Модели эмбеддингов            |
-| KH_RERANKINGS  | Модели переранжирования       |
+| Константа      | Назначение                  |
+| -------------- | --------------------------- |
+| KH_DOCSTORE    | Хранилище документов        |
+| KH_VECTORSTORE | Векторное хранилище         |
+| KH_REASONINGS  | Список пайплайнов reasoning |
+| KH_INDEX_TYPES | Типы индексации             |
+| KH_LLMS        | LLM-провайдеры              |
+| KH_EMBEDDINGS  | Модели эмбеддингов          |
+| KH_RERANKINGS  | Модели переранжирования     |
 
 ## Добавление нового Reasoning
 

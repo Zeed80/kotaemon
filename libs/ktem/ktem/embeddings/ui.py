@@ -3,6 +3,8 @@ from copy import deepcopy
 import gradio as gr
 import pandas as pd
 import yaml
+from theflow.utils.modules import deserialize
+
 from ktem.app import BasePage
 from ktem.utils.file import YAMLNoDateSafeLoader
 from ktem.utils.ollama import (
@@ -10,7 +12,6 @@ from ktem.utils.ollama import (
     get_ollama_models,
     pull_ollama_model,
 )
-from theflow.utils.modules import deserialize
 
 from .manager import embedding_models_manager
 
@@ -154,9 +155,7 @@ class EmbeddingManagement(BasePage):
                             self.btn_pull_ollama_model = gr.Button(
                                 "⬇️ Pull Model", variant="secondary"
                             )
-                            self.ollama_pull_progress = gr.HTML(
-                                visible=False, value=""
-                            )
+                            self.ollama_pull_progress = gr.HTML(visible=False, value="")
 
                 with gr.Column(scale=3):
                     self.spec_desc = gr.Markdown(self.spec_desc_default)
@@ -552,13 +551,14 @@ class EmbeddingManagement(BasePage):
                     # Обновить список моделей
                     models = get_ollama_models()
                     choices = [m["name"] for m in models]
-                    yield gr.update(visible=True, value=progress_html), gr.update(
-                        choices=choices, value=model_name
+                    yield (
+                        gr.update(visible=True, value=progress_html),
+                        gr.update(choices=choices, value=model_name),
                     )
                     return
 
             # Если дошли сюда без success
-            progress_html = f"""
+            progress_html = """
             <div style='padding: 10px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px;'>
                 <p>Загрузка завершена, но статус не определен</p>
             </div>

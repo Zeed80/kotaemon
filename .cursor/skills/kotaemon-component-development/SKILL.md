@@ -34,10 +34,12 @@ class MyPipeline(BaseComponent):
 ## Reasoning / Indexing
 
 Для нового reasoning pipeline:
+
 1. Создать класс в `libs/ktem/ktem/reasoning/`
 2. Зарегистрировать в flowsettings: `KH_REASONINGS.append("ktem.reasoning.mymodule.MyPipeline")`
 
 Для нового index type:
+
 1. Создать класс в `libs/ktem/ktem/index/file/`
 2. Добавить в flowsettings: `KH_INDEX_TYPES.append("ktem.index.file.mymodule.MyIndex")`
 

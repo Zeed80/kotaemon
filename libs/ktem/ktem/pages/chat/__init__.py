@@ -2,10 +2,17 @@ import asyncio
 import json
 import re
 from copy import deepcopy
-from typing import Optional
 
 import gradio as gr
-from decouple import config
+from plotly.io import from_json
+from sqlmodel import Session, select
+from theflow.settings import settings as flowsettings
+from theflow.utils.modules import import_dotted_string
+
+from flowsettings_config import config
+from kotaemon.base import Document
+from kotaemon.indices.ingests.files import KH_DEFAULT_FILE_EXTRACTORS
+from kotaemon.indices.qa.utils import strip_think_tag
 from ktem.app import BasePage
 from ktem.components import reasonings
 from ktem.db.models import Conversation, engine
@@ -17,14 +24,6 @@ from ktem.reasoning.prompt_optimization.suggest_conversation_name import (
 from ktem.reasoning.prompt_optimization.suggest_followup_chat import (
     SuggestFollowupQuesPipeline,
 )
-from plotly.io import from_json
-from sqlmodel import Session, select
-from theflow.settings import settings as flowsettings
-from theflow.utils.modules import import_dotted_string
-
-from kotaemon.base import Document
-from kotaemon.indices.ingests.files import KH_DEFAULT_FILE_EXTRACTORS
-from kotaemon.indices.qa.utils import strip_think_tag
 
 from ...utils import SUPPORTED_LANGUAGE_MAP, get_file_names_regex, get_urls
 from ...utils.commands import WEB_SEARCH_COMMAND
@@ -835,9 +834,7 @@ class ChatPage(BasePage):
             fn=raise_error_on_state,
             inputs=[self._use_suggestion],
             show_progress="hidden",
-        ).success(
-            **onSuggestChatEvent
-        )
+        ).success(**onSuggestChatEvent)
         self.chat_control.conversation_id.change(
             lambda: gr.update(visible=False),
             outputs=self.plot_panel,
@@ -923,7 +920,7 @@ class ChatPage(BasePage):
                     file_ids.append(file_id)
 
         # add new file ids to the first selector choices
-        first_selector_choices.extend(zip(urls, file_ids))
+        first_selector_choices.extend(zip(urls, file_ids, strict=False))
 
         # if file_ids is not empty and chat_input_text is empty
         # set the input to summary
@@ -1136,7 +1133,7 @@ class ChatPage(BasePage):
     def reasoning_changed(self, reasoning_type):
         if reasoning_type != DEFAULT_SETTING:
             # override app settings state (temporary)
-            gr.Info("Reasoning type changed to `{}`".format(reasoning_type))
+            gr.Info(f"Reasoning type changed to `{reasoning_type}`")
         return reasoning_type
 
     def is_liked(self, convo_id, liked: gr.LikeData):
@@ -1223,9 +1220,9 @@ class ChatPage(BasePage):
             settings["reasoning.options.simple.create_mindmap"] = session_use_mindmap
 
         if session_use_citation not in (DEFAULT_SETTING, None):
-            settings[
-                "reasoning.options.simple.highlight_citation"
-            ] = session_use_citation
+            settings["reasoning.options.simple.highlight_citation"] = (
+                session_use_citation
+            )
 
         if session_language not in (DEFAULT_SETTING, None):
             settings["reasoning.lang"] = session_language
@@ -1286,7 +1283,7 @@ class ChatPage(BasePage):
         if chat_output:
             chat_state["app"]["regen"] = True
 
-        queue: asyncio.Queue[Optional[dict]] = asyncio.Queue()
+        queue: asyncio.Queue[dict | None] = asyncio.Queue()
 
         # construct the pipeline
         pipeline, reasoning_state = self.create_pipeline(
@@ -1325,7 +1322,6 @@ class ChatPage(BasePage):
 
         try:
             for response in pipeline.stream(chat_input, conversation_id, chat_history):
-
                 if not isinstance(response, Document):
                     continue
 

@@ -3,9 +3,10 @@ from importlib.metadata import version
 from inspect import currentframe, getframeinfo
 from pathlib import Path
 
-from decouple import config
-from ktem.utils.lang import SUPPORTED_LANGUAGE_MAP
 from theflow.settings.default import *  # noqa
+
+from flowsettings_config import config
+from ktem.utils.lang import SUPPORTED_LANGUAGE_MAP
 
 cur_frame = currentframe()
 if cur_frame is None:
@@ -84,9 +85,11 @@ KH_FEATURE_USER_MANAGEMENT_PASSWORD = str(
 KH_ENABLE_ALEMBIC = False
 KH_DATABASE = f"sqlite:///{KH_USER_DATA_DIR / 'sql.db'}"
 KH_FILESTORAGE_PATH = str(KH_USER_DATA_DIR / "files")
+# Web search: Tavily (if key) -> SearXNG (self-hosted, no key) for locality/privacy
 KH_WEB_SEARCH_BACKEND = (
     "kotaemon.indices.retrievers.tavily_web_search.WebSearch"
-    # "kotaemon.indices.retrievers.jina_web_search.WebSearch"
+    if config("TAVILY_API_KEY", default="")
+    else "kotaemon.indices.retrievers.searxng_web_search.WebSearch"
 )
 
 KH_DOCSTORE = {
@@ -95,12 +98,34 @@ KH_DOCSTORE = {
     "__type__": "kotaemon.storages.LanceDBDocumentStore",
     "path": str(KH_USER_DATA_DIR / "docstore"),
 }
+_qdrant_path = config("QDRANT_PATH", default="")
+
+
+def _parse_bool(val: str | bool) -> bool:
+    if isinstance(val, bool):
+        return val
+    return str(val).lower() in ("true", "1", "yes")
+
+
+_qdrant_enable_hybrid = _parse_bool(config("QDRANT_ENABLE_HYBRID", default="false"))
+_qdrant_sparse_model = config("QDRANT_FASTEMBED_SPARSE_MODEL", default="") or None
 KH_VECTORSTORE = {
+    "__type__": "kotaemon.storages.QdrantVectorStore",
+    "collection_name": "default",
+    "enable_hybrid": _qdrant_enable_hybrid,
+    "fastembed_sparse_model": _qdrant_sparse_model,
+    **(
+        {"path": _qdrant_path}
+        if _qdrant_path
+        else {
+            "url": config("QDRANT_URL", default="http://localhost:6333"),
+            "api_key": config("QDRANT_API_KEY", default="") or None,
+        }
+    ),
     # "__type__": "kotaemon.storages.LanceDBVectorStore",
-    "__type__": "kotaemon.storages.ChromaVectorStore",
+    # "__type__": "kotaemon.storages.ChromaVectorStore",
     # "__type__": "kotaemon.storages.MilvusVectorStore",
-    # "__type__": "kotaemon.storages.QdrantVectorStore",
-    "path": str(KH_USER_DATA_DIR / "vectorstore"),
+    # "path": str(KH_USER_DATA_DIR / "vectorstore"),
 }
 KH_LLMS = {}
 KH_EMBEDDINGS = {}
@@ -143,9 +168,11 @@ if config("AZURE_OPENAI_API_KEY", default="") and config(
 OPENAI_DEFAULT = "<YOUR_OPENAI_KEY>"
 OPENAI_API_KEY = config("OPENAI_API_KEY", default=OPENAI_DEFAULT)
 GOOGLE_API_KEY = config("GOOGLE_API_KEY", default="your-key")
+VOYAGE_API_KEY = config("VOYAGE_API_KEY", default="")
 IS_OPENAI_DEFAULT = len(OPENAI_API_KEY) > 0 and OPENAI_API_KEY != OPENAI_DEFAULT
 
 if OPENAI_API_KEY:
+    _openai_default = IS_OPENAI_DEFAULT and not VOYAGE_API_KEY
     KH_LLMS["openai"] = {
         "spec": {
             "__type__": "kotaemon.llms.ChatOpenAI",
@@ -169,10 +196,9 @@ if OPENAI_API_KEY:
             "timeout": 10,
             "context_length": 8191,
         },
-        "default": IS_OPENAI_DEFAULT,
+        "default": _openai_default,
     }
 
-VOYAGE_API_KEY = config("VOYAGE_API_KEY", default="")
 if VOYAGE_API_KEY:
     KH_EMBEDDINGS["voyageai"] = {
         "spec": {
@@ -180,7 +206,7 @@ if VOYAGE_API_KEY:
             "api_key": VOYAGE_API_KEY,
             "model": config("VOYAGE_EMBEDDINGS_MODEL", default="voyage-3-large"),
         },
-        "default": False,
+        "default": True,
     }
     KH_RERANKINGS["voyageai"] = {
         "spec": {
@@ -188,7 +214,7 @@ if VOYAGE_API_KEY:
             "model_name": "rerank-2",
             "api_key": VOYAGE_API_KEY,
         },
-        "default": False,
+        "default": True,
     }
 
 if config("LOCAL_MODEL", default=""):
@@ -306,6 +332,18 @@ KH_EMBEDDINGS["mistral"] = {
 #     "default": False,
 # }
 
+# Offline default: FastEmbed when no OpenAI/Voyage API keys
+if not IS_OPENAI_DEFAULT and not VOYAGE_API_KEY:
+    KH_EMBEDDINGS["fast_embed"] = {
+        "spec": {
+            "__type__": "kotaemon.embeddings.FastEmbedEmbeddings",
+            "model_name": config(
+                "LOCAL_MODEL_EMBEDDINGS", default="BAAI/bge-base-en-v1.5"
+            ),
+        },
+        "default": True,
+    }
+
 # default reranking models
 KH_RERANKINGS["cohere"] = {
     "spec": {
@@ -415,7 +453,9 @@ SETTINGS_APP: dict[str, dict] = {
     },
     "kh_chat_empty_msg_placeholder": {
         "name": "Chat empty answer placeholder",
-        "value": config("KH_CHAT_EMPTY_MSG_PLACEHOLDER", default="(Sorry, I don't know)"),
+        "value": config(
+            "KH_CHAT_EMPTY_MSG_PLACEHOLDER", default="(Sorry, I don't know)"
+        ),
         "component": "text",
     },
     "n_prompt_opt_examples": {
@@ -460,7 +500,12 @@ if _APPLICATION_SETTINGS_PATH.exists():
 
         with open(_APPLICATION_SETTINGS_PATH, encoding="utf-8") as f:
             _saved = json.load(f)
-        _bool_keys = ("use_lightrag", "use_nano_graphrag", "use_ms_graphrag", "use_global_graphrag")
+        _bool_keys = (
+            "use_lightrag",
+            "use_nano_graphrag",
+            "use_ms_graphrag",
+            "use_global_graphrag",
+        )
         for _k in _bool_keys:
             if _k in _saved:
                 _v = _saved[_k]

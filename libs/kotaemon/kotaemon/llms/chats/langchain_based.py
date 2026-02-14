@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import AsyncGenerator, Iterator
+from collections.abc import AsyncGenerator, Iterator
 
 from kotaemon.base import BaseMessage, HumanMessage, LLMInterface, Param
 
@@ -61,8 +61,9 @@ class LCChatMixin:
         except Exception:
             pass
 
+        main_text = all_text[0] if len(all_text) > 0 else ""
         return LLMInterface(
-            text=all_text[0] if len(all_text) > 0 else "",
+            content=main_text,
             candidates=all_text,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
@@ -252,8 +253,7 @@ class LCAnthropicChat(LCChatMixin, ChatLLM):  # type: ignore
     )
     model_name: str = Param(
         help=(
-            "Model name to use "
-            "(https://docs.anthropic.com/en/docs/about-claude/models)"
+            "Model name to use (https://docs.anthropic.com/en/docs/about-claude/models)"
         ),
         required=True,
     )

@@ -101,12 +101,12 @@ chmod +x install.sh
 
 **Режимы:**
 
-| Команда | Описание |
-|--------|----------|
-| `./install.sh` | Локальная установка: создаётся `.venv`, ставятся зависимости, из `.env.example` создаётся `.env`, загружается PDF.js, затем запускается приложение. |
-| `./install.sh --no-launch` | То же, но без запуска (только установка). Запуск потом: `source .venv/bin/activate && python app.py` |
-| `./install.sh --no-pdfjs` | Локальная установка без загрузки PDF.js (просмотр PDF в браузере будет недоступен). |
-| `./install.sh --docker` | Развёртывание через Docker Compose: сборка образа и запуск в фоне. После установки: http://localhost:7860 |
+| Команда                    | Описание                                                                                                                                            |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `./install.sh`             | Локальная установка: создаётся `.venv`, ставятся зависимости, из `.env.example` создаётся `.env`, загружается PDF.js, затем запускается приложение. |
+| `./install.sh --no-launch` | То же, но без запуска (только установка). Запуск потом: `source .venv/bin/activate && python app.py`                                                |
+| `./install.sh --no-pdfjs`  | Локальная установка без загрузки PDF.js (просмотр PDF в браузере будет недоступен).                                                                 |
+| `./install.sh --docker`    | Развёртывание через Docker Compose: сборка образа и запуск в фоне. После установки: http://localhost:7860                                           |
 
 После первого запуска заполните API-ключи в `.env` или в веб-интерфейсе (**Resources** → LLMs/Embeddings). Большинство остальных настроек можно изменить в **Settings → General** (Ollama URL, модели, флаги индексов, плейсхолдеры чата и т.д.).
 
@@ -163,7 +163,7 @@ chmod +x install.sh
    docker compose up -d --build
    ```
 
-   Порт настраивается в `.env`: **`KOTAEMON_PORT`** (по умолчанию 7860). Для отдельного контейнера Ollama: `docker compose --profile ollama up -d`.
+   **Qdrant** поднимается вместе с приложением (`docker compose up`). Внутри сети используется `QDRANT_URL=http://qdrant:6333`. Порт настраивается в `.env`: **`KOTAEMON_PORT`** (по умолчанию 7860). Для отдельного контейнера Ollama: `docker compose --profile ollama up -d`.
 
 ### Without Docker
 
@@ -290,6 +290,19 @@ Select the desired loader in `Settings -> Retrieval Settings -> File loader`.
   - `flowsettings.py` — значения по умолчанию и расширенная конфигурация
   - `.env` — API-ключи и переменные окружения (приоритет при первом запуске)
 
+- **Vector store (Qdrant, default)** — переменные в `.env` или `flowsettings_config.py`:
+
+  - `QDRANT_URL` — URL сервера Qdrant (по умолчанию `http://localhost:6333`). Для Docker Compose в сети: `http://qdrant:6333`.
+  - `QDRANT_API_KEY` — API-ключ (пусто для локального Qdrant без аутентификации).
+  - `QDRANT_PATH` — путь к локальной директории для файлового режима (разработка без сервера). Если задан, используется вместо `url`.
+
+  Для локальной разработки без Docker: `docker run -p 6333:6333 qdrant/qdrant` или задайте `QDRANT_PATH` (например, `./qdrant_data`).
+
+- **Web search** (для агентов и поиска в интернете) — по умолчанию **SearXNG** (self-hosted, без API-ключей, приватность):
+  - `SEARXNG_URL` — URL вашего SearXNG (по умолчанию `http://localhost:8080`). Для Docker Compose: `http://searxng:8080` (контейнер поднимается автоматически).
+  - Если задан `TAVILY_API_KEY` — используется Tavily вместо SearXNG.
+  - SearXNG поднимается вместе с приложением при `docker compose up`.
+
 #### `flowsettings.py`
 
 This file contains the default configuration of your application. You can use the example
@@ -304,7 +317,8 @@ This file contains the default configuration of your application. You can use th
 KH_DOCSTORE=(Elasticsearch | LanceDB | SimpleFileDocumentStore)
 
 # setup your preferred vectorstore (for vector-based search)
-KH_VECTORSTORE=(ChromaDB | LanceDB | InMemory | Milvus | Qdrant)
+# Default: Qdrant. Set QDRANT_URL, QDRANT_API_KEY (optional), QDRANT_PATH (local file mode)
+KH_VECTORSTORE=(Qdrant | ChromaDB | LanceDB | InMemory | Milvus)
 
 # Enable / disable multimodal QA
 KH_REASONINGS_USE_MULTIMODAL=True

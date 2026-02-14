@@ -1,9 +1,8 @@
-from typing import Optional
-
 import gradio as gr
+from sqlmodel import Session
+
 from ktem.app import BasePage
 from ktem.db.models import IssueReport, engine
-from sqlmodel import Session
 
 
 class ReportIssue(BasePage):
@@ -49,7 +48,7 @@ class ReportIssue(BasePage):
         conv_id: str,
         chat_history: list,
         settings: dict,
-        user_id: Optional[int],
+        user_id: int | None,
         info_panel: str,
         chat_state: dict,
         *selecteds,

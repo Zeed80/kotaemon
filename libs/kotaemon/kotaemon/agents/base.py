@@ -1,5 +1,3 @@
-from typing import Optional, Union
-
 from kotaemon.base import BaseComponent, Node, Param
 from kotaemon.llms import BaseLLM, PromptTemplate
 
@@ -19,13 +17,13 @@ class BaseAgent(BaseComponent):
             " input to the prompt of LLM."
         )
     )
-    llm: Optional[BaseLLM] = Node(
+    llm: BaseLLM | None = Node(
         help=(
             "LLM to be used for the agent (optional). LLM must implement BaseLLM"
             " interface."
         )
     )
-    prompt_template: Optional[Union[PromptTemplate, dict[str, PromptTemplate]]] = Param(
+    prompt_template: PromptTemplate | dict[str, PromptTemplate] | None = Param(
         help="A prompt template or a dict to supply different prompt to the agent"
     )
     plugins: list[BaseTool] = Param(
@@ -40,6 +38,7 @@ class BaseAgent(BaseComponent):
                 return run_func(self, *args, **kwargs)
             except Exception as e:
                 return AgentOutput(
+                    content="",
                     text="",
                     agent_type=self.agent_type,
                     status="failed",

@@ -2,18 +2,18 @@ import json
 import uuid
 from pathlib import Path
 
-from ktem.components import get_docstore, get_vectorstore
-from ktem.llms.manager import llms
-from ktem.reasoning.prompt_optimization.rewrite_question import (
-    DEFAULT_REWRITE_PROMPT,
-    RewriteQuestionPipeline,
-)
 from theflow.settings import settings as flowsettings
 
 from kotaemon.base import AIMessage, Document, HumanMessage, Node, SystemMessage
 from kotaemon.embeddings import BaseEmbeddings
 from kotaemon.llms import ChatLLM
 from kotaemon.storages import BaseDocumentStore, BaseVectorStore
+from ktem.components import get_docstore, get_vectorstore
+from ktem.llms.manager import llms
+from ktem.reasoning.prompt_optimization.rewrite_question import (
+    DEFAULT_REWRITE_PROMPT,
+    RewriteQuestionPipeline,
+)
 
 
 class FewshotRewriteQuestionPipeline(RewriteQuestionPipeline):
@@ -35,7 +35,9 @@ class FewshotRewriteQuestionPipeline(RewriteQuestionPipeline):
     embedding: BaseEmbeddings
     vector_store: BaseVectorStore
     doc_store: BaseDocumentStore
-    k: int = getattr(flowsettings, "N_PROMPT_OPT_EXAMPLES", 3)  # можно переопределить из Settings → General → n_prompt_opt_examples
+    k: int = getattr(
+        flowsettings, "N_PROMPT_OPT_EXAMPLES", 3
+    )  # можно переопределить из Settings → General → n_prompt_opt_examples
 
     def add_documents(self, examples, batch_size: int = 50):
         print("Adding fewshot examples for rewriting")
@@ -71,7 +73,7 @@ class FewshotRewriteQuestionPipeline(RewriteQuestionPipeline):
         if doc_store.count():
             return pipeline
 
-        examples = json.load(open(example_path, "r"))
+        examples = json.load(open(example_path))
         pipeline.add_documents(examples)
 
         return pipeline

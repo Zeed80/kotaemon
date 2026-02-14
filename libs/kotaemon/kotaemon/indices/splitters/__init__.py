@@ -7,6 +7,18 @@ class BaseSplitter(DocTransformer):
     ...
 
 
+class MarkdownSplitter(LlamaIndexDocTransformerMixin, BaseSplitter):
+    """Split markdown documents by headers, tables, and code blocks."""
+
+    def __init__(self, **params):
+        super().__init__(**params)
+
+    def _get_li_class(self):
+        from llama_index.core.node_parser import MarkdownElementNodeParser
+
+        return MarkdownElementNodeParser
+
+
 class TokenSplitter(LlamaIndexDocTransformerMixin, BaseSplitter):
     def __init__(
         self,
@@ -47,3 +59,26 @@ class SentenceWindowSplitter(LlamaIndexDocTransformerMixin, BaseSplitter):
         from llama_index.core.node_parser import SentenceWindowNodeParser
 
         return SentenceWindowNodeParser
+
+
+class SemanticSplitter(LlamaIndexDocTransformerMixin, BaseSplitter):
+    """Split documents by semantic similarity of sentences. Requires embed_model."""
+
+    def __init__(
+        self,
+        embed_model,
+        buffer_size: int = 1,
+        breakpoint_percentile_threshold: int = 95,
+        **params,
+    ):
+        super().__init__(
+            embed_model=embed_model,
+            buffer_size=buffer_size,
+            breakpoint_percentile_threshold=breakpoint_percentile_threshold,
+            **params,
+        )
+
+    def _get_li_class(self):
+        from llama_index.core.node_parser import SemanticSplitterNodeParser
+
+        return SemanticSplitterNodeParser

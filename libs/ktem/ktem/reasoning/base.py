@@ -1,5 +1,3 @@
-from typing import Optional
-
 from kotaemon.base import BaseComponent
 
 
@@ -37,7 +35,7 @@ class BaseReasoning(BaseComponent):
         cls,
         user_settings: dict,
         state: dict,
-        retrievers: Optional[list["BaseComponent"]] = None,
+        retrievers: list["BaseComponent"] | None = None,
     ) -> "BaseReasoning":
         """Get the reasoning pipeline for the app to execute
 

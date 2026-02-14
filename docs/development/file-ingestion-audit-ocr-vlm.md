@@ -11,16 +11,16 @@
 
 ## Test Matrix
 
-| Case | Upload path | Mode | Input | Endpoint profile | Expected result |
-|---|---|---|---|---|---|
-| M1 | File Index page | OCR | JPG invoice | N/A | Non-empty extracted text, indexed |
-| M2 | File Index page | VLM | JPG invoice | Ollama local `http://localhost:11434/v1/chat/completions` | Non-empty extracted text, indexed |
-| M3 | File Index page | VLM | JPG invoice | Ollama remote `http://<host>:11434/v1/chat/completions` | Non-empty extracted text, indexed |
-| M4 | File Index page | VLM | JPG invoice | Ollama non-standard path/URL | Endpoint normalized to `/api/chat`, indexed |
-| M5 | Quick upload | OCR | JPG/PDF | N/A | Respects selected OCR mode, indexed |
-| M6 | Quick upload | VLM | JPG/PDF | Same as index settings | Respects selected VLM mode, indexed |
-| M7 | Any | VLM | Large image | Ollama | If extraction fails: file marked failed, no empty chunks indexed |
-| M8 | Any | OCR/VLM | Empty/unsupported extraction output | Any | No indexing of empty docs, clear error path |
+| Case | Upload path     | Mode    | Input                               | Endpoint profile                                          | Expected result                                                  |
+| ---- | --------------- | ------- | ----------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------- |
+| M1   | File Index page | OCR     | JPG invoice                         | N/A                                                       | Non-empty extracted text, indexed                                |
+| M2   | File Index page | VLM     | JPG invoice                         | Ollama local `http://localhost:11434/v1/chat/completions` | Non-empty extracted text, indexed                                |
+| M3   | File Index page | VLM     | JPG invoice                         | Ollama remote `http://<host>:11434/v1/chat/completions`   | Non-empty extracted text, indexed                                |
+| M4   | File Index page | VLM     | JPG invoice                         | Ollama non-standard path/URL                              | Endpoint normalized to `/api/chat`, indexed                      |
+| M5   | Quick upload    | OCR     | JPG/PDF                             | N/A                                                       | Respects selected OCR mode, indexed                              |
+| M6   | Quick upload    | VLM     | JPG/PDF                             | Same as index settings                                    | Respects selected VLM mode, indexed                              |
+| M7   | Any             | VLM     | Large image                         | Ollama                                                    | If extraction fails: file marked failed, no empty chunks indexed |
+| M8   | Any             | OCR/VLM | Empty/unsupported extraction output | Any                                                       | No indexing of empty docs, clear error path                      |
 
 ## Confirmed Root Causes
 

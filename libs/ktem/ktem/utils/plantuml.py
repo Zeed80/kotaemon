@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
 
 import base64
 import string
@@ -47,7 +46,7 @@ class PlantUMLHTTPError(PlantUMLConnectionError):
         message = "%d: %s" % (self.response.status, self.response.reason)
         if not getattr(self, "message", None):
             self.message = message
-        super(PlantUMLHTTPError, self).__init__(message, *args, **kwdargs)
+        super().__init__(message, *args, **kwdargs)
 
 
 def deflate_and_encode(plantuml_text):
@@ -59,7 +58,7 @@ def deflate_and_encode(plantuml_text):
     )
 
 
-class PlantUML(object):
+class PlantUML:
     """Connection to a PlantUML server with optional authentication.
 
     All parameters are optional.

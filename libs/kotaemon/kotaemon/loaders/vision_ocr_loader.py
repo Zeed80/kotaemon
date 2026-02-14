@@ -3,13 +3,14 @@
 Avoids Tesseract by sending the image to a VLM endpoint with a prompt to extract
 all text, preserving structure and order.
 """
+
 import logging
 import os
 import time
 from pathlib import Path
-from typing import List, Optional
 
 import requests
+
 from kotaemon.base import Document, Param
 
 from .base import BaseReader
@@ -104,18 +105,18 @@ class VisionOCRReader(BaseReader):
     def run(
         self,
         file_path: Path,
-        extra_info: Optional[dict] = None,
+        extra_info: dict | None = None,
         **kwargs,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Run extraction: delegate to load_data."""
         return self.load_data(file_path, extra_info, **kwargs)
 
     def load_data(
         self,
         file_path: Path,
-        extra_info: Optional[dict] = None,
+        extra_info: dict | None = None,
         **kwargs,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Load image and extract text via VLM.
 
         Args:
@@ -136,7 +137,7 @@ class VisionOCRReader(BaseReader):
             )
         mime = _IMAGE_MIME.get(suffix, "image/png")
         ingestion_id = (extra_info or {}).get("ingestion_id", "n/a")
-        
+
         # Check file size - raise error if exceeds limit
         file_size = file_path.stat().st_size
         if file_size > MAX_IMAGE_FILE_SIZE:
@@ -148,20 +149,20 @@ class VisionOCRReader(BaseReader):
                 f"Image file too large: {file_path.name} ({file_size / 1024 / 1024:.2f} MB). "
                 f"Maximum allowed: {MAX_IMAGE_FILE_SIZE / 1024 / 1024:.2f} MB"
             )
-        
+
         try:
             # Проверяем размер изображения и при необходимости ресайзим
             image_path = file_path
             try:
                 from PIL import Image
-                
+
                 with Image.open(file_path) as img:
                     width, height = img.size
                     logger.debug(
                         f"Image dimensions: {file_path.name} - {width}x{height}, "
                         f"file_size={file_size / 1024:.2f} KB"
                     )
-                    
+
                     # Ресайзим если изображение слишком большое
                     if width > MAX_IMAGE_DIMENSION or height > MAX_IMAGE_DIMENSION:
                         logger.info(
@@ -175,29 +176,36 @@ class VisionOCRReader(BaseReader):
                         else:
                             new_height = MAX_IMAGE_DIMENSION
                             new_width = int(width * (MAX_IMAGE_DIMENSION / height))
-                        
-                        img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+                        img_resized = img.resize(
+                            (new_width, new_height), Image.Resampling.LANCZOS
+                        )
                         # Сохраняем во временный файл
                         import tempfile
+
                         temp_fd, temp_path = tempfile.mkstemp(suffix=suffix)
                         os.close(temp_fd)
                         img_resized.save(temp_path, format=img.format or "PNG")
                         image_path = Path(temp_path)
-                        logger.debug(f"Resized image saved to temporary file: {image_path}")
+                        logger.debug(
+                            f"Resized image saved to temporary file: {image_path}"
+                        )
             except ImportError:
                 logger.warning("PIL/Pillow not available, skipping image resize check")
             except Exception as e:
-                logger.warning(f"Failed to check/resize image {file_path}: {e}, using original")
-            
+                logger.warning(
+                    f"Failed to check/resize image {file_path}: {e}, using original"
+                )
+
             b64 = encode_image_base64(image_path)
-            
+
             # Очищаем временный файл если был создан
             if image_path != file_path and image_path.exists():
                 try:
                     os.unlink(image_path)
                 except Exception:
                     pass
-                    
+
         except Exception as e:
             logger.exception(
                 f"Failed to read/process image {file_path}: file_size={file_size / 1024:.2f} KB, error={e}"
@@ -227,7 +235,7 @@ class VisionOCRReader(BaseReader):
 
         endpoint = self.vlm_endpoint or ""
         model = self.vlm_model or ""
-        
+
         if not endpoint:
             try:
                 from theflow.settings import settings as flowsettings
@@ -235,20 +243,23 @@ class VisionOCRReader(BaseReader):
                 endpoint = getattr(flowsettings, "KH_VLM_ENDPOINT", "") or ""
             except Exception:
                 pass
-        
+
         # Если модель не указана, пытаемся получить её из VLM manager
         if not model and endpoint:
             try:
                 from ktem.vlms import vlms_manager
+
                 # Пытаемся найти VLM по endpoint
                 for vlm_name in vlms_manager.list():
-                    vlm_endpoint, vlm_model = vlms_manager.get_endpoint_and_model(vlm_name["name"])
+                    vlm_endpoint, vlm_model = vlms_manager.get_endpoint_and_model(
+                        vlm_name["name"]
+                    )
                     if vlm_endpoint == endpoint:
                         model = vlm_model
                         break
             except Exception:
                 pass
-        
+
         if not endpoint:
             logger.warning(
                 "VisionOCRReader: no vlm_endpoint or KH_VLM_ENDPOINT; "
@@ -257,6 +268,7 @@ class VisionOCRReader(BaseReader):
             # Fallback to UnstructuredReader when VLM is not available
             try:
                 from .unstructured_loader import UnstructuredReader
+
                 unstructured = UnstructuredReader()
                 docs = unstructured.load_data(file_path, extra_info)
                 for doc in docs:
@@ -286,7 +298,7 @@ class VisionOCRReader(BaseReader):
         extraction_status = "success"
         extraction_error_code = ""
         text = ""
-        
+
         try:
             # Определяем таймаут на основе размера изображения
             # Большие изображения требуют больше времени
@@ -295,11 +307,11 @@ class VisionOCRReader(BaseReader):
                 timeout = 600  # 10 минут для очень больших изображений
             elif b64_size > 2 * 1024 * 1024:  # > 2MB
                 timeout = 450  # 7.5 минут для больших изображений
-            
+
             # Определяем, используется ли Ollama
             is_ollama = is_ollama_endpoint(endpoint)
             endpoint_type = "ollama_native" if is_ollama else "openai_compatible"
-            
+
             # Предупреждение для больших изображений в Ollama
             if is_ollama and b64_size > 2 * 1024 * 1024:  # > 2MB
                 logger.warning(
@@ -308,7 +320,7 @@ class VisionOCRReader(BaseReader):
                     f"Ollama may close connection for very large images. "
                     f"Consider reducing image resolution below {MAX_IMAGE_DIMENSION}px."
                 )
-            
+
             logger.info(
                 f"Starting VLM extraction: file={file_path.name}, "
                 f"ingestion_id={ingestion_id}, "
@@ -316,7 +328,7 @@ class VisionOCRReader(BaseReader):
                 f"max_tokens={self.max_tokens}, timeout={timeout}s, "
                 f"image_size={b64_size / 1024:.2f} KB, endpoint_type={endpoint_type}, is_ollama={is_ollama}"
             )
-            
+
             text = generate_gpt4v(
                 endpoint=endpoint,
                 prompt=EXTRACT_TEXT_PROMPT,
@@ -326,7 +338,7 @@ class VisionOCRReader(BaseReader):
                 timeout=timeout,
                 ingestion_id=ingestion_id,
             )
-            
+
             elapsed_time = time.time() - start_time
             text_length = len(text) if text else 0
             logger.info(
@@ -337,8 +349,8 @@ class VisionOCRReader(BaseReader):
             if not text or not text.strip():
                 extraction_status = "failed"
                 extraction_error_code = "no_text_extracted"
-            
-        except requests.exceptions.Timeout as e:
+
+        except requests.exceptions.Timeout:
             elapsed_time = time.time() - start_time
             extraction_status = "failed"
             extraction_error_code = "timeout"
@@ -351,16 +363,19 @@ class VisionOCRReader(BaseReader):
                 f"Consider reducing image size or increasing timeout."
             )
             text = ""
-        except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as e:
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+        ) as e:
             elapsed_time = time.time() - start_time
             error_str = str(e)
             extraction_status = "failed"
             extraction_error_code = "connection_error"
             is_remote_disconnected = (
-                "Remote end closed connection" in error_str 
+                "Remote end closed connection" in error_str
                 or "RemoteDisconnected" in str(type(e))
             )
-            
+
             if is_remote_disconnected:
                 extraction_error_code = "remote_disconnected"
                 logger.error(
@@ -383,7 +398,11 @@ class VisionOCRReader(BaseReader):
             text = ""
         except requests.exceptions.HTTPError as e:
             elapsed_time = time.time() - start_time
-            status_code = getattr(e.response, "status_code", "unknown") if hasattr(e, "response") else "unknown"
+            status_code = (
+                getattr(e.response, "status_code", "unknown")
+                if hasattr(e, "response")
+                else "unknown"
+            )
             extraction_status = "failed"
             extraction_error_code = "http_error"
             logger.error(

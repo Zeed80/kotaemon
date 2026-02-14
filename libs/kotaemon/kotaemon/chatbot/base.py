@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from typing import List, Optional
 
 from theflow import SessionFunction
 
@@ -9,8 +8,7 @@ from kotaemon.base.schema import AIMessage, BaseMessage, HumanMessage, SystemMes
 
 class BaseChatBot(BaseComponent):
     @abstractmethod
-    def run(self, messages: List[BaseMessage]) -> LLMInterface:
-        ...
+    def run(self, messages: list[BaseMessage]) -> LLMInterface: ...
 
 
 def session_chat_storage(obj):
@@ -33,13 +31,13 @@ class ChatConversation(SessionFunction):
     bot: BaseChatBot
 
     def __init__(self, *args, **kwargs):
-        self._history: List[BaseMessage] = []
+        self._history: list[BaseMessage] = []
         self._store_result = (
             f"{self.__module__}.{self.__class__.__name__},uninitiated_bot"
         )
         super().__init__(*args, **kwargs)
 
-    def run(self, message: HumanMessage) -> Optional[BaseMessage]:
+    def run(self, message: HumanMessage) -> BaseMessage | None:
         """Chat, given a message, return a response
 
         Args:
@@ -74,9 +72,9 @@ class ChatConversation(SessionFunction):
 
     def check_end(
         self,
-        history: Optional[List[BaseMessage]] = None,
-        user_message: Optional[HumanMessage] = None,
-        bot_message: Optional[AIMessage] = None,
+        history: list[BaseMessage] | None = None,
+        user_message: HumanMessage | None = None,
+        bot_message: AIMessage | None = None,
     ) -> bool:
         """Check if a conversation should end"""
         if user_message is not None and user_message.content == "":

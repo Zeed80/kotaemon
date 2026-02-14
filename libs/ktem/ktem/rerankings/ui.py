@@ -3,11 +3,11 @@ from copy import deepcopy
 import gradio as gr
 import pandas as pd
 import yaml
-from ktem.app import BasePage
-from ktem.utils.file import YAMLNoDateSafeLoader
 from theflow.utils.modules import deserialize
 
 from kotaemon.base import Document
+from ktem.app import BasePage
+from ktem.utils.file import YAMLNoDateSafeLoader
 
 from .manager import reranking_models_manager
 

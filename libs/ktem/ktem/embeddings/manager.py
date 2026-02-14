@@ -1,5 +1,3 @@
-from typing import Optional, Type
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from theflow.settings import settings as flowsettings
@@ -17,7 +15,7 @@ class EmbeddingManager:
         self._models: dict[str, BaseEmbeddings] = {}
         self._info: dict[str, dict] = {}
         self._default: str = ""
-        self._vendors: list[Type] = []
+        self._vendors: list[type] = []
 
         # populate the pool if empty
         if hasattr(flowsettings, "KH_EMBEDDINGS"):
@@ -86,8 +84,8 @@ class EmbeddingManager:
         return key in self._models
 
     def get(
-        self, key: str, default: Optional[BaseEmbeddings] = None
-    ) -> Optional[BaseEmbeddings]:
+        self, key: str, default: BaseEmbeddings | None = None
+    ) -> BaseEmbeddings | None:
         """Get model by name with default value"""
         return self._models.get(key, default)
 
@@ -191,7 +189,6 @@ class EmbeddingManager:
 
         try:
             with Session(engine) as sess:
-
                 if default:
                     # turn all models to non-default
                     sess.query(EmbeddingTable).update({"default": False})

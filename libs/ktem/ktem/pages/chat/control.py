@@ -3,11 +3,11 @@ import os
 from copy import deepcopy
 
 import gradio as gr
-from ktem.app import BasePage
-from ktem.db.models import Conversation, User, engine
 from sqlmodel import Session, or_, select
 
 import flowsettings
+from ktem.app import BasePage
+from ktem.db.models import Conversation, User, engine
 
 from ...utils.conversation import sync_retrieval_n_message
 from .chat_suggestion import ChatSuggestion
@@ -52,7 +52,7 @@ class ConversationControl(BasePage):
     def on_building_ui(self):
         with gr.Row():
             title_text = "Conversations" if not KH_DEMO_MODE else "Kotaemon Papers"
-            gr.Markdown("## {}".format(title_text))
+            gr.Markdown(f"## {title_text}")
             self.btn_toggle_dark_mode = gr.Button(
                 value="",
                 icon=f"{ASSETS_DIR}/dark_mode.svg",

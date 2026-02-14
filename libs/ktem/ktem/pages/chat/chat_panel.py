@@ -1,6 +1,7 @@
 import gradio as gr
-from ktem.app import BasePage
 from theflow.settings import settings as flowsettings
+
+from ktem.app import BasePage
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 

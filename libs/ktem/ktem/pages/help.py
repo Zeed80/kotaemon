@@ -3,8 +3,9 @@ from pathlib import Path
 
 import gradio as gr
 import requests
-from decouple import config
 from theflow.settings import settings
+
+from flowsettings_config import config
 
 KH_DEMO_MODE = getattr(settings, "KH_DEMO_MODE", False)
 HF_SPACE_URL = config("HF_SPACE_URL", default="")
@@ -38,8 +39,9 @@ class HelpPage:
         doc_dir: str = settings.KH_DOC_DIR,
         remote_content_url: str = "https://raw.githubusercontent.com/Zeed80/kotaemon",
         app_version: str | None = settings.KH_APP_VERSION,
-        changelogs_cache_dir: str
-        | Path = (Path(settings.KH_APP_DATA_DIR) / "changelogs"),
+        changelogs_cache_dir: str | Path = (
+            Path(settings.KH_APP_DATA_DIR) / "changelogs"
+        ),
     ):
         self._app = app
         self.doc_dir = Path(doc_dir)
@@ -96,7 +98,7 @@ class HelpPage:
             changelogs = ""
 
             if (self.changelogs_cache_dir / f"{version}.md").exists():
-                with open(self.changelogs_cache_dir / f"{version}.md", "r") as fi:
+                with open(self.changelogs_cache_dir / f"{version}.md") as fi:
                     changelogs = fi.read()
             else:
                 release_url_base = (

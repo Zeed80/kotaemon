@@ -8,11 +8,10 @@ import tempfile
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import List, Union
 
 import pandas as pd
-from decouple import config
 
+from flowsettings_config import config
 from kotaemon.loaders.utils.gpt4v import generate_gpt4v
 
 
@@ -110,7 +109,7 @@ def request_adobe_service(file_path: str, output_path: str = "") -> str:
     return output_path
 
 
-def make_markdown_table(table_as_list: List[List[str]]) -> str:
+def make_markdown_table(table_as_list: list[list[str]]) -> str:
     """
     Convert table from python list representation to markdown format.
     The input list consists of rows of tables, the first row is the header.
@@ -123,37 +122,37 @@ def make_markdown_table(table_as_list: List[List[str]]) -> str:
     Returns:
         markdown representation of the table
     """
-    markdown = "\n" + str("| ")
+    markdown = "\n" + "| "
 
     for e in table_as_list[0]:
-        to_add = " " + str(e) + str(" |")
+        to_add = " " + str(e) + " |"
         markdown += to_add
     markdown += "\n"
 
     markdown += "| "
     for i in range(len(table_as_list[0])):
-        markdown += str("--- | ")
+        markdown += "--- | "
     markdown += "\n"
 
     for entry in table_as_list[1:]:
-        markdown += str("| ")
+        markdown += "| "
         for e in entry:
-            to_add = str(e) + str(" | ")
+            to_add = str(e) + " | "
             markdown += to_add
         markdown += "\n"
 
     return markdown + "\n"
 
 
-def load_json(input_path: Union[str | Path]) -> dict:
+def load_json(input_path: str | Path) -> dict:
     """Load json file"""
-    with open(input_path, "r") as fi:
+    with open(input_path) as fi:
         data = json.load(fi)
 
     return data
 
 
-def load_excel(input_path: Union[str | Path]) -> str:
+def load_excel(input_path: str | Path) -> str:
     """Load excel file and convert to markdown"""
 
     df = pd.read_excel(input_path).fillna("")
@@ -172,14 +171,14 @@ def load_excel(input_path: Union[str | Path]) -> str:
     return markdown_str
 
 
-def encode_image_base64(image_path: Union[str | Path]) -> Union[bytes, str]:
+def encode_image_base64(image_path: str | Path) -> bytes | str:
     """Convert image to base64"""
 
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 
-def parse_table_paths(file_paths: List[Path]) -> str:
+def parse_table_paths(file_paths: list[Path]) -> str:
     """Read the table stored in an excel file given the file path"""
 
     content = ""
@@ -190,7 +189,7 @@ def parse_table_paths(file_paths: List[Path]) -> str:
     return content
 
 
-def parse_figure_paths(file_paths: List[Path]) -> Union[bytes, str]:
+def parse_figure_paths(file_paths: list[Path]) -> bytes | str:
     """Read and convert an image to base64 given the image path"""
 
     content = ""
@@ -202,9 +201,11 @@ def parse_figure_paths(file_paths: List[Path]) -> Union[bytes, str]:
     return content
 
 
-def generate_single_figure_caption(vlm_endpoint: str, figure: str, vlm_model: str | None = None) -> str:
+def generate_single_figure_caption(
+    vlm_endpoint: str, figure: str, vlm_model: str | None = None
+) -> str:
     """Summarize a single figure using GPT-4V.
-    
+
     Args:
         vlm_endpoint: URL endpoint для VLM.
         figure: Base64 encoded image в формате data URL.
@@ -217,15 +218,18 @@ def generate_single_figure_caption(vlm_endpoint: str, figure: str, vlm_model: st
         if not model and vlm_endpoint:
             try:
                 from ktem.vlms import vlms_manager
+
                 # Пытаемся найти VLM по endpoint
                 for vlm_name in vlms_manager.list():
-                    vlm_ep, vlm_mod = vlms_manager.get_endpoint_and_model(vlm_name["name"])
+                    vlm_ep, vlm_mod = vlms_manager.get_endpoint_and_model(
+                        vlm_name["name"]
+                    )
                     if vlm_ep == vlm_endpoint:
                         model = vlm_mod
                         break
             except Exception:
                 pass
-        
+
         try:
             output = generate_gpt4v(
                 endpoint=vlm_endpoint,
@@ -242,8 +246,11 @@ def generate_single_figure_caption(vlm_endpoint: str, figure: str, vlm_model: st
 
 
 def generate_figure_captions(
-    vlm_endpoint: str, figures: List, max_figures_to_process: int, vlm_model: str | None = None
-) -> List:
+    vlm_endpoint: str,
+    figures: list,
+    max_figures_to_process: int,
+    vlm_model: str | None = None,
+) -> list:
     """Summarize several figures using GPT-4V.
     Args:
         vlm_endpoint (str): endpoint to the vision language model service
@@ -262,8 +269,10 @@ def generate_figure_captions(
     with ThreadPoolExecutor() as executor:
         futures = [
             executor.submit(
-                lambda fig: generate_single_figure_caption(vlm_endpoint, fig, vlm_model),
-                figure
+                lambda fig: generate_single_figure_caption(
+                    vlm_endpoint, fig, vlm_model
+                ),
+                figure,
             )
             for figure in to_gen_figures
         ]

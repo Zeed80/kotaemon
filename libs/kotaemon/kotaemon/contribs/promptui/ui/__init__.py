@@ -1,5 +1,3 @@
-from typing import Union
-
 import gradio as gr
 import yaml
 from theflow.utils.modules import import_dotted_string
@@ -9,7 +7,7 @@ from .chat import build_chat_ui
 from .pipeline import build_pipeline_ui
 
 
-def build_from_dict(config: Union[str, dict]):
+def build_from_dict(config: str | dict):
     """Build a full UI from YAML config file"""
 
     if isinstance(config, str):

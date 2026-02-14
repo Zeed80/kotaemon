@@ -1,10 +1,10 @@
 """Таблица и модель для хранения настроенных VLM (vision models)."""
 
-from ktem.db.engine import engine
 from sqlalchemy import JSON, Column, String
 from sqlalchemy.orm import DeclarativeBase
-
 from theflow.settings import settings as flowsettings
+
+from ktem.db.engine import engine
 
 
 class Base(DeclarativeBase):

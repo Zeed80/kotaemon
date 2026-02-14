@@ -1,10 +1,9 @@
-from typing import Type
-
-from ktem.db.engine import engine
 from sqlalchemy import JSON, Boolean, Column, String
 from sqlalchemy.orm import DeclarativeBase
 from theflow.settings import settings as flowsettings
 from theflow.utils.modules import import_dotted_string
+
+from ktem.db.engine import engine
 
 
 class Base(DeclarativeBase):
@@ -21,7 +20,7 @@ class BaseEmbeddingTable(Base):
     default = Column(Boolean, default=False)
 
 
-_base_llm: Type[BaseEmbeddingTable] = (
+_base_llm: type[BaseEmbeddingTable] = (
     import_dotted_string(flowsettings.KH_EMBEDDING_LLM, safe=False)
     if hasattr(flowsettings, "KH_EMBEDDING_LLM")
     else BaseEmbeddingTable

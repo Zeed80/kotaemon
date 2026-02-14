@@ -33,7 +33,9 @@ def test_indexing(tmp_path):
         )
         pipeline.doc_store = cast(InMemoryDocumentStore, pipeline.doc_store)
         pipeline.vector_store = cast(ChromaVectorStore, pipeline.vector_store)
-        assert pipeline.vector_store._collection.count() == 0, "Expected empty collection"
+        assert (
+            pipeline.vector_store._collection.count() == 0
+        ), "Expected empty collection"
         assert len(pipeline.doc_store._store) == 0, "Expected empty doc store"
         pipeline(text=Document(text="Hello world"))
         assert pipeline.vector_store._collection.count() == 1, "Index 1 item"

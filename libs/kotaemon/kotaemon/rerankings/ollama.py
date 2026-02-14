@@ -5,15 +5,14 @@ the /api/embed endpoint: for each (query, document) pair we send a single string
 (query + separator + document) and use the first dimension of the returned embedding
 as the relevance score.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import List
 
 import requests
 
-from decouple import config
-
+from flowsettings_config import config
 from kotaemon.base import Document, Param
 
 from .base import BaseReranking
@@ -65,7 +64,7 @@ class OllamaReranking(BaseReranking):
             return documents
 
         embed_url = f"{base}/api/embed"
-        compressed_docs: List[Document] = []
+        compressed_docs: list[Document] = []
         sep = self.query_doc_separator
 
         for start in range(0, len(documents), self.batch_size):
@@ -93,7 +92,7 @@ class OllamaReranking(BaseReranking):
                 )
                 embeddings = embeddings[: len(batch)]
 
-            for doc, emb in zip(batch, embeddings):
+            for doc, emb in zip(batch, embeddings, strict=False):
                 if isinstance(emb, list) and len(emb) > 0:
                     score = float(emb[0])
                 else:

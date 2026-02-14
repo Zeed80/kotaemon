@@ -39,7 +39,7 @@ class TestChromaVectorStore:
         metadatas = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         documents = [
             DocumentWithEmbedding(embedding=embedding, metadata=metadata)
-            for embedding, metadata in zip(embeddings, metadatas)
+            for embedding, metadata in zip(embeddings, metadatas, strict=False)
         ]
         assert db._collection.count() == 0, "Expected empty collection"
         output = db.add(documents)
@@ -192,7 +192,7 @@ class TestMilvusVectorStore:
         metadatas = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         documents = [
             DocumentWithEmbedding(embedding=embedding, metadata=metadata)
-            for embedding, metadata in zip(embeddings, metadatas)
+            for embedding, metadata in zip(embeddings, metadatas, strict=False)
         ]
         assert db.count() == 0, "Expected empty collection"
         output = db.add(documents)
@@ -286,7 +286,7 @@ class TestQdrantVectorStore:
         metadatas = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         documents = [
             DocumentWithEmbedding(embedding=embedding, metadata=metadata)
-            for embedding, metadata in zip(embeddings, metadatas)
+            for embedding, metadata in zip(embeddings, metadatas, strict=False)
         ]
 
         output = db.add(documents)

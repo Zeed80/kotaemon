@@ -1,6 +1,5 @@
 import email
 from pathlib import Path
-from typing import Optional
 
 from llama_index.core.readers.base import BaseReader
 from theflow.settings import settings as flowsettings
@@ -21,7 +20,7 @@ class HtmlReader(BaseReader):
         page_break_pattern (str): Pattern to split the HTML into pages
     """
 
-    def __init__(self, page_break_pattern: Optional[str] = None, *args, **kwargs):
+    def __init__(self, page_break_pattern: str | None = None, *args, **kwargs):
         try:
             import html2text  # noqa
         except ImportError:
@@ -30,11 +29,11 @@ class HtmlReader(BaseReader):
                 "Please install it using `pip install html2text`"
             )
 
-        self._page_break_pattern: Optional[str] = page_break_pattern
+        self._page_break_pattern: str | None = page_break_pattern
         super().__init__()
 
     def load_data(
-        self, file_path: Path | str, extra_info: Optional[dict] = None, **kwargs
+        self, file_path: Path | str, extra_info: dict | None = None, **kwargs
     ) -> list[Document]:
         """Load data using Html reader
 
@@ -75,55 +74,45 @@ class HtmlReader(BaseReader):
 
 
 class MhtmlReader(BaseReader):
-    """Parse `MHTML` files with `BeautifulSoup`."""
+    """Parse `MHTML` files with `selectolax`."""
 
     def __init__(
         self,
-        cache_dir: Optional[str] = getattr(
-            flowsettings, "KH_MARKDOWN_OUTPUT_DIR", None
-        ),
-        open_encoding: Optional[str] = None,
-        bs_kwargs: Optional[dict] = None,
+        cache_dir: str | None = getattr(flowsettings, "KH_MARKDOWN_OUTPUT_DIR", None),
+        open_encoding: str | None = None,
         get_text_separator: str = "",
     ) -> None:
-        """initialize with path, and optionally, file encoding to use, and any kwargs
-        to pass to the BeautifulSoup object.
+        """Initialize with path, and optionally, file encoding and text separator.
 
         Args:
-            cache_dir: Path for markdwon format.
-            file_path: Path to file to load.
+            cache_dir: Path for markdown format.
             open_encoding: The encoding to use when opening the file.
-            bs_kwargs: Any kwargs to pass to the BeautifulSoup object.
-            get_text_separator: The separator to use when getting the text
-                from the soup.
+            get_text_separator: The separator to use when getting the text.
         """
         try:
-            import bs4  # noqa:F401
+            from selectolax.parser import HTMLParser  # noqa: F401
         except ImportError:
             raise ImportError(
-                "beautifulsoup4 package not found, please install it with "
-                "`pip install beautifulsoup4`"
+                "selectolax package not found, please install it with "
+                "`pip install selectolax`"
             )
 
         self.cache_dir = cache_dir
         self.open_encoding = open_encoding
-        if bs_kwargs is None:
-            bs_kwargs = {"features": "lxml"}
-        self.bs_kwargs = bs_kwargs
         self.get_text_separator = get_text_separator
 
     def load_data(
-        self, file_path: Path | str, extra_info: Optional[dict] = None, **kwargs
+        self, file_path: Path | str, extra_info: dict | None = None, **kwargs
     ) -> list[Document]:
         """Load MHTML document into document objects."""
 
-        from bs4 import BeautifulSoup
+        from selectolax.parser import HTMLParser
 
         extra_info = extra_info or {}
         metadata: dict = extra_info
         page = []
         file_name = Path(file_path)
-        with open(file_path, "r", encoding=self.open_encoding) as f:
+        with open(file_path, encoding=self.open_encoding) as f:
             message = email.message_from_string(f.read())
             parts = message.get_payload()
 
@@ -134,13 +123,11 @@ class MhtmlReader(BaseReader):
                 if part.get_content_type() == "text/html":
                     html = part.get_payload(decode=True).decode()
 
-                    soup = BeautifulSoup(html, **self.bs_kwargs)
-                    text = soup.get_text(self.get_text_separator)
+                    tree = HTMLParser(html)
+                    text = tree.text(separator=self.get_text_separator, strip=True)
 
-                    if soup.title:
-                        title = str(soup.title.string)
-                    else:
-                        title = ""
+                    title_node = tree.css_first("title")
+                    title = title_node.text(strip=True) if title_node else ""
 
                     metadata = {
                         "source": str(file_path),

@@ -2,12 +2,13 @@ import hashlib
 import json
 
 import gradio as gr
+from sqlmodel import Session, select
+from theflow.settings import settings as flowsettings
+
 from ktem.app import BasePage
 from ktem.components import reasonings
 from ktem.db.models import Settings, User, engine
 from ktem.pages.resources.ollama_servers import OllamaServersManagement
-from sqlmodel import Session, select
-from theflow.settings import settings as flowsettings
 
 KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
 
@@ -95,9 +96,11 @@ def _ollama_status_html(ok: bool, message: str) -> str:
         color, title = "#22c55e", "Ollama доступен"
     else:
         color = "#ef4444"
-        title = {"timeout": "Таймаут", "unreachable": "Недоступен", "error": "Ошибка"}.get(
-            message, "Недоступен"
-        )
+        title = {
+            "timeout": "Таймаут",
+            "unreachable": "Недоступен",
+            "error": "Ошибка",
+        }.get(message, "Недоступен")
     return (
         f'<span title="{title}" style="'
         "display: inline-block; width: 14px; height: 14px; border-radius: 50%; "
@@ -458,7 +461,10 @@ class SettingsPage(BasePage):
 
         output = [settings]
         # Безопасное получение настроек с дефолтными значениями
-        output += tuple(settings.get(name, self._settings_dict.get(name)) for name in self.component_names())
+        output += tuple(
+            settings.get(name, self._settings_dict.get(name))
+            for name in self.component_names()
+        )
         return output
 
     def save_setting(self, user_id: int, *args):
@@ -468,7 +474,9 @@ class SettingsPage(BasePage):
             user_id: the user id
             args: all the values from the settings
         """
-        setting = {key: value for key, value in zip(self.component_names(), args)}
+        setting = {
+            key: value for key, value in zip(self.component_names(), args, strict=False)
+        }
         if user_id is None:
             gr.Warning("Need to login before saving settings")
             return setting
@@ -502,7 +510,9 @@ class SettingsPage(BasePage):
     def component_names(self):
         """Get the setting components"""
         # Исключаем kh_ollama_url, так как управление серверами Ollama теперь в отдельной вкладке
-        return [name for name in self._settings_keys if name != "application.kh_ollama_url"]
+        return [
+            name for name in self._settings_keys if name != "application.kh_ollama_url"
+        ]
 
     def _on_app_created(self):
         if not self._app.f_user_management:

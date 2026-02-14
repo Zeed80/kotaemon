@@ -1,8 +1,9 @@
 import json
 import re
 import time
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional, Union
+from typing import Any
 
 import requests
 from langchain.utils import get_from_dict_or_env
@@ -46,7 +47,7 @@ class MathpixPDFReader(BaseReader):
         super().__init__()
 
     @property
-    def _mathpix_headers(self) -> Dict[str, str]:
+    def _mathpix_headers(self) -> dict[str, str]:
         return {"app_id": self.mathpix_api_id, "app_key": self.mathpix_api_key}
 
     @property
@@ -138,7 +139,7 @@ class MathpixPDFReader(BaseReader):
 
         # http:// or https:// followed by anything but a closing paren
         url_regex = "http[s]?://[^)]+"
-        markup_regex = r"\[]\(\s*({0})\s*\)".format(url_regex)
+        markup_regex = rf"\[]\(\s*({url_regex})\s*\)"
         contents = (
             contents.replace(r"\$", "$")
             .replace(r"\%", "%")
@@ -201,10 +202,10 @@ class MathpixPDFReader(BaseReader):
 
     def load_data(
         self,
-        file: Union[str, List[str], Path],
-        extra_info: Optional[Dict] = None,
+        file: str | list[str] | Path,
+        extra_info: dict | None = None,
         **load_kwargs: Any,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Load data from file path."""
         file_path = Path(file) if isinstance(file, str) else file
 
@@ -270,8 +271,8 @@ class MathpixPDFReader(BaseReader):
 
     def lazy_load_data(
         self,
-        file: Union[str, List[str], Path],
-        extra_info: Optional[Dict] = None,
+        file: str | list[str] | Path,
+        extra_info: dict | None = None,
         **load_kwargs: Any,
     ) -> Generator[Document, None, None]:
         """Lazy load data from file path."""

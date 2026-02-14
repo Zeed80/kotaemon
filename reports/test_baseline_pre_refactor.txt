@@ -1,0 +1,244 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.4, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\zeed\AppData\Local\Programs\Python\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: J:\Project\kotaemon
+configfile: pyproject.toml
+plugins: anyio-4.12.1, cov-7.0.0, mock-3.15.1
+collecting ... collected 103 items
+
+libs/kotaemon/tests/test_agent.py::test_agent_fail PASSED                [  0%]
+libs/kotaemon/tests/test_agent.py::test_rewoo_agent PASSED               [  1%]
+libs/kotaemon/tests/test_agent.py::test_react_agent PASSED               [  2%]
+libs/kotaemon/tests/test_agent.py::test_react_agent_langchain SKIPPED    [  3%]
+libs/kotaemon/tests/test_agent.py::test_wrapper_agent_langchain SKIPPED  [  4%]
+libs/kotaemon/tests/test_agent.py::test_react_agent_with_langchain_tools PASSED [  5%]
+libs/kotaemon/tests/test_composite.py::test_simple_linear_pipeline_run PASSED [  6%]
+libs/kotaemon/tests/test_composite.py::test_gated_linear_pipeline_run_positive PASSED [  7%]
+libs/kotaemon/tests/test_composite.py::test_gated_linear_pipeline_run_negative PASSED [  8%]
+libs/kotaemon/tests/test_composite.py::test_simple_branching_pipeline_run PASSED [  9%]
+libs/kotaemon/tests/test_composite.py::test_simple_gated_branching_pipeline_run PASSED [ 10%]
+libs/kotaemon/tests/test_cot.py::test_cot_plus_operator PASSED           [ 11%]
+libs/kotaemon/tests/test_cot.py::test_cot_manual PASSED                  [ 12%]
+libs/kotaemon/tests/test_cot.py::test_cot_with_termination_callback PASSED [ 13%]
+libs/kotaemon/tests/test_docstores.py::test_inmemory_document_store_base_interfaces PASSED [ 14%]
+libs/kotaemon/tests/test_docstores.py::test_simplefile_document_store_base_interfaces PASSED [ 15%]
+libs/kotaemon/tests/test_docstores.py::test_elastic_document_store PASSED [ 16%]
+libs/kotaemon/tests/test_documents.py::test_document_constructor_with_builtin_types PASSED [ 17%]
+libs/kotaemon/tests/test_documents.py::test_document_constructor_with_document PASSED [ 18%]
+libs/kotaemon/tests/test_documents.py::test_document_to_haystack_format SKIPPED [ 19%]
+libs/kotaemon/tests/test_documents.py::test_retrieved_document_default_values PASSED [ 20%]
+libs/kotaemon/tests/test_documents.py::test_retrieved_document_attributes PASSED [ 21%]
+libs/kotaemon/tests/test_embedding_models.py::test_azureopenai_embeddings_raw PASSED [ 22%]
+libs/kotaemon/tests/test_embedding_models.py::test_lcazureopenai_embeddings_batch_raw PASSED [ 23%]
+libs/kotaemon/tests/test_embedding_models.py::test_azureopenai_embeddings_batch_raw PASSED [ 24%]
+libs/kotaemon/tests/test_embedding_models.py::test_openai_embeddings_raw PASSED [ 25%]
+libs/kotaemon/tests/test_embedding_models.py::test_openai_embeddings_batch_raw PASSED [ 26%]
+libs/kotaemon/tests/test_embedding_models.py::test_lchuggingface_embeddings SKIPPED [ 27%]
+libs/kotaemon/tests/test_embedding_models.py::test_lccohere_embeddings PASSED [ 28%]
+libs/kotaemon/tests/test_embedding_models.py::test_fastembed_embeddings PASSED [ 29%]
+libs/kotaemon/tests/test_embedding_models.py::test_voyageai_embeddings PASSED [ 30%]
+libs/kotaemon/tests/test_gpt4v_ollama_transport.py::test_is_ollama_endpoint_variants PASSED [ 31%]
+libs/kotaemon/tests/test_gpt4v_ollama_transport.py::test_normalize_ollama_chat_endpoint PASSED [ 32%]
+libs/kotaemon/tests/test_gpt4v_ollama_transport.py::test_generate_gpt4v_uses_native_ollama_payload PASSED [ 33%]
+libs/kotaemon/tests/test_indexing_retrieval.py::test_indexing PASSED     [ 33%]
+libs/kotaemon/tests/test_indexing_retrieval.py::test_retrieving PASSED   [ 34%]
+libs/kotaemon/tests/test_ingestor.py::test_ingestor_include_src PASSED   [ 35%]
+libs/kotaemon/tests/test_llms_chat_models.py::test_azureopenai_model PASSED [ 36%]
+libs/kotaemon/tests/test_llms_chat_models.py::test_llamacpp_chat PASSED  [ 37%]
+libs/kotaemon/tests/test_llms_completion_models.py::test_azureopenai_model SKIPPED [ 38%]
+libs/kotaemon/tests/test_llms_completion_models.py::test_openai_model PASSED [ 39%]
+libs/kotaemon/tests/test_llms_completion_models.py::test_llamacpp_model PASSED [ 40%]
+libs/kotaemon/tests/test_post_processing.py::test_run_document PASSED    [ 41%]
+libs/kotaemon/tests/test_post_processing.py::test_run_raw PASSED         [ 42%]
+libs/kotaemon/tests/test_post_processing.py::test_run_batch_raw PASSED   [ 43%]
+libs/kotaemon/tests/test_prompt.py::test_set_attributes PASSED           [ 44%]
+libs/kotaemon/tests/test_prompt.py::test_check_redundant_kwargs PASSED   [ 45%]
+libs/kotaemon/tests/test_prompt.py::test_check_unset_placeholders PASSED [ 46%]
+libs/kotaemon/tests/test_prompt.py::test_validate_value_type PASSED      [ 47%]
+libs/kotaemon/tests/test_prompt.py::test_run PASSED                      [ 48%]
+libs/kotaemon/tests/test_prompt.py::test_set_method PASSED               [ 49%]
+libs/kotaemon/tests/test_promptui.py::TestPromptConfig::test_export_prompt_config PASSED [ 50%]
+libs/kotaemon/tests/test_promptui.py::TestPromptUI::test_uigeneration PASSED [ 51%]
+libs/kotaemon/tests/test_promptui.py::TestExport::test_export PASSED     [ 52%]
+libs/kotaemon/tests/test_reader.py::test_docx_reader PASSED              [ 53%]
+libs/kotaemon/tests/test_reader.py::test_html_reader PASSED              [ 54%]
+libs/kotaemon/tests/test_reader.py::test_pdf_reader PASSED               [ 55%]
+libs/kotaemon/tests/test_reader.py::test_unstructured_pdf_reader SKIPPED [ 56%]
+libs/kotaemon/tests/test_reader.py::test_mhtml_reader PASSED             [ 57%]
+libs/kotaemon/tests/test_reader.py::test_azureai_document_intelligence_reader PASSED [ 58%]
+libs/kotaemon/tests/test_reranking.py::test_reranking PASSED             [ 59%]
+libs/kotaemon/tests/test_splitter.py::test_split_token PASSED            [ 60%]
+libs/kotaemon/tests/test_table_reader.py::test_ocr_reader SKIPPED (u...) [ 61%]
+libs/kotaemon/tests/test_table_reader.py::test_mathpix_reader PASSED     [ 62%]
+libs/kotaemon/tests/test_table_reader.py::test_excel_reader PASSED       [ 63%]
+libs/kotaemon/tests/test_telemetry.py::test_disable_telemetry_import_haystack_first SKIPPED [ 64%]
+libs/kotaemon/tests/test_telemetry.py::test_disable_telemetry_import_haystack_after_kotaemon SKIPPED [ 65%]
+libs/kotaemon/tests/test_template.py::test_prompt_template_creation PASSED [ 66%]
+libs/kotaemon/tests/test_template.py::test_prompt_template_creation_invalid_placeholder PASSED [ 66%]
+libs/kotaemon/tests/test_template.py::test_prompt_template_addition PASSED [ 67%]
+libs/kotaemon/tests/test_template.py::test_prompt_template_extract_placeholders PASSED [ 68%]
+libs/kotaemon/tests/test_template.py::test_prompt_template_populate PASSED [ 69%]
+libs/kotaemon/tests/test_template.py::test_prompt_template_check_missing_kwargs PASSED [ 70%]
+libs/kotaemon/tests/test_template.py::test_prompt_template_check_redundant_kwargs PASSED [ 71%]
+libs/kotaemon/tests/test_template.py::test_prompt_template_populate_complex_template PASSED [ 72%]
+libs/kotaemon/tests/test_template.py::test_prompt_template_partial_populate PASSED [ 73%]
+libs/kotaemon/tests/test_tools.py::test_google_tool PASSED               [ 74%]
+libs/kotaemon/tests/test_tools.py::test_wikipedia_tool PASSED            [ 75%]
+libs/kotaemon/tests/test_tools.py::test_pipeline_tool PASSED             [ 76%]
+libs/kotaemon/tests/test_vectorstore.py::TestChromaVectorStore::test_add PASSED [ 77%]
+libs/kotaemon/tests/test_vectorstore.py::TestChromaVectorStore::test_add_from_docs PASSED [ 78%]
+libs/kotaemon/tests/test_vectorstore.py::TestChromaVectorStore::test_delete PASSED [ 79%]
+libs/kotaemon/tests/test_vectorstore.py::TestChromaVectorStore::test_query PASSED [ 80%]
+libs/kotaemon/tests/test_vectorstore.py::TestChromaVectorStore::test_save_load_delete PASSED [ 81%]
+libs/kotaemon/tests/test_vectorstore.py::TestInMemoryVectorStore::test_add PASSED [ 82%]
+libs/kotaemon/tests/test_vectorstore.py::TestInMemoryVectorStore::test_save_load_delete PASSED [ 83%]
+libs/kotaemon/tests/test_vectorstore.py::TestSimpleFileVectorStore::test_add_delete PASSED [ 84%]
+libs/kotaemon/tests/test_vectorstore.py::TestMilvusVectorStore::test_add SKIPPED [ 85%]
+libs/kotaemon/tests/test_vectorstore.py::TestMilvusVectorStore::test_add_from_docs SKIPPED [ 86%]
+libs/kotaemon/tests/test_vectorstore.py::TestMilvusVectorStore::test_delete SKIPPED [ 87%]
+libs/kotaemon/tests/test_vectorstore.py::TestMilvusVectorStore::test_query SKIPPED [ 88%]
+libs/kotaemon/tests/test_vectorstore.py::TestMilvusVectorStore::test_save_load_delete SKIPPED [ 89%]
+libs/kotaemon/tests/test_vectorstore.py::TestQdrantVectorStore::test_add PASSED [ 90%]
+libs/kotaemon/tests/test_vectorstore.py::TestQdrantVectorStore::test_add_from_docs PASSED [ 91%]
+libs/kotaemon/tests/test_vectorstore.py::TestQdrantVectorStore::test_delete PASSED [ 92%]
+libs/kotaemon/tests/test_vectorstore.py::TestQdrantVectorStore::test_query SKIPPED [ 93%]
+libs/kotaemon/tests/test_vectorstore.py::TestQdrantVectorStore::test_save_load_delete PASSED [ 94%]
+libs/ktem/ktem_tests/test_file_index_ui_status.py::test_read_index_runtime_settings_uses_prefix PASSED [ 95%]
+libs/ktem/ktem_tests/test_file_index_ui_status.py::test_format_quick_upload_status PASSED [ 96%]
+libs/ktem/ktem_tests/test_file_index_ui_status.py::test_format_upload_runtime_info_contains_mode_and_id PASSED [ 97%]
+libs/ktem/ktem_tests/test_index_pipeline_filters.py::test_filter_indexable_docs_drops_empty_non_thumbnail PASSED [ 98%]
+libs/ktem/ktem_tests/test_qa.py::test_file_index_importable_from_public_api PASSED [ 99%]
+libs/ktem/ktem_tests/test_qa.py::test_index_document_pipeline_settings_have_expected_keys PASSED [100%]
+
+============================== warnings summary ===============================
+C:\Users\zeed\AppData\Local\Programs\Python\Python311\Lib\site-packages\torch\cuda\__init__.py:65
+  C:\Users\zeed\AppData\Local\Programs\Python\Python311\Lib\site-packages\torch\cuda\__init__.py:65: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+    import pynvml  # type: ignore[import]
+
+libs\kotaemon\tests\test_agent.py:35
+libs\kotaemon\tests\test_agent.py:35
+libs\kotaemon\tests\test_agent.py:35
+libs\kotaemon\tests\test_agent.py:35
+libs\kotaemon\tests\test_agent.py:35
+libs\kotaemon\tests\test_agent.py:35
+libs\kotaemon\tests\test_agent.py:35
+libs\kotaemon\tests\test_agent.py:35
+libs\kotaemon\tests\test_agent.py:35
+  J:\Project\kotaemon\libs\kotaemon\tests\test_agent.py:35: PydanticDeprecatedSince20: The `parse_obj` method is deprecated; use `model_validate` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+    return ChatCompletion.parse_obj(
+
+libs\kotaemon\tests\test_composite.py:16
+  J:\Project\kotaemon\libs\kotaemon\tests\test_composite.py:16: PydanticDeprecatedSince20: The `parse_obj` method is deprecated; use `model_validate` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+    _openai_chat_completion_response = ChatCompletion.parse_obj(
+
+libs\kotaemon\tests\test_cot.py:9
+libs\kotaemon\tests\test_cot.py:9
+  J:\Project\kotaemon\libs\kotaemon\tests\test_cot.py:9: PydanticDeprecatedSince20: The `parse_obj` method is deprecated; use `model_validate` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+    ChatCompletion.parse_obj(
+
+libs\kotaemon\tests\test_llms_chat_models.py:18
+  J:\Project\kotaemon\libs\kotaemon\tests\test_llms_chat_models.py:18: PydanticDeprecatedSince20: The `parse_obj` method is deprecated; use `model_validate` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+    _openai_chat_completion_response = ChatCompletion.parse_obj(
+
+libs\kotaemon\tests\test_llms_completion_models.py:18
+  J:\Project\kotaemon\libs\kotaemon\tests\test_llms_completion_models.py:18: PydanticDeprecatedSince20: The `parse_obj` method is deprecated; use `model_validate` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+    _openai_completion_response = Completion.parse_obj(
+
+C:\Users\zeed\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\formparsers.py:12
+  C:\Users\zeed\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+libs\kotaemon\tests\test_reranking.py:11
+libs\kotaemon\tests\test_reranking.py:11
+libs\kotaemon\tests\test_reranking.py:11
+  J:\Project\kotaemon\libs\kotaemon\tests\test_reranking.py:11: PydanticDeprecatedSince20: The `parse_obj` method is deprecated; use `model_validate` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+    ChatCompletion.parse_obj(
+
+libs/kotaemon/tests/test_agent.py: 8 warnings
+libs/kotaemon/tests/test_composite.py: 7 warnings
+libs/kotaemon/tests/test_cot.py: 5 warnings
+libs/kotaemon/tests/test_llms_chat_models.py: 2 warnings
+libs/kotaemon/tests/test_reranking.py: 3 warnings
+  J:\Project\kotaemon\libs\kotaemon\kotaemon\llms\chats\openai.py:218: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+    ).dict()
+
+libs/kotaemon/tests/test_agent.py::test_rewoo_agent
+libs/kotaemon/tests/test_agent.py::test_rewoo_agent
+libs/kotaemon/tests/test_agent.py::test_react_agent
+libs/kotaemon/tests/test_agent.py::test_react_agent
+libs/kotaemon/tests/test_tools.py::test_google_tool
+libs/kotaemon/tests/test_tools.py::test_wikipedia_tool
+  J:\Project\kotaemon\libs\kotaemon\kotaemon\agents\tools\base.py:45: PydanticDeprecatedSince20: The `validate` method is deprecated; use `model_validate` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+    args_schema.validate({key_: tool_input})
+
+libs/kotaemon/tests/test_composite.py: 5 warnings
+libs/kotaemon/tests/test_cot.py: 3 warnings
+libs/kotaemon/tests/test_prompt.py: 6 warnings
+  J:\Project\kotaemon\libs\kotaemon\kotaemon\llms\prompts\template.py:70: UserWarning: Keys provided but not in template: template
+    warnings.warn(
+
+libs/kotaemon/tests/test_cot.py::test_cot_plus_operator
+libs/kotaemon/tests/test_cot.py::test_cot_manual
+  J:\Project\kotaemon\libs\kotaemon\kotaemon\llms\prompts\template.py:70: UserWarning: Keys provided but not in template: word,language
+    warnings.warn(
+
+libs/kotaemon/tests/test_embedding_models.py: 5 warnings
+libs/kotaemon/tests/test_indexing_retrieval.py: 4 warnings
+libs/kotaemon/tests/test_tools.py: 2 warnings
+  J:\Project\kotaemon\libs\kotaemon\kotaemon\embeddings\openai.py:104: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+    resp = self.openai_response(client, input=input_, **kwargs).dict()
+
+libs/kotaemon/tests/test_ingestor.py::test_ingestor_include_src
+  C:\Users\zeed\AppData\Local\Programs\Python\Python311\Lib\site-packages\pypdf\_crypt_providers\_cryptography.py:32: CryptographyDeprecationWarning: ARC4 has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.ARC4 and will be removed from cryptography.hazmat.primitives.ciphers.algorithms in 48.0.0.
+    from cryptography.hazmat.primitives.ciphers.algorithms import AES, ARC4
+
+libs/kotaemon/tests/test_llms_completion_models.py::test_openai_model
+  J:\Project\kotaemon\libs\kotaemon\kotaemon\llms\completions\langchain_based.py:127: UserWarning: WARNING! openai_api_version is not default parameter.
+                  openai_api_version was transferred to model_kwargs.
+                  Please confirm that openai_api_version is what you intended.
+    super().__init__(
+
+libs/kotaemon/tests/test_llms_completion_models.py::test_openai_model
+  J:\Project\kotaemon\libs\kotaemon\kotaemon\llms\completions\langchain_based.py:127: UserWarning: WARNING! deployment_name is not default parameter.
+                  deployment_name was transferred to model_kwargs.
+                  Please confirm that deployment_name is what you intended.
+    super().__init__(
+
+libs/kotaemon/tests/test_promptui.py::TestPromptUI::test_uigeneration
+  C:\Users\zeed\AppData\Local\Programs\Python\Python311\Lib\site-packages\gradio\components\dropdown.py:188: UserWarning: The value passed into gr.Dropdown() is not in the list of choices. Please update the list of choices to include: [] or set allow_custom_value=True.
+    warnings.warn(
+
+libs/kotaemon/tests/test_promptui.py::TestPromptUI::test_uigeneration
+libs/kotaemon/tests/test_promptui.py::TestPromptUI::test_uigeneration
+libs/kotaemon/tests/test_promptui.py::TestPromptUI::test_uigeneration
+libs/kotaemon/tests/test_promptui.py::TestPromptUI::test_uigeneration
+  C:\Users\zeed\AppData\Local\Programs\Python\Python311\Lib\site-packages\gradio\routes.py:1215: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+libs/kotaemon/tests/test_promptui.py::TestPromptUI::test_uigeneration
+libs/kotaemon/tests/test_promptui.py::TestPromptUI::test_uigeneration
+libs/kotaemon/tests/test_promptui.py::TestPromptUI::test_uigeneration
+libs/kotaemon/tests/test_promptui.py::TestPromptUI::test_uigeneration
+  C:\Users\zeed\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\applications.py:4495: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    return self.router.on_event(event_type)
+
+libs/kotaemon/tests/test_reader.py::test_pdf_reader
+  J:\Project\kotaemon\libs\kotaemon\kotaemon\loaders\base.py:25: DeprecationWarning: Call to deprecated function (or staticmethod) download_loader. (`download_loader()` is deprecated. Please install tool using pip install directly instead.)
+    self._reader = download_loader(reader_type)()
+
+libs/kotaemon/tests/test_vectorstore.py::TestQdrantVectorStore::test_add
+  C:\Users\zeed\AppData\Local\Programs\Python\Python311\Lib\site-packages\llama_index\vector_stores\qdrant\base.py:637: UserWarning: Payload indexes have no effect in the local Qdrant. Please use server Qdrant if you need payload indexes.
+    self._client.create_payload_index(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 88 passed, 15 skipped, 91 warnings in 32.10s =================

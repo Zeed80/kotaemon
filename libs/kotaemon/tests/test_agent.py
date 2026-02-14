@@ -13,9 +13,9 @@ from kotaemon.agents import (
     RewooAgent,
     WikipediaTool,
 )
-from kotaemon.llms import AzureChatOpenAI
+from kotaemon.llms import AzureChatOpenAI, LCAzureChatOpenAI
 
-from .conftest import skip_openai_lc_wrapper_test
+from .conftest import skip_openai_lc_wrapper_test, skip_when_ddgs_not_installed
 
 FINAL_RESPONSE_TEXT = "Final Answer: Hello Cinnamon AI!"
 REWOO_VALID_PLAN = (
@@ -181,24 +181,31 @@ def test_react_agent(openai_completion, llm, mock_google_search):
     "openai.resources.chat.completions.Completions.create",
     side_effect=_openai_chat_completion_responses_react,
 )
-def test_react_agent_langchain(openai_completion, llm, mock_google_search):
-    from langchain.agents import AgentType, initialize_agent
+def test_react_agent_langchain(openai_completion, mock_google_search):
+    from langgraph.prebuilt import create_react_agent
 
+    llm = LCAzureChatOpenAI(
+        api_key="dummy",
+        api_version="2024-05-01-preview",
+        deployment_name="gpt-4o",
+        azure_endpoint="https://test.openai.azure.com/",
+    )
     plugins = [
         GoogleSearchTool(),
         WikipediaTool(),
         LLMTool(llm=llm),
     ]
     langchain_plugins = [tool.to_langchain_format() for tool in plugins]
-    agent = initialize_agent(
-        langchain_plugins,
-        llm.to_langchain_format(),
-        agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-        verbose=True,
+    graph = create_react_agent(
+        model=llm.to_langchain_format(),
+        tools=langchain_plugins,
+        prompt="You are a helpful assistant.",
     )
-    response = agent("Tell me about Cinnamon AI company")
+    result = graph.invoke(
+        {"messages": [{"role": "user", "content": "Tell me about Cinnamon AI company"}]}
+    )
     openai_completion.assert_called()
-    assert response
+    assert result and "messages" in result
 
 
 @skip_openai_lc_wrapper_test
@@ -206,7 +213,13 @@ def test_react_agent_langchain(openai_completion, llm, mock_google_search):
     "openai.resources.chat.completions.Completions.create",
     side_effect=_openai_chat_completion_responses_react,
 )
-def test_wrapper_agent_langchain(openai_completion, llm, mock_google_search):
+def test_wrapper_agent_langchain(openai_completion, mock_google_search):
+    llm = LCAzureChatOpenAI(
+        api_key="dummy",
+        api_version="2024-05-01-preview",
+        deployment_name="gpt-4o",
+        azure_endpoint="https://test.openai.azure.com/",
+    )
     plugins = [
         GoogleSearchTool(),
         WikipediaTool(),
@@ -222,6 +235,7 @@ def test_wrapper_agent_langchain(openai_completion, llm, mock_google_search):
     assert response
 
 
+@skip_when_ddgs_not_installed
 @patch(
     "openai.resources.chat.completions.Completions.create",
     side_effect=_openai_chat_completion_responses_react_langchain_tool,

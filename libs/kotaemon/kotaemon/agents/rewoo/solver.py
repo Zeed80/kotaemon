@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Union
+from typing import Any
 
 from kotaemon.agents.io import BaseScratchPad
 from kotaemon.base import BaseComponent
@@ -9,8 +9,8 @@ from .prompt import few_shot_solver_prompt, zero_shot_solver_prompt
 
 class Solver(BaseComponent):
     model: BaseLLM
-    prompt_template: Optional[PromptTemplate] = None
-    examples: Optional[Union[str, List[str]]] = None
+    prompt_template: PromptTemplate | None = None
+    examples: str | list[str] | None = None
     output_lang: str = "English"
 
     def _compose_fewshot_prompt(self) -> str:

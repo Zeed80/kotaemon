@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from functools import lru_cache
-from typing import Any, Optional
+from typing import Any
 
 import requests
 from sqlalchemy import select
@@ -58,7 +58,7 @@ class VLMManager:
         """Список VLM (name, spec)."""
         return list(self._vlms.values())
 
-    def get(self, name: str) -> Optional[dict]:
+    def get(self, name: str) -> dict | None:
         """Получить VLM по имени."""
         return self._vlms.get(name)
 
@@ -193,7 +193,6 @@ class VLMManager:
         try:
             if is_ollama:
                 # For Ollama, check /api/tags endpoint
-                from .utils.ollama import server_url_to_langchain_base
 
                 # Convert /v1/chat/completions to base URL
                 base_url = endpoint.replace("/v1/chat/completions", "").rstrip("/")
@@ -202,7 +201,7 @@ class VLMManager:
                 if response.status_code == 200:
                     result["available"] = True
                     result["status"] = "ok"
-                    result["message"] = f"Ollama server is healthy"
+                    result["message"] = "Ollama server is healthy"
                 else:
                     result["status"] = "error"
                     result["message"] = f"Ollama returned status {response.status_code}"
@@ -212,7 +211,7 @@ class VLMManager:
                 response = requests.get(endpoint.rsplit("/", 1)[0], timeout=timeout)
                 result["available"] = True
                 result["status"] = "ok"
-                result["message"] = f"Endpoint is reachable"
+                result["message"] = "Endpoint is reachable"
 
         except requests.exceptions.ConnectionError:
             result["status"] = "unreachable"

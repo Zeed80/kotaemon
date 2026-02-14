@@ -1,10 +1,7 @@
 import uuid
 from datetime import datetime
-from typing import Any, Optional, Type
+from typing import Any
 
-from ktem.components import filestorage_path, get_docstore, get_vectorstore
-from ktem.db.engine import engine
-from ktem.index.base import BaseIndex
 from sqlalchemy import JSON, Column, DateTime, Integer, String, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
@@ -13,6 +10,9 @@ from theflow.utils.modules import import_dotted_string
 from tzlocal import get_localzone
 
 from kotaemon.storages import BaseDocumentStore, BaseVectorStore
+from ktem.components import filestorage_path, get_docstore, get_vectorstore
+from ktem.db.engine import engine
+from ktem.index.base import BaseIndex
 
 from .base import BaseFileIndexIndexing, BaseFileIndexRetriever
 
@@ -38,11 +38,11 @@ class FileIndex(BaseIndex):
     def __init__(self, app, id: int, name: str, config: dict):
         super().__init__(app, id, name, config)
 
-        self._indexing_pipeline_cls: Type[BaseFileIndexIndexing]
-        self._retriever_pipeline_cls: list[Type[BaseFileIndexRetriever]]
-        self._selector_ui_cls: Type
+        self._indexing_pipeline_cls: type[BaseFileIndexIndexing]
+        self._retriever_pipeline_cls: list[type[BaseFileIndexRetriever]]
+        self._selector_ui_cls: type
         self._selector_ui: Any = None
-        self._index_ui_cls: Type
+        self._index_ui_cls: type
         self._index_ui: Any = None
 
         self._default_settings: dict[str, dict] = {}
@@ -188,7 +188,7 @@ class FileIndex(BaseIndex):
 
         if hasattr(flowsettings, "FILE_INDEX_PIPELINE"):
             self._indexing_pipeline_cls = import_dotted_string(
-                getattr(flowsettings, "FILE_INDEX_PIPELINE"), safe=False
+                flowsettings.FILE_INDEX_PIPELINE, safe=False
             )
             return
 
@@ -227,7 +227,7 @@ class FileIndex(BaseIndex):
         if hasattr(flowsettings, "FILE_INDEX_RETRIEVER_PIPELINES"):
             self._retriever_pipeline_cls = [
                 import_dotted_string(each, safe=False)
-                for each in getattr(flowsettings, "FILE_INDEX_RETRIEVER_PIPELINES")
+                for each in flowsettings.FILE_INDEX_RETRIEVER_PIPELINES
             ]
             return
 
@@ -262,7 +262,7 @@ class FileIndex(BaseIndex):
 
         if hasattr(flowsettings, "FILE_INDEX_SELECTOR_UI"):
             self._selector_ui_cls = import_dotted_string(
-                getattr(flowsettings, "FILE_INDEX_SELECTOR_UI"), safe=False
+                flowsettings.FILE_INDEX_SELECTOR_UI, safe=False
             )
             return
 
@@ -297,7 +297,7 @@ class FileIndex(BaseIndex):
 
         if hasattr(flowsettings, "FILE_INDEX_UI"):
             self._index_ui_cls = import_dotted_string(
-                getattr(flowsettings, "FILE_INDEX_UI"), safe=False
+                flowsettings.FILE_INDEX_UI, safe=False
             )
             return
 
@@ -470,7 +470,7 @@ class FileIndex(BaseIndex):
                 stripped_settings[key[len(prefix) :]] = value
 
         # transform selected id
-        selected_ids: Optional[list[str]] = self._selector_ui.get_selected_ids(selected)
+        selected_ids: list[str] | None = self._selector_ui.get_selected_ids(selected)
 
         retrievers = []
         for cls in self._retriever_pipeline_cls:

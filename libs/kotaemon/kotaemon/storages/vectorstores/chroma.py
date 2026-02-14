@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Type, cast
+from typing import Any, cast
 
 from llama_index.vector_stores.chroma import ChromaVectorStore as LIChromaVectorStore
 
@@ -6,7 +6,7 @@ from .base import LlamaIndexVectorStore
 
 
 class ChromaVectorStore(LlamaIndexVectorStore):
-    _li_class: Type[LIChromaVectorStore] = LIChromaVectorStore
+    _li_class: type[LIChromaVectorStore] = LIChromaVectorStore
 
     def __init__(
         self,
@@ -15,8 +15,8 @@ class ChromaVectorStore(LlamaIndexVectorStore):
         host: str = "localhost",
         port: str = "8000",
         ssl: bool = False,
-        headers: Optional[Dict[str, str]] = None,
-        collection_kwargs: Optional[dict] = None,
+        headers: dict[str, str] | None = None,
+        collection_kwargs: dict | None = None,
         stores_text: bool = True,
         flat_metadata: bool = True,
         **kwargs: Any,
@@ -57,7 +57,7 @@ class ChromaVectorStore(LlamaIndexVectorStore):
         )
         self._client = cast(LIChromaVectorStore, self._client)
 
-    def delete(self, ids: List[str], **kwargs):
+    def delete(self, ids: list[str], **kwargs):
         """Delete vector embeddings from vector stores
 
         Args:

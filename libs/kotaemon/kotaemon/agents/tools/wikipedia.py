@@ -1,4 +1,4 @@
-from typing import Any, AnyStr, Optional, Type, Union
+from typing import Any, AnyStr
 
 from pydantic import BaseModel, Field
 
@@ -20,7 +20,7 @@ class Wiki:
                 "Please install it with `pip install wikipedia`."
             )
 
-    def search(self, search: str) -> Union[str, Document]:
+    def search(self, search: str) -> str | Document:
         """Try to search for wiki page.
 
         If page exists, return the page summary, and a PageWithLookups object.
@@ -31,9 +31,7 @@ class Wiki:
         try:
             page_content = wikipedia.page(search).content
             url = wikipedia.page(search).url
-            result: Union[str, Document] = Document(
-                text=page_content, metadata={"page": url}
-            )
+            result: str | Document = Document(text=page_content, metadata={"page": url})
         except wikipedia.PageError:
             result = f"Could not find [{search}]. Similar: {wikipedia.search(search)}"
         except wikipedia.DisambiguationError:
@@ -55,7 +53,7 @@ class WikipediaTool(BaseTool):
         "places, companies, historical events, or other subjects. "
         "Input should be a search query."
     )
-    args_schema: Optional[Type[BaseModel]] = WikipediaArgs
+    args_schema: type[BaseModel] | None = WikipediaArgs
     doc_store: Any = None
 
     def _run_tool(self, query: AnyStr) -> AnyStr:

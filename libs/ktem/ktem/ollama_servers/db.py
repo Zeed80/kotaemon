@@ -1,10 +1,10 @@
 """Таблица и модель для хранения настроенных серверов Ollama."""
 
-from ktem.db.engine import engine
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import DeclarativeBase
-
 from theflow.settings import settings as flowsettings
+
+from ktem.db.engine import engine
 
 
 class Base(DeclarativeBase):

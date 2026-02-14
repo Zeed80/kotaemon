@@ -6,7 +6,6 @@ Refs:
 1. [RAGxplorer](https://github.com/gabrielchua/RAGxplorer)
 2. [RAGVizExpander](https://github.com/KKenny0/RAGVizExpander)
 """
-from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -48,8 +47,8 @@ class CreateCitationVizPipeline(BaseComponent):
 
     def _prepare_projection_df(
         self,
-        document_projections: Tuple[np.ndarray, np.ndarray],
-        document_text: List[str],
+        document_projections: tuple[np.ndarray, np.ndarray],
+        document_text: list[str],
         plot_size: int = 3,
     ) -> pd.DataFrame:
         """Prepares a DataFrame for visualization from projections and texts.
@@ -110,7 +109,7 @@ class CreateCitationVizPipeline(BaseComponent):
         )
         return fig
 
-    def run(self, context: List[str], question: str):
+    def run(self, context: list[str], question: str):
         embed_contexts = self.embedding(context)
         context_embeddings = np.array([d.embedding for d in embed_contexts])
 

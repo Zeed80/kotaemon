@@ -1,27 +1,28 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 from llama_index.core.schema import NodeRelationship, RelatedNodeInfo
-from llama_index.core.vector_stores.types import BasePydanticVectorStore
+from llama_index.core.vector_stores.types import (
+    BasePydanticVectorStore,
+    VectorStoreQuery,
+)
 from llama_index.core.vector_stores.types import VectorStore as LIVectorStore
-from llama_index.core.vector_stores.types import VectorStoreQuery
 
 from kotaemon.base import DocumentWithEmbedding
 
 
 class BaseVectorStore(ABC):
     @abstractmethod
-    def __init__(self, *args, **kwargs):
-        ...
+    def __init__(self, *args, **kwargs): ...
 
     @abstractmethod
     def add(
         self,
         embeddings: list[list[float]] | list[DocumentWithEmbedding],
-        metadatas: Optional[list[dict]] = None,
-        ids: Optional[list[str]] = None,
+        metadatas: list[dict] | None = None,
+        ids: list[str] | None = None,
     ) -> list[str]:
         """Add vector embeddings to vector stores
 
@@ -51,7 +52,7 @@ class BaseVectorStore(ABC):
         self,
         embedding: list[float],
         top_k: int = 1,
-        ids: Optional[list[str]] = None,
+        ids: list[str] | None = None,
         **kwargs,
     ) -> tuple[list[list[float]], list[float], list[str]]:
         """Return the top k most similar vector embeddings
@@ -113,8 +114,8 @@ class LlamaIndexVectorStore(BaseVectorStore):
     def add(
         self,
         embeddings: list[list[float]] | list[DocumentWithEmbedding],
-        metadatas: Optional[list[dict]] = None,
-        ids: Optional[list[str]] = None,
+        metadatas: list[dict] | None = None,
+        ids: list[str] | None = None,
     ):
         if isinstance(embeddings[0], list):
             nodes: list[DocumentWithEmbedding] = [
@@ -123,10 +124,10 @@ class LlamaIndexVectorStore(BaseVectorStore):
         else:
             nodes = embeddings  # type: ignore
         if metadatas is not None:
-            for node, metadata in zip(nodes, metadatas):
+            for node, metadata in zip(nodes, metadatas, strict=False):
                 node.metadata = metadata
         if ids is not None:
-            for node, id in zip(nodes, ids):
+            for node, id in zip(nodes, ids, strict=False):
                 node.id_ = id
                 node.relationships = {
                     NodeRelationship.SOURCE: RelatedNodeInfo(node_id=id)
@@ -142,7 +143,7 @@ class LlamaIndexVectorStore(BaseVectorStore):
         self,
         embedding: list[float],
         top_k: int = 1,
-        ids: Optional[list[str]] = None,
+        ids: list[str] | None = None,
         **kwargs,
     ) -> tuple[list[list[float]], list[float], list[str]]:
         """Return the top k most similar vector embeddings

@@ -1,4 +1,4 @@
-from typing import AnyStr, Optional, Type
+from typing import AnyStr
 
 from pydantic import BaseModel, Field
 
@@ -21,7 +21,7 @@ class LLMTool(BaseTool):
         "yourself. Input can be any instruction."
     )
     llm: BaseLLM
-    args_schema: Optional[Type[BaseModel]] = LLMArgs
+    args_schema: type[BaseModel] | None = LLMArgs
     dummy_mode: bool = True
 
     def _run_tool(self, query: AnyStr) -> str:

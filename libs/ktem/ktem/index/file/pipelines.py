@@ -7,17 +7,12 @@ import threading
 import time
 import warnings
 from collections import defaultdict
+from collections.abc import Generator, Sequence
 from functools import lru_cache
 from hashlib import sha256
 from pathlib import Path
-from typing import Generator, Optional, Sequence
 
 import tiktoken
-from decouple import config
-from ktem.db.models import engine
-from ktem.embeddings.manager import embedding_models_manager
-from ktem.llms.manager import llms
-from ktem.rerankings.manager import reranking_models_manager
 from llama_index.core.readers.base import BaseReader
 from llama_index.core.readers.file.base import default_file_metadata_func
 from llama_index.core.vector_stores import (
@@ -32,21 +27,22 @@ from sqlalchemy.orm import Session
 from theflow.settings import settings
 from theflow.utils.modules import import_dotted_string
 
+from flowsettings_config import config
 from kotaemon.base import BaseComponent, Document, Node, Param, RetrievedDocument
 from kotaemon.embeddings import BaseEmbeddings
 from kotaemon.indices import VectorIndexing, VectorRetrieval
 from kotaemon.indices.ingests.files import (
     KH_DEFAULT_FILE_EXTRACTORS,
-    adobe_reader,
-    azure_reader,
-    docling_reader,
     unstructured,
-    vision_ocr_reader,
     web_reader,
 )
-from kotaemon.loaders import DoclingReader, VisionOCRReader
 from kotaemon.indices.rankings import BaseReranking, LLMReranking, LLMTrulensScoring
-from kotaemon.indices.splitters import BaseSplitter, TokenSplitter
+from kotaemon.indices.splitters import BaseSplitter, MarkdownSplitter, TokenSplitter
+from kotaemon.loaders import DoclingReader, VisionOCRReader
+from ktem.db.models import engine
+from ktem.embeddings.manager import embedding_models_manager
+from ktem.llms.manager import llms
+from ktem.rerankings.manager import reranking_models_manager
 
 from .base import BaseFileIndexIndexing, BaseFileIndexRetriever
 
@@ -83,7 +79,9 @@ def _has_non_empty_text(doc: Document) -> bool:
     return bool(text.strip())
 
 
-def _filter_indexable_docs(docs: list[Document]) -> tuple[list[Document], list[Document]]:
+def _filter_indexable_docs(
+    docs: list[Document],
+) -> tuple[list[Document], list[Document]]:
     """Оставить только документы, пригодные для индексации."""
     kept: list[Document] = []
     dropped: list[Document] = []
@@ -135,7 +133,7 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
     def run(
         self,
         text: str,
-        doc_ids: Optional[list[str]] = None,
+        doc_ids: list[str] | None = None,
         *args,
         **kwargs,
     ) -> list[RetrievedDocument]:
@@ -502,7 +500,7 @@ class IndexPipeline(BaseComponent):
                 session.add_all(nodes)
                 session.commit()
 
-    def get_id_if_exists(self, file_path: str | Path) -> Optional[str]:
+    def get_id_if_exists(self, file_path: str | Path) -> str | None:
         """Check if the file is already indexed
 
         Args:
@@ -716,8 +714,12 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         "ocr",
         help="Document recognition: 'ocr' (Unstructured/Tesseract etc.) or 'vlm' (multimodal models only)",
     )
-    vlm_model: str = Param("default", help="VLM model for document recognition (when mode is VLM)")
-    llm_model: str = Param("", help="LLM model (for indexing/captioning; empty = default)")
+    vlm_model: str = Param(
+        "default", help="VLM model for document recognition (when mode is VLM)"
+    )
+    llm_model: str = Param(
+        "", help="LLM model (for indexing/captioning; empty = default)"
+    )
     embedding: BaseEmbeddings
     run_embedding_in_thread: bool = False
 
@@ -731,7 +733,9 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
             try:
                 from ktem.vlms import vlms_manager
 
-                vlm_endpoint, vlm_model = vlms_manager.get_endpoint_and_model(self.vlm_model)
+                vlm_endpoint, vlm_model = vlms_manager.get_endpoint_and_model(
+                    self.vlm_model
+                )
             except Exception:
                 vlm_endpoint = ""
                 vlm_model = ""
@@ -742,8 +746,12 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                     lambda v: getattr(flowsettings, "KH_VLM_ENDPOINT", ""),
                 )("default")
                 vlm_model = ""
-            vision_reader = VisionOCRReader(vlm_endpoint=vlm_endpoint, vlm_model=vlm_model)
-            docling_reader_with_vlm = DoclingReader(vlm_endpoint=vlm_endpoint, vlm_model=vlm_model)
+            vision_reader = VisionOCRReader(
+                vlm_endpoint=vlm_endpoint, vlm_model=vlm_model
+            )
+            docling_reader_with_vlm = DoclingReader(
+                vlm_endpoint=vlm_endpoint, vlm_model=vlm_model
+            )
             for ext in (".png", ".jpeg", ".jpg", ".tiff", ".tif"):
                 if ext in readers:
                     readers[ext] = vision_reader
@@ -838,12 +846,13 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         chunk_size = self.chunk_size or dev_chunk_size
         chunk_overlap = self.chunk_overlap or dev_chunk_overlap
 
+        ext = Path(file_path).suffix.lower() if file_path else ""
+
         # check if file_path is a URL
         if self.is_url(file_path):
             reader = web_reader
         else:
             assert isinstance(file_path, Path)
-            ext = file_path.suffix.lower()
             reader = self.readers.get(ext, unstructured)
             if reader is None:
                 raise NotImplementedError(
@@ -853,22 +862,29 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
 
         print(f"Chunk size: {chunk_size}, chunk overlap: {chunk_overlap}")
 
+        splitter: BaseSplitter
+        if ext == ".md":
+            splitter = MarkdownSplitter()
+        else:
+            splitter = TokenSplitter(
+                chunk_size=chunk_size or 1024,
+                chunk_overlap=chunk_overlap or 256,
+                separator="\n\n",
+                backup_separators=["\n", ".", "\u200b"],
+            )
+
         print("Using reader", reader)
         logger.info(
-            "Index route selected: mode=%s reader=%s chunk_size=%s chunk_overlap=%s",
+            "Index route selected: mode=%s reader=%s splitter=%s chunk_size=%s chunk_overlap=%s",
             self.document_recognition_mode,
             reader.__class__.__name__,
+            splitter.__class__.__name__,
             chunk_size,
             chunk_overlap,
         )
         pipeline: IndexPipeline = IndexPipeline(
             loader=reader,
-            splitter=TokenSplitter(
-                chunk_size=chunk_size or 1024,
-                chunk_overlap=chunk_overlap or 256,
-                separator="\n\n",
-                backup_separators=["\n", ".", "\u200B"],
-            ),
+            splitter=splitter,
             run_embedding_in_thread=self.run_embedding_in_thread,
             Source=self.Source,
             Index=self.Index,
@@ -929,7 +945,9 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                 endpoint_type = ""
                 if docs:
                     extraction_status = docs[0].metadata.get("extraction_status", "")
-                    extraction_error_code = docs[0].metadata.get("extraction_error_code", "")
+                    extraction_error_code = docs[0].metadata.get(
+                        "extraction_error_code", ""
+                    )
                     endpoint_type = docs[0].metadata.get("endpoint_type", "")
                 logger.info(
                     "Index success: ingestion_id=%s file=%s mode=%s reader=%s endpoint_type=%s extraction_status=%s extraction_error_code=%s",

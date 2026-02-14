@@ -2,7 +2,6 @@ import base64
 from collections import defaultdict
 from io import BytesIO
 from pathlib import Path
-from typing import List, Optional
 
 from kotaemon.base import Document, Param
 
@@ -59,12 +58,12 @@ class DoclingReader(BaseReader):
     @Param.auto(cache=True)
     def converter_(self):
         try:
+            from docling.datamodel.base_models import InputFormat
+            from docling.datamodel.pipeline_options import PdfPipelineOptions
             from docling.document_converter import (
                 DocumentConverter,
                 PdfFormatOption,
             )
-            from docling.datamodel.base_models import InputFormat
-            from docling.datamodel.pipeline_options import PdfPipelineOptions
         except ImportError as e:
             raise ImportError("Please install docling: 'pip install docling'") from e
 
@@ -89,13 +88,13 @@ class DoclingReader(BaseReader):
         return DocumentConverter(format_options=format_options)
 
     def run(
-        self, file_path: str | Path, extra_info: Optional[dict] = None, **kwargs
-    ) -> List[Document]:
+        self, file_path: str | Path, extra_info: dict | None = None, **kwargs
+    ) -> list[Document]:
         return self.load_data(file_path, extra_info, **kwargs)
 
     def load_data(
-        self, file_path: str | Path, extra_info: Optional[dict] = None, **kwargs
-    ) -> List[Document]:
+        self, file_path: str | Path, extra_info: dict | None = None, **kwargs
+    ) -> list[Document]:
         """Extract the input file, allowing multi-modal extraction"""
 
         metadata = extra_info or {}
@@ -162,7 +161,9 @@ class DoclingReader(BaseReader):
             else:
                 gen_caption_count += 1
                 gen_caption = generate_single_figure_caption(
-                    figure=img_base64, vlm_endpoint=self.vlm_endpoint, vlm_model=self.vlm_model or None
+                    figure=img_base64,
+                    vlm_endpoint=self.vlm_endpoint,
+                    vlm_model=self.vlm_model or None,
                 )
 
             # join the extractive and generative captions
@@ -260,7 +261,7 @@ class DoclingReader(BaseReader):
 
     def _parse_table(self, table_obj: dict) -> str:
         """Convert docling table object to markdown table"""
-        table_as_list: List[List[str]] = []
+        table_as_list: list[list[str]] = []
         grid = table_obj["data"]["grid"]
         for row in grid:
             table_as_list.append([])

@@ -3,14 +3,11 @@ import glob
 import logging
 import os
 import re
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import numpy as np
 import pandas as pd
-from ktem.db.models import engine
-from ktem.embeddings.manager import embedding_models_manager as embeddings
-from ktem.llms.manager import llms
 from sqlalchemy.orm import Session
 from tenacity import (
     retry,
@@ -22,10 +19,13 @@ from theflow.settings import settings
 
 from kotaemon.base import Document, Param, RetrievedDocument
 from kotaemon.base.schema import AIMessage, HumanMessage, SystemMessage
+from ktem.db.models import engine
+from ktem.embeddings.manager import embedding_models_manager as embeddings
+from ktem.llms.manager import llms
 
 from ..pipelines import BaseFileIndexRetriever
 from .pipelines import GraphRAGIndexingPipeline
-from .prompt_adaptation import PromptAdapter, get_prompt_adapter
+from .prompt_adaptation import get_prompt_adapter
 from .visualize import create_knowledge_graph, visualize_graph
 
 try:
@@ -41,11 +41,9 @@ try:
 
 except ImportError:
     print(
-        (
-            "LightRAG dependencies not installed. "
-            "Try `pip install git+https://github.com/HKUDS/LightRAG.git` to install. "
-            "LighthRAG retriever pipeline will not work properly."
-        )
+        "LightRAG dependencies not installed. "
+        "Try `pip install git+https://github.com/HKUDS/LightRAG.git` to install. "
+        "LighthRAG retriever pipeline will not work properly."
     )
 
 
@@ -174,7 +172,7 @@ async def lightrag_build_local_query_context(
     )
     node_datas = [
         {**n, "entity_name": k["entity_name"], "rank": d}
-        for k, n, d in zip(results, node_datas, node_degrees)
+        for k, n, d in zip(results, node_datas, node_degrees, strict=False)
         if n is not None
     ]
 
@@ -301,9 +299,7 @@ class LightRAGIndexingPipeline(GraphRAGIndexingPipeline):
             blacklist_keywords = ["default", "response", "process"]
             settings_dict = {
                 "batch_size": {
-                    "name": (
-                        "Index batch size " "(reduce if you have rate limit issues)"
-                    ),
+                    "name": ("Index batch size (reduce if you have rate limit issues)"),
                     "value": INDEX_BATCHSIZE,
                     "component": "number",
                 }
@@ -537,7 +533,9 @@ class LightRAGRetrieverPipeline(BaseFileIndexRetriever):
 
                 prompt_adapter = get_prompt_adapter()
                 task_type = prompt_adapter.detect_task_type(text)
-                logger.info(f"Определен тип задачи для запроса '{text[:50]}...': {task_type}")
+                logger.info(
+                    f"Определен тип задачи для запроса '{text[:50]}...': {task_type}"
+                )
 
                 # Адаптируем промпты на основе запроса
                 adapted_prompts = prompt_adapter.adapt_prompts_dict(
@@ -548,7 +546,9 @@ class LightRAGRetrieverPipeline(BaseFileIndexRetriever):
                 for prompt_name, adapted_content in adapted_prompts.items():
                     if prompt_name in PROMPTS:
                         PROMPTS[prompt_name] = adapted_content
-                        logger.debug(f"Адаптирован промпт '{prompt_name}' для задачи {task_type}")
+                        logger.debug(
+                            f"Адаптирован промпт '{prompt_name}' для задачи {task_type}"
+                        )
             except Exception as e:
                 logger.warning(f"Не удалось адаптировать промпты: {e}")
 
@@ -581,9 +581,7 @@ class LightRAGRetrieverPipeline(BaseFileIndexRetriever):
                 RetrievedDocument(
                     text=context,
                     metadata={
-                        "file_name": "GraphRAG {} Search".format(
-                            query_params.mode.capitalize()
-                        ),
+                        "file_name": f"GraphRAG {query_params.mode.capitalize()} Search",
                         "type": "table",
                     },
                 )

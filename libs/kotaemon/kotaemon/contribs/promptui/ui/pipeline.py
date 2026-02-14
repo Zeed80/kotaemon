@@ -2,7 +2,7 @@ import pickle
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import gradio as gr
 import pandas as pd
@@ -126,11 +126,11 @@ def construct_pipeline_ui(
     return demo
 
 
-def load_saved_params(path: str) -> Dict:
+def load_saved_params(path: str) -> dict:
     """Load the saved params from path to a dataframe"""
     # get all pickle files
-    files = list(sorted(Path(path).glob("*.pkl")))
-    data: Dict[str, Any] = {"_id": [None] * len(files)}
+    files = sorted(Path(path).glob("*.pkl"))
+    data: dict[str, Any] = {"_id": [None] * len(files)}
     for idx, each_file in enumerate(files):
         with open(each_file, "rb") as f:
             each_data = pickle.load(f)
@@ -165,10 +165,12 @@ def build_pipeline_ui(config: dict, pipeline_def):
 
     def run_func(*args):
         inputs = {
-            name: value for name, value in zip(inputs_name, args[: len(inputs_name)])
+            name: value
+            for name, value in zip(inputs_name, args[: len(inputs_name)], strict=False)
         }
         params = {
-            name: value for name, value in zip(params_name, args[len(inputs_name) :])
+            name: value
+            for name, value in zip(params_name, args[len(inputs_name) :], strict=False)
         }
         pipeline = pipeline_def()
         pipeline.set(params)
@@ -193,7 +195,7 @@ def build_pipeline_ui(config: dict, pipeline_def):
             return outputs
 
     def save_func(*args):
-        params = {name: value for name, value in zip(params_name, args)}
+        params = {name: value for name, value in zip(params_name, args, strict=False)}
         filename = save_dir / f"{int(time.time())}.pkl"
         with open(filename, "wb") as f:
             pickle.dump(params, f)

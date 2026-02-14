@@ -7,6 +7,9 @@
 #   3. После запуска: http://localhost:7860
 #
 # Образ включает все инструменты: MS GraphRAG, Nano GraphRAG, LightRAG, Unstructured, Docling.
+#
+# GPU: для сборки с CUDA: docker compose build --build-arg TORCH_DEVICE=cu121
+# Требуется NVIDIA Container Toolkit. Раскомментируйте deploy ниже.
 
 x-common-env: &common-env
   GRADIO_SERVER_NAME: "0.0.0.0"
@@ -20,6 +23,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        TORCH_DEVICE: ${TORCH_DEVICE:-cpu}
     image: kotaemon:latest
     container_name: kotaemon
     ports:
@@ -28,14 +33,52 @@ services:
       - .env
     environment:
       <<: *common-env
+      QDRANT_URL: http://qdrant:6333
+      SEARXNG_URL: http://searxng:8080
+    depends_on:
+      - qdrant
+      - searxng
     volumes: *common-volumes
     restart: unless-stopped
+    # GPU: раскомментируйте для использования NVIDIA GPU (требуется nvidia-container-toolkit)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:7860')",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 90s
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: kotaemon-searxng
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docker/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: kotaemon-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
 
   # Ollama для локальных моделей: docker compose --profile ollama up -d
   # В .env задать KH_OLLAMA_URL=http://ollama:11434/v1/
@@ -53,5 +96,7 @@ services:
 volumes:
   ktem_app_data:
     name: kotaemon_ktem_app_data
+  qdrant_data:
+    name: kotaemon_qdrant_data
   ollama_models:
     name: kotaemon_ollama_models

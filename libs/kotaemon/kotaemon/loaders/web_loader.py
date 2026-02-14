@@ -1,9 +1,8 @@
 from pathlib import Path
-from typing import Optional
 
 import requests
-from decouple import config
 
+from flowsettings_config import config
 from kotaemon.base import Document
 
 from .base import BaseReader
@@ -14,7 +13,7 @@ JINA_URL = config("JINA_URL", default="https://r.jina.ai/")
 
 class WebReader(BaseReader):
     def run(
-        self, file_path: str | Path, extra_info: Optional[dict] = None, **kwargs
+        self, file_path: str | Path, extra_info: dict | None = None, **kwargs
     ) -> list[Document]:
         return self.load_data(Path(file_path), extra_info=extra_info, **kwargs)
 
@@ -34,7 +33,7 @@ class WebReader(BaseReader):
         return data
 
     def load_data(
-        self, file_path: str | Path, extra_info: Optional[dict] = None, **kwargs
+        self, file_path: str | Path, extra_info: dict | None = None, **kwargs
     ) -> list[Document]:
         file_path = str(file_path)
         output = self.fetch_url(file_path)

@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Type
+from collections.abc import Callable
 
 from llama_index.core.readers.base import BaseReader as LIBaseReader
 
@@ -34,20 +34,20 @@ class DirectoryReader(LIReaderMixin, BaseReader):
             Default is None.
     """
 
-    input_dir: Optional[str] = None
-    input_files: Optional[List] = None
-    exclude: Optional[List] = None
+    input_dir: str | None = None
+    input_files: list | None = None
+    exclude: list | None = None
     exclude_hidden: bool = True
     errors: str = "ignore"
     recursive: bool = False
     encoding: str = "utf-8"
     filename_as_id: bool = False
-    required_exts: Optional[list[str]] = None
-    file_extractor: Optional[dict[str, "LIBaseReader"]] = None
-    num_files_limit: Optional[int] = None
-    file_metadata: Optional[Callable[[str], dict]] = None
+    required_exts: list[str] | None = None
+    file_extractor: dict[str, "LIBaseReader"] | None = None
+    num_files_limit: int | None = None
+    file_metadata: Callable[[str], dict] | None = None
 
-    def _get_wrapped_class(self) -> Type["LIBaseReader"]:
+    def _get_wrapped_class(self) -> type["LIBaseReader"]:
         from llama_index.core import SimpleDirectoryReader
 
         return SimpleDirectoryReader

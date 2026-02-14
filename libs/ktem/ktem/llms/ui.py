@@ -3,9 +3,11 @@ from copy import deepcopy
 import gradio as gr
 import pandas as pd
 import yaml
+from theflow.utils.modules import deserialize
+
 from ktem.app import BasePage
-from ktem.utils.file import YAMLNoDateSafeLoader
 from ktem.ollama_servers import ollama_servers_manager
+from ktem.utils.file import YAMLNoDateSafeLoader
 from ktem.utils.ollama import (
     get_ollama_base_url,
     get_ollama_base_url_for_langchain,
@@ -13,7 +15,6 @@ from ktem.utils.ollama import (
     pull_ollama_model,
     server_url_to_langchain_base,
 )
-from theflow.utils.modules import deserialize
 
 from .manager import llms
 
@@ -165,9 +166,7 @@ class LLMManagement(BasePage):
                             self.btn_pull_ollama_model = gr.Button(
                                 "⬇️ Pull Model", variant="secondary"
                             )
-                            self.ollama_pull_progress = gr.HTML(
-                                visible=False, value=""
-                            )
+                            self.ollama_pull_progress = gr.HTML(visible=False, value="")
 
                 with gr.Column(scale=3):
                     self.spec_desc = gr.Markdown(self.spec_desc_default)
@@ -403,23 +402,29 @@ class LLMManagement(BasePage):
             if vendor_name == "LCOllamaChat" and ollama_server:
                 s = ollama_servers_manager.get(ollama_server)
                 if s:
-                    model = (ollama_model_dropdown or "").strip() or (ollama_model_input or "").strip()
+                    model = (ollama_model_dropdown or "").strip() or (
+                        ollama_model_input or ""
+                    ).strip()
                     if not model:
                         raise gr.Error("Выберите или введите имя модели Ollama")
                     spec = {
-                        "__type__": vendor_cls.__module__ + "." + vendor_cls.__qualname__,
+                        "__type__": vendor_cls.__module__
+                        + "."
+                        + vendor_cls.__qualname__,
                         "base_url": server_url_to_langchain_base(s["base_url"]),
                         "model": model,
-                        "num_ctx": int(ollama_num_ctx) if ollama_num_ctx is not None else s["num_ctx"],
+                        "num_ctx": int(ollama_num_ctx)
+                        if ollama_num_ctx is not None
+                        else s["num_ctx"],
                     }
                 else:
                     spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
-                    spec["__type__"] = vendor_cls.__module__ + "." + vendor_cls.__qualname__
+                    spec["__type__"] = (
+                        vendor_cls.__module__ + "." + vendor_cls.__qualname__
+                    )
             else:
                 spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
-                spec["__type__"] = (
-                    vendor_cls.__module__ + "." + vendor_cls.__qualname__
-                )
+                spec["__type__"] = vendor_cls.__module__ + "." + vendor_cls.__qualname__
 
             llms.add(name, spec=spec, default=default)
             gr.Info(f"LLM {name} created successfully")
@@ -587,7 +592,9 @@ class LLMManagement(BasePage):
         base_url_lc = server_url_to_langchain_base(s["base_url"])
         num_ctx_val = int(num_ctx) if num_ctx is not None else s["num_ctx"]
         try:
-            spec = yaml.load(self._current_ollama_spec_template(), Loader=YAMLNoDateSafeLoader)
+            spec = yaml.load(
+                self._current_ollama_spec_template(), Loader=YAMLNoDateSafeLoader
+            )
         except Exception:
             spec = {"__type__": ""}
         spec["base_url"] = base_url_lc
@@ -607,7 +614,9 @@ class LLMManagement(BasePage):
         if not vendor_cls:
             return "base_url: ''\nmodel: ''\nnum_ctx: 8192"
         desc = vendor_cls.describe()
-        required = {k: None for k, v in desc["params"].items() if v.get("required", False)}
+        required = {
+            k: None for k, v in desc["params"].items() if v.get("required", False)
+        }
         required.setdefault("num_ctx", 8192)
         return yaml.dump(required)
 
@@ -619,7 +628,6 @@ class LLMManagement(BasePage):
             return gr.update(value=yaml.dump(spec))
         except Exception:
             return gr.update()
-
 
     def on_ollama_model_selected(self, model_name: str, current_spec: str):
         """Заполнить поле model в spec при выборе модели из списка."""
@@ -662,9 +670,7 @@ class LLMManagement(BasePage):
         yield gr.update(visible=True, value=progress_html), gr.update()
 
         try:
-            for response in pull_ollama_model(
-                base_url=base_url, model_name=model_name
-            ):
+            for response in pull_ollama_model(base_url=base_url, model_name=model_name):
                 status = response.get("status", "")
                 completed = response.get("completed", 0)
                 total = response.get("total", 0)
@@ -698,13 +704,14 @@ class LLMManagement(BasePage):
                     # Обновить список моделей
                     models = get_ollama_models(base_url)
                     choices = [m["name"] for m in models]
-                    yield gr.update(visible=True, value=progress_html), gr.update(
-                        choices=choices, value=model_name
+                    yield (
+                        gr.update(visible=True, value=progress_html),
+                        gr.update(choices=choices, value=model_name),
                     )
                     return
 
             # Если дошли сюда без success
-            progress_html = f"""
+            progress_html = """
             <div style='padding: 10px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px;'>
                 <p>Загрузка завершена, но статус не определен</p>
             </div>

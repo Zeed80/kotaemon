@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import anyio
 from gradio import ChatInterface
@@ -27,7 +28,8 @@ class ChatBlock(ChatInterface):
             if not isinstance(additional_outputs, list):
                 additional_outputs = [additional_outputs]
             self.additional_outputs = [
-                get_component_instance(i) for i in additional_outputs  # type: ignore
+                get_component_instance(i)
+                for i in additional_outputs  # type: ignore
             ]
         else:
             self.additional_outputs = []

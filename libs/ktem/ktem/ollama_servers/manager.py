@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -35,7 +33,7 @@ class OllamaServerManager:
         """Список серверов (name, base_url, num_ctx)."""
         return list(self._servers.values())
 
-    def get(self, name: str) -> Optional[dict]:
+    def get(self, name: str) -> dict | None:
         """Получить сервер по имени."""
         return self._servers.get(name)
 

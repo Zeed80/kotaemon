@@ -1,12 +1,17 @@
 import logging
 import os
 from pathlib import Path
-from typing import List, Optional
 from uuid import uuid4
 
 import requests
 from llama_index.core.readers.base import BaseReader
-from tenacity import after_log, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import (
+    after_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from kotaemon.base import Document
 
@@ -21,7 +26,9 @@ DEFAULT_OCR_ENDPOINT = "http://127.0.0.1:8000/v2/ai/infer/"
 @retry(
     stop=stop_after_attempt(6),
     wait=wait_exponential(multiplier=20, exp_base=2, min=1, max=1000),
-    retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout)),
+    retry=retry_if_exception_type(
+        (requests.exceptions.ConnectionError, requests.exceptions.Timeout)
+    ),
     after=after_log(logger, logging.WARNING),
 )
 def tenacious_api_post(url, file_path, table_only, **kwargs):
@@ -63,7 +70,7 @@ class OCRReader(BaseReader):
             If False, only the table and text within table cells will be extracted.
     """
 
-    def __init__(self, endpoint: Optional[str] = None, use_ocr=True):
+    def __init__(self, endpoint: str | None = None, use_ocr=True):
         """Init the OCR reader with OCR endpoint (FullOCR pipeline)"""
         super().__init__()
         self.ocr_endpoint = endpoint or os.getenv(
@@ -72,8 +79,8 @@ class OCRReader(BaseReader):
         self.use_ocr = use_ocr
 
     def load_data(
-        self, file_path: Path, extra_info: Optional[dict] = None, **kwargs
-    ) -> List[Document]:
+        self, file_path: Path, extra_info: dict | None = None, **kwargs
+    ) -> list[Document]:
         """Load data using OCR reader
 
         Args:
@@ -94,7 +101,9 @@ class OCRReader(BaseReader):
             # call original API with fallback on failure
             try:
                 resp = tenacious_api_post(
-                    url=self.ocr_endpoint, file_path=file_path, table_only=not self.use_ocr
+                    url=self.ocr_endpoint,
+                    file_path=file_path,
+                    table_only=not self.use_ocr,
                 )
                 ocr_results = resp.json()["result"]
             except Exception as e:
@@ -180,7 +189,7 @@ class ImageReader(BaseReader):
             If False, only the table and text within table cells will be extracted.
     """
 
-    def __init__(self, endpoint: Optional[str] = None):
+    def __init__(self, endpoint: str | None = None):
         """Init the OCR reader with OCR endpoint (FullOCR pipeline)"""
         super().__init__()
         self.ocr_endpoint = endpoint or os.getenv(
@@ -188,8 +197,8 @@ class ImageReader(BaseReader):
         )
 
     def load_data(
-        self, file_path: Path, extra_info: Optional[dict] = None, **kwargs
-    ) -> List[Document]:
+        self, file_path: Path, extra_info: dict | None = None, **kwargs
+    ) -> list[Document]:
         """Load data using OCR reader
 
         Args:

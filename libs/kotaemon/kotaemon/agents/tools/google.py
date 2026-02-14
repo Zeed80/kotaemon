@@ -1,4 +1,4 @@
-from typing import AnyStr, Optional, Type
+from typing import AnyStr
 from urllib.error import HTTPError
 
 from langchain_community.utilities import SerpAPIWrapper
@@ -17,7 +17,7 @@ class GoogleSearchTool(BaseTool):
         "A search engine retrieving top search results as snippets from Google. "
         "Input should be a search query."
     )
-    args_schema: Optional[Type[BaseModel]] = GoogleSearchArgs
+    args_schema: type[BaseModel] | None = GoogleSearchArgs
 
     def _run_tool(self, query: AnyStr) -> str:
         try:
@@ -33,8 +33,7 @@ class GoogleSearchTool(BaseTool):
             search_results = search(query, advanced=True)
             if search_results:
                 output = "\n".join(
-                    "{} {}".format(item.title, item.description)
-                    for item in search_results
+                    f"{item.title} {item.description}" for item in search_results
                 )
         except HTTPError:
             output = "No evidence found."
@@ -48,7 +47,7 @@ class SerpTool(BaseTool):
         "Worker that searches results from Google. Useful when you need to find short "
         "and succinct answers about a specific topic. Input should be a search query."
     )
-    args_schema: Optional[Type[BaseModel]] = GoogleSearchArgs
+    args_schema: type[BaseModel] | None = GoogleSearchArgs
 
     def _run_tool(self, query: AnyStr) -> str:
         tool = SerpAPIWrapper()

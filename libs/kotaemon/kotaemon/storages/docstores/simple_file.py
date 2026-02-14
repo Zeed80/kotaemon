@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import List, Optional, Union
 
 from kotaemon.base import Document
 
@@ -19,7 +18,7 @@ class SimpleFileDocumentStore(InMemoryDocumentStore):
         if self._save_path.is_file():
             self.load(self._save_path)
 
-    def get(self, ids: Union[List[str], str]) -> List[Document]:
+    def get(self, ids: list[str] | str) -> list[Document]:
         """Get document by id"""
         if not isinstance(ids, list):
             ids = [ids]
@@ -33,8 +32,8 @@ class SimpleFileDocumentStore(InMemoryDocumentStore):
 
     def add(
         self,
-        docs: Union[Document, List[Document]],
-        ids: Optional[Union[List[str], str]] = None,
+        docs: Document | list[Document],
+        ids: list[str] | str | None = None,
         **kwargs,
     ):
         """Add document into document store
@@ -49,7 +48,7 @@ class SimpleFileDocumentStore(InMemoryDocumentStore):
         super().add(docs=docs, ids=ids, **kwargs)
         self.save(self._save_path)
 
-    def delete(self, ids: Union[List[str], str]):
+    def delete(self, ids: list[str] | str):
         """Delete document by id"""
         super().delete(ids=ids)
         self.save(self._save_path)

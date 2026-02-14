@@ -2,8 +2,8 @@
 
 import gradio as gr
 import pandas as pd
-from ktem.app import BasePage
 
+from ktem.app import BasePage
 from ktem.ollama_servers import ollama_servers_manager
 from ktem.utils.ollama import get_ollama_models, pull_ollama_model
 from ktem.vlms import vlms_manager
@@ -35,7 +35,7 @@ class VLMsManagement(BasePage):
                     value="azure_openai",
                     info="Выберите провайдера для VLM модели",
                 )
-                
+
                 # Azure OpenAI / OpenAI секция
                 with gr.Column(visible=True) as self._edit_azure_openai_section:
                     gr.Markdown("### Azure OpenAI / OpenAI")
@@ -54,7 +54,7 @@ class VLMsManagement(BasePage):
                         type="password",
                         info="API ключ для доступа к сервису (опционально)",
                     )
-                
+
                 # Ollama секция
                 with gr.Column(visible=False) as self._edit_ollama_section:
                     gr.Markdown("### Ollama")
@@ -91,7 +91,7 @@ class VLMsManagement(BasePage):
                         self.edit_ollama_pull_progress = gr.HTML(
                             visible=False, value=""
                         )
-                
+
                 with gr.Row():
                     self.btn_save = gr.Button("Сохранить", variant="primary")
                     self.btn_delete = gr.Button("Удалить", variant="stop")
@@ -115,7 +115,7 @@ class VLMsManagement(BasePage):
                 value="azure_openai",
                 info="Выберите провайдера для VLM модели",
             )
-            
+
             # Azure OpenAI / OpenAI секция
             with gr.Column(visible=True) as self._add_azure_openai_section:
                 gr.Markdown("### Azure OpenAI / OpenAI")
@@ -134,7 +134,7 @@ class VLMsManagement(BasePage):
                     type="password",
                     info="API ключ для доступа к сервису (опционально)",
                 )
-            
+
             # Ollama секция
             with gr.Column(visible=False) as self._add_ollama_section:
                 gr.Markdown("### Ollama")
@@ -168,10 +168,8 @@ class VLMsManagement(BasePage):
                     self.btn_pull_add_model = gr.Button(
                         "⬇️ Pull Model", variant="secondary"
                     )
-                    self.add_ollama_pull_progress = gr.HTML(
-                        visible=False, value=""
-                    )
-            
+                    self.add_ollama_pull_progress = gr.HTML(visible=False, value="")
+
             self.btn_add = gr.Button("Добавить VLM", variant="primary")
 
     def _on_app_created(self):
@@ -445,7 +443,9 @@ class VLMsManagement(BasePage):
             gr.update(visible=not is_ollama),  # add_endpoint_url
             gr.update(visible=not is_ollama),  # add_model
             gr.update(visible=not is_ollama),  # add_api_key
-            gr.update(visible=is_ollama, choices=server_choices, value=server_value),  # add_ollama_server
+            gr.update(
+                visible=is_ollama, choices=server_choices, value=server_value
+            ),  # add_ollama_server
             gr.update(
                 visible=is_ollama,
                 choices=model_choices,
@@ -542,7 +542,10 @@ class VLMsManagement(BasePage):
                 value=model_value if model_value in model_choices else None,
             ),
             gr.update(visible=is_ollama),
-            gr.update(visible=is_ollama, value=model_value if model_value not in model_choices else ""),
+            gr.update(
+                visible=is_ollama,
+                value=model_value if model_value not in model_choices else "",
+            ),
             gr.update(visible=is_ollama),
             name,
         )
@@ -559,7 +562,9 @@ class VLMsManagement(BasePage):
     ):
         if provider == "ollama":
             # Использовать значение из dropdown или из input поля
-            model_value = (ollama_model or "").strip() or (ollama_model_input or "").strip()
+            model_value = (ollama_model or "").strip() or (
+                ollama_model_input or ""
+            ).strip()
             return {
                 "provider": "ollama",
                 "ollama_server": (ollama_server or "").strip(),
@@ -600,7 +605,9 @@ class VLMsManagement(BasePage):
                 raise gr.Error("Выберите Ollama server")
             model_value = spec.get("model", "").strip()
             if not model_value:
-                raise gr.Error("Выберите или введите имя модели Ollama (например llava)")
+                raise gr.Error(
+                    "Выберите или введите имя модели Ollama (например llava)"
+                )
         try:
             vlms_manager.add(name=name, spec=spec)
             gr.Info(f"VLM «{name}» добавлен")
@@ -685,9 +692,7 @@ class VLMsManagement(BasePage):
         yield gr.update(visible=True, value=progress_html), gr.update()
 
         try:
-            for response in pull_ollama_model(
-                base_url=base_url, model_name=model_name
-            ):
+            for response in pull_ollama_model(base_url=base_url, model_name=model_name):
                 status = response.get("status", "")
                 completed = response.get("completed", 0)
                 total = response.get("total", 0)
@@ -721,13 +726,14 @@ class VLMsManagement(BasePage):
                     # Обновить список моделей
                     models = get_ollama_models(base_url)
                     choices = [m["name"] for m in models] if models else []
-                    yield gr.update(visible=True, value=progress_html), gr.update(
-                        choices=choices, value=model_name
+                    yield (
+                        gr.update(visible=True, value=progress_html),
+                        gr.update(choices=choices, value=model_name),
                     )
                     return
 
             # Если дошли сюда без success
-            progress_html = f"""
+            progress_html = """
             <div style='padding: 10px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px;'>
                 <p>Загрузка завершена, но статус не определен</p>
             </div>

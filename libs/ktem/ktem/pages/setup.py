@@ -2,12 +2,13 @@ import json
 
 import gradio as gr
 import requests
-from decouple import config
+from theflow.settings import settings as flowsettings
+
+from flowsettings_config import config
 from ktem.app import BasePage
 from ktem.embeddings.manager import embedding_models_manager as embeddings
 from ktem.llms.manager import llms
 from ktem.rerankings.manager import reranking_models_manager as rerankers
-from theflow.settings import settings as flowsettings
 
 KH_OLLAMA_URL = getattr(flowsettings, "KH_OLLAMA_URL", "http://localhost:11434/v1/")
 DEFAULT_OLLAMA_URL = KH_OLLAMA_URL.replace("v1", "api")
@@ -47,7 +48,6 @@ def pull_model(name: str, stream: bool = True):
 
 
 class SetupPage(BasePage):
-
     public_events = ["onFirstSetupComplete"]
 
     def __init__(self, app):
@@ -75,10 +75,8 @@ class SetupPage(BasePage):
 
         with gr.Column(visible=False) as self.openai_option:
             gr.Markdown(
-                (
-                    "#### OpenAI API Key\n\n"
-                    "(create at https://platform.openai.com/api-keys)"
-                )
+                "#### OpenAI API Key\n\n"
+                "(create at https://platform.openai.com/api-keys)"
             )
             self.openai_api_key = gr.Textbox(
                 show_label=False, placeholder="OpenAI API Key"
@@ -86,11 +84,9 @@ class SetupPage(BasePage):
 
         with gr.Column(visible=True) as self.cohere_option:
             gr.Markdown(
-                (
-                    "#### Cohere API Key\n\n"
-                    "(register your free API key "
-                    "at https://dashboard.cohere.com/api-keys)"
-                )
+                "#### Cohere API Key\n\n"
+                "(register your free API key "
+                "at https://dashboard.cohere.com/api-keys)"
             )
             self.cohere_api_key = gr.Textbox(
                 show_label=False, placeholder="Cohere API Key"
@@ -98,11 +94,9 @@ class SetupPage(BasePage):
 
         with gr.Column(visible=False) as self.google_option:
             gr.Markdown(
-                (
-                    "#### Google API Key\n\n"
-                    "(register your free API key "
-                    "at https://aistudio.google.com/app/apikey)"
-                )
+                "#### Google API Key\n\n"
+                "(register your free API key "
+                "at https://aistudio.google.com/app/apikey)"
             )
             self.google_api_key = gr.Textbox(
                 show_label=False, placeholder="Google API Key"
@@ -110,12 +104,10 @@ class SetupPage(BasePage):
 
         with gr.Column(visible=False) as self.ollama_option:
             gr.Markdown(
-                (
-                    "#### Setup Ollama\n\n"
-                    "Download and install Ollama from "
-                    "https://ollama.com/. Check out latest models at "
-                    "https://ollama.com/library. "
-                )
+                "#### Setup Ollama\n\n"
+                "Download and install Ollama from "
+                "https://ollama.com/. Check out latest models at "
+                "https://ollama.com/library. "
             )
             self.ollama_model_name = gr.Textbox(
                 label="LLM model name",
