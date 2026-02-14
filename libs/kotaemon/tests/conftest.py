@@ -79,6 +79,25 @@ def if_voyageai_not_installed():
         return False
 
 
+def if_milvus_not_installed():
+    try:
+        import pymilvus  # noqa: F401
+        import milvus_lite  # noqa: F401
+    except ImportError:
+        return True
+    else:
+        return False
+
+
+def if_qdrant_not_installed():
+    try:
+        import qdrant_client  # noqa: F401
+    except ImportError:
+        return True
+    else:
+        return False
+
+
 skip_when_haystack_not_installed = pytest.mark.skipif(
     if_haystack_not_installed(), reason="Haystack is not installed"
 )
@@ -109,4 +128,14 @@ skip_llama_cpp_not_installed = pytest.mark.skipif(
 
 skip_when_voyageai_not_installed = pytest.mark.skipif(
     if_voyageai_not_installed(), reason="voyageai is not installed"
+)
+
+skip_when_milvus_not_installed = pytest.mark.skipif(
+    if_milvus_not_installed(),
+    reason="Milvus (pymilvus/llama-index-vector-stores-milvus) is not installed",
+)
+
+skip_when_qdrant_not_installed = pytest.mark.skipif(
+    if_qdrant_not_installed(),
+    reason="Qdrant (qdrant-client/llama-index-vector-stores-qdrant) is not installed",
 )

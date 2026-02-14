@@ -12,6 +12,11 @@ from kotaemon.storages import (
     SimpleFileVectorStore,
 )
 
+from .conftest import (
+    skip_when_milvus_not_installed,
+    skip_when_qdrant_not_installed,
+)
+
 
 class TestChromaVectorStore:
     def test_add(self, tmp_path):
@@ -159,6 +164,7 @@ class TestSimpleFileVectorStore:
         os.remove(tmp_path / collection_name)
 
 
+@skip_when_milvus_not_installed
 class TestMilvusVectorStore:
     def test_add(self, tmp_path):
         """Test that the DB add correctly"""
@@ -253,6 +259,7 @@ class TestMilvusVectorStore:
         assert db2.count() == 0, "delete collection function does not work correctly"
 
 
+@skip_when_qdrant_not_installed
 class TestQdrantVectorStore:
     def test_add(self):
         from qdrant_client import QdrantClient
@@ -314,7 +321,13 @@ class TestQdrantVectorStore:
     def test_query(self, tmp_path):
         from qdrant_client import QdrantClient
 
-        db = QdrantVectorStore(collection_name="test", client=QdrantClient(":memory:"))
+        _client = QdrantClient(":memory:")
+        if not hasattr(_client, "search"):
+            pytest.skip(
+                "QdrantClient API incompatibility: 'search' not found "
+                "(llama-index-vector-stores-qdrant vs qdrant-client version)"
+            )
+        db = QdrantVectorStore(collection_name="test", client=_client)
 
         embeddings = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]]
         metadatas = [{"a": 1, "b": 2}, {"a": 3, "b": 4}, {"a": 5, "b": 6}]
