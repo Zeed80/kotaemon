@@ -13,7 +13,7 @@ from kotaemon.llms import (
 )
 from kotaemon.parsers import RegexExtractor
 
-_openai_chat_completion_response = ChatCompletion.parse_obj(
+_openai_chat_completion_response = ChatCompletion.model_validate(
     {
         "id": "chatcmpl-7qyuw6Q1CFCpcKsMdFkmUPUa7JP2x",
         "object": "chat.completion",

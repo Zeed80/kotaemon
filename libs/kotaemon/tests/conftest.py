@@ -61,11 +61,13 @@ def if_sentence_fastembed_not_installed():
 def if_unstructured_pdf_not_installed():
     try:
         import unstructured  # noqa: F401
+    except ImportError:
+        return True
+    try:
         from unstructured.partition.pdf import partition_pdf  # noqa: F401
     except ImportError:
         return True
-    else:
-        return False
+    return False
 
 
 def if_cohere_not_installed():
@@ -144,7 +146,7 @@ skip_when_cohere_not_installed = pytest.mark.skipif(
 )
 
 skip_openai_lc_wrapper_test = pytest.mark.skipif(
-    True,
+    False,
     reason="LangChain/LangGraph tests require API mocks compatible with openai>=2",
 )
 

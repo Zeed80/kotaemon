@@ -9,7 +9,7 @@ from llama_index.core.bridge.pydantic import Field
 from llama_index.core.schema import Document as BaseDocument
 
 if TYPE_CHECKING:
-    from haystack.schema import Document as HaystackDocument
+    from haystack.dataclasses import Document as HaystackDocument
     from openai.types.chat.chat_completion_message_param import (
         ChatCompletionMessageParam,
     )
@@ -74,7 +74,7 @@ class Document(BaseDocument):
 
     def to_haystack_format(self) -> HaystackDocument:
         """Convert struct to Haystack document format."""
-        from haystack.schema import Document as HaystackDocument
+        from haystack.dataclasses import Document as HaystackDocument
 
         metadata = self.metadata or {}
         text = self.text

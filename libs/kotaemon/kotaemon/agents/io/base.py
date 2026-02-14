@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Literal, NamedTuple
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, model_validator
 
 from kotaemon.base import LLMInterface
 
@@ -242,7 +242,8 @@ class AgentOutput(LLMInterface):
     """Output from an agent.
 
     Args:
-        text: The text output from the agent.
+        content: The text output (inherited from AIMessage). Use this; .text
+            is a read-only property that returns content.
         agent_type: The type of agent.
         status: The status after executing the agent.
         error: The error message if any.
@@ -250,7 +251,15 @@ class AgentOutput(LLMInterface):
 
     model_config = ConfigDict(extra="allow")
 
-    text: str
+    @model_validator(mode="before")
+    @classmethod
+    def _text_to_content(cls, data: Any) -> Any:
+        """Accept text= as alias for content (parent's text is read-only property)."""
+        if isinstance(data, dict) and "text" in data:
+            data = dict(data)
+            if data.get("content") in (None, ""):
+                data["content"] = data["text"]
+        return data
 
     def __bool__(self) -> bool:
         """False when status is 'failed', True otherwise."""

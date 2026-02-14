@@ -39,7 +39,6 @@ class BaseAgent(BaseComponent):
             except Exception as e:
                 return AgentOutput(
                     content="",
-                    text="",
                     agent_type=self.agent_type,
                     status="failed",
                     error=str(e),

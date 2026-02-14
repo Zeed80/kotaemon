@@ -322,10 +322,10 @@ class TestQdrantVectorStore:
         from qdrant_client import QdrantClient
 
         _client = QdrantClient(":memory:")
-        if not hasattr(_client, "search"):
+        if not hasattr(_client, "query_points"):
             pytest.skip(
-                "QdrantClient API incompatibility: 'search' not found "
-                "(llama-index-vector-stores-qdrant vs qdrant-client version)"
+                "QdrantClient API incompatibility: 'query_points' not found "
+                "(llama-index-vector-stores-qdrant>=0.9 requires qdrant-client>=1.16)"
             )
         db = QdrantVectorStore(collection_name="test", client=_client)
 

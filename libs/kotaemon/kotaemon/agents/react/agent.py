@@ -238,7 +238,6 @@ class ReactAgent(BaseAgent):
 
         return AgentOutput(
             content=response_text or "",
-            text=response_text or "",
             agent_type=self.agent_type,
             status=status,
             total_tokens=total_token,
@@ -312,7 +311,6 @@ class ReactAgent(BaseAgent):
                 status = "finished"
                 yield AgentOutput(
                     content=result,
-                    text=result,
                     agent_type=self.agent_type,
                     status=status,
                     intermediate_steps=self.intermediate_steps[-1],
@@ -321,7 +319,6 @@ class ReactAgent(BaseAgent):
             else:
                 yield AgentOutput(
                     content="",
-                    text="",
                     agent_type=self.agent_type,
                     status="thinking",
                     intermediate_steps=self.intermediate_steps[-1],
@@ -331,7 +328,6 @@ class ReactAgent(BaseAgent):
             status = "stopped"
             yield AgentOutput(
                 content="",
-                text="",
                 agent_type=self.agent_type,
                 status=status,
                 intermediate_steps=self.intermediate_steps[-1],
@@ -339,7 +335,6 @@ class ReactAgent(BaseAgent):
 
         return AgentOutput(
             content=response_text or "",
-            text=response_text or "",
             agent_type=self.agent_type,
             status=status,
             total_tokens=total_token,

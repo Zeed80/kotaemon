@@ -16,8 +16,8 @@ try:
     import os
 
     os.environ["HAYSTACK_TELEMETRY_ENABLED"] = "False"
-    import haystack.telemetry
+    import haystack.telemetry._telemetry as _ht
 
-    haystack.telemetry.telemetry = None
+    _ht.telemetry = None
 except ImportError:
     pass

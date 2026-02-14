@@ -21,7 +21,7 @@ def test_document_constructor_with_document():
 
 @skip_when_haystack_not_installed
 def test_document_to_haystack_format():
-    from haystack.schema import Document as HaystackDocument
+    from haystack.dataclasses import Document as HaystackDocument
 
     text = "Sample text"
     metadata = {"filename": "sample.txt"}

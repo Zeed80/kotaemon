@@ -32,7 +32,7 @@ REWOO_INVALID_PLAN = (
 
 
 def generate_chat_completion_obj(text):
-    return ChatCompletion.parse_obj(
+    return ChatCompletion.model_validate(
         {
             "id": "chatcmpl-7qyuw6Q1CFCpcKsMdFkmUPUa7JP2x",
             "object": "chat.completion",
@@ -55,6 +55,20 @@ def generate_chat_completion_obj(text):
             "usage": {"completion_tokens": 9, "prompt_tokens": 10, "total_tokens": 19},
         }
     )
+
+
+class _RawResponseLike:
+    """Mock for openai with_raw_response.create() return value — has .parse()."""
+
+    def __init__(self, completion: ChatCompletion):
+        self._completion = completion
+
+    def parse(self) -> ChatCompletion:
+        return self._completion
+
+
+def _wrap_for_langchain(completion: ChatCompletion) -> _RawResponseLike:
+    return _RawResponseLike(completion)
 
 
 _openai_chat_completion_responses_rewoo = [
@@ -179,7 +193,9 @@ def test_react_agent(openai_completion, llm, mock_google_search):
 @skip_openai_lc_wrapper_test
 @patch(
     "openai.resources.chat.completions.Completions.create",
-    side_effect=_openai_chat_completion_responses_react,
+    side_effect=[
+        _wrap_for_langchain(c) for c in _openai_chat_completion_responses_react
+    ],
 )
 def test_react_agent_langchain(openai_completion, mock_google_search):
     from langgraph.prebuilt import create_react_agent
@@ -211,7 +227,9 @@ def test_react_agent_langchain(openai_completion, mock_google_search):
 @skip_openai_lc_wrapper_test
 @patch(
     "openai.resources.chat.completions.Completions.create",
-    side_effect=_openai_chat_completion_responses_react,
+    side_effect=[
+        _wrap_for_langchain(c) for c in _openai_chat_completion_responses_react
+    ],
 )
 def test_wrapper_agent_langchain(openai_completion, mock_google_search):
     llm = LCAzureChatOpenAI(

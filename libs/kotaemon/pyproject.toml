@@ -1,4 +1,4 @@
-# build backand and build dependencies
+# build backend and build dependencies
 [build-system]
 requires = ["setuptools >= 61.0", "wheel", "setuptools-git-versioning>=2.0,<3"]
 build-backend = "setuptools.build_meta"
@@ -44,8 +44,8 @@ dependencies = [
     "chromadb>=0.5.0",
     "llama-index-vector-stores-chroma>=0.4.0",
     "llama-index-vector-stores-lancedb>=0.3.0",
-    "llama-index-vector-stores-qdrant>=0.3.0",
-    "qdrant-client>=1.7.0",
+    "llama-index-vector-stores-qdrant>=0.9.0",
+    "qdrant-client>=1.16.0",
     "fastembed>=0.3.0",
     "openai>=2.0.0,<3",
     "matplotlib>=3.8.0",
@@ -104,7 +104,16 @@ dev = [
     "ruff>=0.8.0",
     "sphinx>=7.0.0",
 ]
-all = ["kotaemon[adv,dev]"]
+test = [
+    "ddgs>=9.0.0",
+    "duckduckgo-search>=6.1.0,<7",
+    "haystack-ai>=2.0.0,<3",
+    "llama-index-vector-stores-milvus",
+    "pdfminer.six",
+    "sentence-transformers>=2.2.0",
+    "unstructured[pdf]>=0.15.8,<0.19",
+]
+all = ["kotaemon[adv,dev,test]"]
 
 [project.scripts]
 kotaemon = "kotaemon.cli:main"

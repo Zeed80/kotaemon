@@ -83,7 +83,6 @@ class LangchainAgent(BaseAgent):
 
         return AgentOutput(
             content=output,
-            text=output,
             agent_type=self.agent_type,
             status="finished",
         )

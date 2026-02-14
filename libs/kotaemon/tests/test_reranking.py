@@ -8,7 +8,7 @@ from kotaemon.indices.rankings import LLMReranking
 from kotaemon.llms import AzureChatOpenAI
 
 _openai_chat_completion_responses = [
-    ChatCompletion.parse_obj(
+    ChatCompletion.model_validate(
         {
             "id": "chatcmpl-7qyuw6Q1CFCpcKsMdFkmUPUa7JP2x",
             "object": "chat.completion",

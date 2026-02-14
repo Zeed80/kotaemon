@@ -15,7 +15,7 @@ from openai.types.chat.chat_completion import ChatCompletion
 
 from .conftest import skip_llama_cpp_not_installed
 
-_openai_chat_completion_response = ChatCompletion.parse_obj(
+_openai_chat_completion_response = ChatCompletion.model_validate(
     {
         "id": "chatcmpl-7qyuw6Q1CFCpcKsMdFkmUPUa7JP2x",
         "object": "chat.completion",

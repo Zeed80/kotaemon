@@ -6,7 +6,7 @@ from kotaemon.llms import AzureChatOpenAI
 from kotaemon.llms.cot import ManualSequentialChainOfThought, Thought
 
 _openai_chat_completion_response = [
-    ChatCompletion.parse_obj(
+    ChatCompletion.model_validate(
         {
             "id": "chatcmpl-7qyuw6Q1CFCpcKsMdFkmUPUa7JP2x",
             "object": "chat.completion",

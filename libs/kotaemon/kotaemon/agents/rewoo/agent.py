@@ -301,7 +301,6 @@ class RewooAgent(BaseAgent):
 
         return AgentOutput(
             content=solver_output_text,
-            text=solver_output_text,
             agent_type=self.agent_type,
             status="finished",
             total_tokens=total_token,
@@ -330,7 +329,6 @@ class RewooAgent(BaseAgent):
         # output planner to info panel
         yield AgentOutput(
             content="",
-            text="",
             agent_type=self.agent_type,
             status="thinking",
             intermediate_steps=[{"planner_log": planner_text_output}],
@@ -352,7 +350,6 @@ class RewooAgent(BaseAgent):
 
             yield AgentOutput(
                 content="",
-                text="",
                 agent_type=self.agent_type,
                 status="thinking",
                 intermediate_steps=[{"worker_log": current_progress}],
@@ -365,7 +362,6 @@ class RewooAgent(BaseAgent):
             solver_response += solver_output_text
             yield AgentOutput(
                 content=solver_output_text,
-                text=solver_output_text,
                 agent_type=self.agent_type,
                 status="thinking",
             )
@@ -379,7 +375,6 @@ class RewooAgent(BaseAgent):
 
         return AgentOutput(
             content="",
-            text="",
             agent_type=self.agent_type,
             status="finished",
             total_tokens=total_token,
