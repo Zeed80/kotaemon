@@ -160,7 +160,7 @@ chmod +x install.sh
    ```bash
    cp .env.example .env
    # отредактируйте .env (API-ключи, при необходимости KOTAEMON_PORT, TORCH_DEVICE)
-   docker compose build --ssh default
+   docker compose build
    docker compose up -d
    ```
 
@@ -169,6 +169,7 @@ chmod +x install.sh
    ```bash
    ./scripts/docker-update.sh           # git pull + restart
    ./scripts/docker-update.sh --force   # полная пересборка (при изменении Dockerfile/deps)
+   ./scripts/docker-update.sh --force --ssh  # пересборка с SSH (для приватных Git-репо)
    ```
 
    **Qdrant** поднимается вместе с приложением (`docker compose up`). Внутри сети используется `QDRANT_URL=http://qdrant:6333`. Порт настраивается в `.env`: **`KOTAEMON_PORT`** (по умолчанию 7860). **GPU** включён по умолчанию (требуется NVIDIA Container Toolkit). Для CPU-only: `docker compose -f docker-compose.yml -f docker-compose.cpu.yml up -d`. Для отдельного контейнера Ollama: `docker compose --profile ollama up -d`.

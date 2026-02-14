@@ -3,7 +3,7 @@
 # Использование:
 #   1. Скопировать .env.example в .env и задать ключи API.
 #   2. Сборка и запуск:
-#      docker compose build --ssh default
+#      docker compose build
 #      docker compose up -d
 #   3. После запуска: http://localhost:7860
 #

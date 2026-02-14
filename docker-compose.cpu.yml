@@ -1,6 +1,6 @@
 # CPU-only вариант: отключает GPU.
 # Использование: docker compose -f docker-compose.yml -f docker-compose.cpu.yml up -d
-# Сборка: TORCH_DEVICE=cpu docker compose -f docker-compose.yml -f docker-compose.cpu.yml build --ssh default
+# Сборка: TORCH_DEVICE=cpu docker compose -f docker-compose.yml -f docker-compose.cpu.yml build
 
 services:
   app:

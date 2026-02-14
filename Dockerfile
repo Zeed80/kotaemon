@@ -51,8 +51,7 @@ COPY .env.example /app/.env
 # Используем --no-cache-dir чтобы избежать Bad CRC-32 из повреждённого кэша (nvidia/torch wheels)
 # Очищаем кэш pip перед установкой для предотвращения ошибок с поврежденными wheel файлами
 # Если ошибка Bad CRC-32 повторяется, очистите кэш Docker BuildKit: docker builder prune -af
-RUN --mount=type=ssh  \
-    --mount=type=cache,target=/root/.cache/pip,sharing=locked  \
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     rm -rf /root/.cache/pip/wheels/* || true \
     && pip cache purge || true \
     && pip install --no-cache-dir -e "libs/kotaemon[adv]" \
@@ -63,15 +62,13 @@ RUN --mount=type=ssh  \
     && pip install --no-cache-dir "pyparsing<3.0.0"
 
 # Install GraphRAG (MS GraphRAG) for amd64
-RUN --mount=type=ssh  \
-    --mount=type=cache,target=/root/.cache/pip  \
+RUN --mount=type=cache,target=/root/.cache/pip \
     if [ "$TARGETARCH" = "amd64" ]; then pip install "graphrag<=0.3.6" future; fi
 
 # Install torch and torchvision for Unstructured/Docling
 # TORCH_DEVICE: cpu (default) | cu121 | cu124
 # Очищаем кэш перед установкой torch для избежания проблем с поврежденными wheel файлами
-RUN --mount=type=ssh  \
-    --mount=type=cache,target=/root/.cache/pip,sharing=locked  \
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     rm -rf /root/.cache/pip/wheels/*nvidia* || true \
     && rm -rf /root/.cache/pip/wheels/*torch* || true \
     && pip cache purge || true \
@@ -84,25 +81,21 @@ RUN --mount=type=ssh  \
     fi
 
 # Install Unstructured
-RUN --mount=type=ssh  \
-    --mount=type=cache,target=/root/.cache/pip  \
+RUN --mount=type=cache,target=/root/.cache/pip \
     pip install unstructured[all-docs]
 
 # Install LightRAG
-RUN --mount=type=ssh  \
-    --mount=type=cache,target=/root/.cache/pip  \
+RUN --mount=type=cache,target=/root/.cache/pip \
     pip install aioboto3 nano-vectordb ollama xxhash "lightrag-hku<=1.3.0"
 
 # Install Docling
-RUN --mount=type=ssh  \
-    --mount=type=cache,target=/root/.cache/pip  \
+RUN --mount=type=cache,target=/root/.cache/pip \
     pip install "docling<=2.5.2"
 
 # Install Nano GraphRAG
 # Resolve hnswlib/chroma-hnswlib conflict: nano-graphrag can pull hnswlib; chromadb uses chroma-hnswlib.
 # See https://github.com/Zeed80/kotaemon/issues/440 — reinstall chroma-hnswlib so chromadb works.
-RUN --mount=type=ssh  \
-    --mount=type=cache,target=/root/.cache/pip  \
+RUN --mount=type=cache,target=/root/.cache/pip \
     pip install nano-graphrag \
     && (pip uninstall -y hnswlib chroma-hnswlib 2>/dev/null; pip install chroma-hnswlib) || true
 

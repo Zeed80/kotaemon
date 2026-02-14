@@ -22,6 +22,7 @@ MODE_DOCKER="docker"
 INSTALL_MODE="${MODE_LOCAL}"
 SKIP_PDFJS=false
 SKIP_LAUNCH=false
+DOCKER_USE_SSH=false
 
 # --- Подсветка вывода ---
 print_step() {
@@ -59,6 +60,7 @@ Kotaemon — установка и развёртывание
             образ собирается и запускается в фоне, данные в volume.
 
 Опции:
+  --ssh     (только с --docker) Передавать SSH-агент в сборку (для приватных Git-репо).
   --no-pdfjs   Не загружать PDF.js (локальная установка). Просмотр PDF в браузере будет недоступен.
   --no-launch  Не запускать приложение после установки (локальная установка).
   --help       Показать эту справку.
@@ -67,6 +69,7 @@ Kotaemon — установка и развёртывание
   $0                    # Локально: venv + зависимости + .env + PDF.js + запуск
   $0 --no-launch        # Только установка, без запуска
   $0 --docker           # Docker Compose: сборка и запуск контейнера
+  $0 --docker --ssh     # Сборка с SSH (для приватных Git-репо)
   $0 --docker --no-launch   # Только сборка образа (запуск: docker compose up -d)
 
 После установки:
@@ -86,6 +89,10 @@ parse_args() {
         case "$1" in
         --docker)
             INSTALL_MODE="${MODE_DOCKER}"
+            shift
+            ;;
+        --ssh)
+            DOCKER_USE_SSH=true
             shift
             ;;
         --local)
@@ -300,7 +307,11 @@ run_docker_install() {
     fi
 
     print_step "Сборка и запуск контейнера (Docker Compose)"
-    docker compose build --ssh default
+    if [[ "${DOCKER_USE_SSH}" == "true" ]]; then
+        docker compose build --ssh default
+    else
+        docker compose build
+    fi
     docker compose up -d
     print_ok "Контейнер запущен."
     echo ""

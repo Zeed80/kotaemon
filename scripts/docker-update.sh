@@ -7,6 +7,7 @@
 # Использование:
 #   ./scripts/docker-update.sh           # git pull + restart (быстро)
 #   ./scripts/docker-update.sh --force   # git pull + полная пересборка образа
+#   ./scripts/docker-update.sh --force --ssh   # пересборка с SSH (для приватных Git-репо)
 #   ./scripts/docker-update.sh --no-pull # только restart (без git pull)
 
 set -euo pipefail
@@ -16,6 +17,7 @@ cd "${REPO_ROOT}"
 
 FORCE_REBUILD=false
 NO_PULL=false
+USE_SSH=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -23,14 +25,19 @@ while [[ $# -gt 0 ]]; do
         FORCE_REBUILD=true
         shift
         ;;
+    --ssh)
+        USE_SSH=true
+        shift
+        ;;
     --no-pull)
         NO_PULL=true
         shift
         ;;
     --help|-h)
-        echo "Использование: $0 [--force|--no-pull]"
+        echo "Использование: $0 [--force|--ssh|--no-pull]"
         echo ""
         echo "  --force, -f   Выполнить полную пересборку образа (при изменении Dockerfile/deps)"
+        echo "  --ssh         Передавать SSH-агент в сборку (для приватных Git-репо)"
         echo "  --no-pull     Не выполнять git pull"
         echo ""
         exit 0
@@ -53,7 +60,11 @@ fi
 if [[ "${FORCE_REBUILD}" == "true" ]]; then
     echo ""
     echo "Пересборка образа..."
-    docker compose build --ssh default
+    if [[ "${USE_SSH}" == "true" ]]; then
+        docker compose build --ssh default
+    else
+        docker compose build
+    fi
     echo ""
     echo "Перезапуск контейнеров..."
     docker compose up -d
