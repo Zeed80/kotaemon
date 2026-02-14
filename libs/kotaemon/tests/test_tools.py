@@ -30,38 +30,38 @@ def test_wikipedia_tool():
     assert output
 
 
-@patch(
-    "openai.resources.embeddings.Embeddings.create",
-    side_effect=lambda *args, **kwargs: openai_embedding,
-)
 def test_pipeline_tool(tmp_path):
-    db = ChromaVectorStore(path=str(tmp_path))
-    doc_store = InMemoryDocumentStore()
-    embedding = AzureOpenAIEmbeddings(
-        azure_deployment="embedding-deployment",
-        azure_endpoint="https://test.openai.azure.com/",
-        api_key="some-key",
-        api_version="version",
-    )
+    with patch(
+        "openai.resources.embeddings.Embeddings.create",
+        side_effect=lambda *args, **kwargs: openai_embedding,
+    ):
+        db = ChromaVectorStore(path=str(tmp_path))
+        doc_store = InMemoryDocumentStore()
+        embedding = AzureOpenAIEmbeddings(
+            azure_deployment="embedding-deployment",
+            azure_endpoint="https://test.openai.azure.com/",
+            api_key="some-key",
+            api_version="version",
+        )
 
-    index_pipeline = VectorIndexing(
-        vector_store=db, embedding=embedding, doc_store=doc_store
-    )
-    retrieval_pipeline = VectorRetrieval(
-        vector_store=db, doc_store=doc_store, embedding=embedding
-    )
+        index_pipeline = VectorIndexing(
+            vector_store=db, embedding=embedding, doc_store=doc_store
+        )
+        retrieval_pipeline = VectorRetrieval(
+            vector_store=db, doc_store=doc_store, embedding=embedding
+        )
 
-    index_tool = ComponentTool(
-        name="index_document",
-        description="A tool to use to index a document to be searched later",
-        component=index_pipeline,
-    )
-    output = index_tool({"text": Document(text="Cinnamon AI")})
+        index_tool = ComponentTool(
+            name="index_document",
+            description="A tool to use to index a document to be searched later",
+            component=index_pipeline,
+        )
+        output = index_tool({"text": Document(text="Cinnamon AI")})
 
-    retrieval_tool = ComponentTool(
-        name="search_document",
-        description="A tool to use to search a document in a vectorstore",
-        component=retrieval_pipeline,
-    )
-    output = retrieval_tool("Cinnamon AI")
-    assert output
+        retrieval_tool = ComponentTool(
+            name="search_document",
+            description="A tool to use to search a document in a vectorstore",
+            component=retrieval_pipeline,
+        )
+        output = retrieval_tool("Cinnamon AI")
+        assert output

@@ -7,7 +7,6 @@ import threading
 import time
 import warnings
 from collections import defaultdict
-from copy import deepcopy
 from functools import lru_cache
 from hashlib import sha256
 from pathlib import Path
@@ -726,7 +725,7 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
     def readers(self):
         from theflow.settings import settings as flowsettings
 
-        readers = deepcopy(KH_DEFAULT_FILE_EXTRACTORS)
+        readers = dict(KH_DEFAULT_FILE_EXTRACTORS)
 
         if self.document_recognition_mode == "vlm":
             try:

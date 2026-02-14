@@ -1,15 +1,5 @@
-import os
-import sys
-from pathlib import Path
-
-# ktem modules rely on theflow settings from root-level flowsettings.py.
-# Ensure tests can resolve it when running from libs/ktem.
-repo_root = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(repo_root))
-os.environ.setdefault("THEFLOW_SETTINGS_MODULE", "flowsettings")
-
-from ktem.index.file import FileIndex  # noqa: E402
-from ktem.index.file.pipelines import IndexDocumentPipeline  # noqa: E402
+from ktem.index.file import FileIndex
+from ktem.index.file.pipelines import IndexDocumentPipeline
 
 
 def test_file_index_importable_from_public_api():
