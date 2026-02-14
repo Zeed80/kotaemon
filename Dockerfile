@@ -26,7 +26,6 @@ RUN apt-get update -qqy && \
         libpoppler-dev \
         unzip \
         curl \
-        cargo \
         libsm6 \
         libxext6 \
         libreoffice \
