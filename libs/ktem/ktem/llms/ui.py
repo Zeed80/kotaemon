@@ -369,28 +369,25 @@ class LLMManagement(BasePage):
         """Сбросить форму Add LLM после успешного добавления. Ровно 19 значений.
         _prev — вывод предыдущего handler (list_llms), игнорируется."""
         return (
-            "",
-            gr.update(
-                value=None
-            ),  # llm_choices — gr.update, чтобы избежать "value not in choices"
-            "",
-            False,
-            self.spec_desc_default,
-            gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(visible=False),
+            "",  # name
+            gr.update(value=None),  # llm_choices
+            "",  # spec
+            False,  # default
+            self.spec_desc_default,  # spec_desc
+            gr.update(visible=False),  # api_guided_section
+            gr.update(visible=False),  # azure_section
+            gr.update(visible=False),  # ollama_section
             gr.update(value=None),  # api_model_dropdown
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "2024-02-15-preview",
+            "",  # api_base_url
+            "",  # api_key_input
+            "",  # azure_endpoint
+            "",  # azure_deployment
+            "",  # azure_api_key
+            "2024-02-15-preview",  # azure_api_version (Textbox)
             gr.update(value=None),  # ollama_server_dropdown
-            8192,
+            8192,  # ollama_num_ctx
             gr.update(value=None),  # ollama_model_dropdown
-            "",
+            "",  # ollama_model_input
         )
 
     def on_register_events(self):
@@ -467,6 +464,7 @@ class LLMManagement(BasePage):
             outputs=[],
         ).success(self.list_llms, inputs=[], outputs=[self.llm_list]).success(
             self._reset_add_llm_form,
+            inputs=[],
             outputs=[
                 self.name,
                 self.llm_choices,

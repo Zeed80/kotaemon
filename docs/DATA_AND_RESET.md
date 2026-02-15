@@ -54,6 +54,27 @@ Qdrant используется по умолчанию для хранения 
 - Убедитесь, что Qdrant доступен: `curl http://localhost:6333/` (при URL-режиме)
 - При ошибках индексации проверьте логи и настройки в General
 
+---
+
+## Настройка Ollama (LLM, embeddings, reranker)
+
+При запуске в Docker контейнер приложения обращается к `localhost` внутри себя — до Ollama на хосте так не достучаться.
+
+### Docker Compose
+
+1. **Ollama как сервис Compose** (`docker compose --profile ollama up -d`):
+
+   - В `.env` укажите: `KH_OLLAMA_URL=http://ollama:11434/v1/`
+   - Либо в **Settings → General** задайте **Ollama API URL** = `http://ollama:11434/v1/`
+
+2. **Ollama на хосте** (вне Docker):
+   - Mac/Windows: `KH_OLLAMA_URL=http://host.docker.internal:11434/v1/`
+   - Linux: `KH_OLLAMA_URL=http://172.17.0.1:11434/v1/` или IP хоста в сети
+
+### Локальный запуск
+
+- По умолчанию: `http://localhost:11434/v1/`
+
 ### 3. Прочее (вне проекта)
 
 - `~/.cache/huggingface/` — если HF_HOME не переопределён
