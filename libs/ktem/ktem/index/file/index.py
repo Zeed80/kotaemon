@@ -472,6 +472,9 @@ class FileIndex(BaseIndex):
         # transform selected id
         selected_ids: list[str] | None = self._selector_ui.get_selected_ids(selected)
 
+        from ktem.embeddings.manager import embedding_models_manager
+        from ktem.index.file.embedding_dimension import resolve_embedding_for_collection
+
         retrievers = []
         for cls in self._retriever_pipeline_cls:
             obj = cls.get_pipeline(stripped_settings, self.config, selected_ids)
@@ -483,6 +486,15 @@ class FileIndex(BaseIndex):
             obj.DS = self._docstore
             obj.FSPath = self._fs_path
             obj.user_id = user_id
+            if hasattr(obj, "embedding") and obj.embedding is not None:
+                emb_name = (
+                    stripped_settings.get("embedding")
+                    or self.config.get("embedding")
+                    or embedding_models_manager.get_default_name()
+                )
+                obj.embedding, _ = resolve_embedding_for_collection(
+                    obj.embedding, emb_name, obj.VS, embedding_models_manager
+                )
             retrievers.append(obj)
 
         return retrievers
