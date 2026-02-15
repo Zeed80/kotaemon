@@ -98,6 +98,46 @@ def write_env_updates(updates: dict[str, str | int | float | bool]) -> bool:
         return False
 
 
+def persist_ollama_url(url: str) -> bool:
+    """Записать Ollama URL в .env и application_settings.json.
+
+    Вызывается при добавлении/обнаружении серверов Ollama, чтобы значение
+    KH_OLLAMA_URL и application.kh_ollama_url сохранялось для следующего запуска.
+    """
+    url = (url or "").strip().rstrip("/")
+    if not url:
+        return False
+    # Привести к формату .../v1/
+    if "/v1" not in url:
+        url = f"{url}/v1/"
+    elif not url.endswith("/"):
+        url = f"{url}/"
+    ok = write_env_updates({"KH_OLLAMA_URL": url})
+    if not ok:
+        return False
+    try:
+        from theflow.settings import settings as flowsettings
+
+        app_data_dir = getattr(flowsettings, "KH_APP_DATA_DIR", None)
+        if app_data_dir:
+            import json
+
+            path = app_data_dir / "application_settings.json"
+            data: dict = {}
+            if path.exists():
+                try:
+                    data = json.loads(path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError):
+                    pass
+            data["kh_ollama_url"] = url
+            path.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+    except Exception:
+        pass
+    return True
+
+
 # Маппинг: ключ в application_settings (без префикса) -> переменная .env
 APPLICATION_TO_ENV: dict[str, str] = {
     "kh_ollama_url": "KH_OLLAMA_URL",

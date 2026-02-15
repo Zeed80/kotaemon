@@ -5,9 +5,45 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ktem.utils.env_file import persist_ollama_url
 from ktem.utils.ollama import check_ollama_available
 
 from .db import OllamaServerTable, engine
+
+
+def _persist_primary_ollama_url(manager: "OllamaServerManager", url: str) -> None:
+    """Записать URL основного сервера Ollama в .env, application_settings и spec реранкера."""
+    try:
+        persist_ollama_url(url)
+        _sync_ollama_reranker_base_url(url)
+    except Exception:
+        pass
+
+
+def _sync_ollama_reranker_base_url(url: str) -> None:
+    """Обновить base_url реранкера Ollama в БД."""
+    try:
+        from sqlmodel import Session, select
+
+        from ktem.db.engine import engine
+        from ktem.rerankings.db import RerankingTable
+        from ktem.rerankings.manager import reranking_models_manager
+
+        with Session(engine) as session:
+            result = session.exec(
+                select(RerankingTable).where(RerankingTable.name == "ollama")
+            )
+            row = result.first()
+            if row:
+                item = row[0] if isinstance(row, (tuple, list)) else row
+                spec = dict(item.spec or {})
+                spec["base_url"] = url
+                item.spec = spec
+                session.add(item)
+                session.commit()
+        reranking_models_manager.load()
+    except Exception:
+        pass
 
 
 class OllamaServerManager:
@@ -59,6 +95,9 @@ class OllamaServerManager:
         except IntegrityError:
             raise ValueError(f"Сервер с именем «{name}» уже существует")
         self.load()
+        # При добавлении первого сервера — записать URL в .env
+        if len(self._servers) == 1 or name in ("local", "default"):
+            _persist_primary_ollama_url(self, base_url)
 
     def update(self, name: str, base_url: str, num_ctx: int) -> None:
         """Обновить сервер."""
@@ -72,6 +111,10 @@ class OllamaServerManager:
                 session.add(item)
                 session.commit()
         self.load()
+        # При обновлении — сохранить в .env, если единственный или "local"
+        servers = list(self._servers.values())
+        if len(servers) == 1 or name in ("local", "default"):
+            _persist_primary_ollama_url(self, base_url.strip())
 
     def delete(self, name: str) -> None:
         """Удалить сервер."""

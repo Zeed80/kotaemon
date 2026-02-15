@@ -349,6 +349,26 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             or reranking_models_manager.get_default_name()
         )
 
+        # Fallback: если выбран Cohere без API-ключа, использовать Ollama reranker
+        selected_reranker = reranking_models_manager.get(reranking_name)
+        if selected_reranker is not None:
+            from flowsettings_config import config
+            from kotaemon.rerankings import CohereReranking, OllamaReranking
+
+            if isinstance(selected_reranker, CohereReranking):
+                cohere_key = config("COHERE_API_KEY", default="") or ""
+                if not cohere_key.strip() or "COHERE_API_KEY" in str(
+                    getattr(selected_reranker, "cohere_api_key", "")
+                ):
+                    for name, model in reranking_models_manager.options().items():
+                        if isinstance(model, OllamaReranking):
+                            reranking_name = name
+                            logger.info(
+                                "Cohere API key missing, using Ollama reranker %r instead.",
+                                name,
+                            )
+                            break
+
         retriever = cls(
             get_extra_table=user_settings["prioritize_table"],
             top_k=user_settings["num_retrieval"],
