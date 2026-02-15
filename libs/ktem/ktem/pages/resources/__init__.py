@@ -4,6 +4,7 @@ from sqlmodel import Session, select
 from ktem.app import BasePage
 from ktem.db.models import User, engine
 from ktem.embeddings.ui import EmbeddingManagement
+from ktem.i18n import get_text
 from ktem.index.ui import IndexManagement
 from ktem.llms.ui import LLMManagement
 from ktem.pages.resources.vlms import VLMsManagement
@@ -18,24 +19,55 @@ class ResourcesTab(BasePage):
         self.on_building_ui()
 
     def on_building_ui(self):
-        with gr.Tab("Index Collections") as self.index_management_tab:
+        with gr.Tab(
+            get_text("en", "tab.index_collections")
+        ) as self.index_management_tab:
             self.index_management = IndexManagement(self._app)
 
-        with gr.Tab("LLMs") as self.llm_management_tab:
+        with gr.Tab(get_text("en", "tab.llms")) as self.llm_management_tab:
             self.llm_management = LLMManagement(self._app)
 
-        with gr.Tab("VLMs") as self.vlms_tab:
+        with gr.Tab(get_text("en", "tab.vlms")) as self.vlms_tab:
             self.vlms_management = VLMsManagement(self._app)
 
-        with gr.Tab("Embeddings") as self.emb_management_tab:
+        with gr.Tab(get_text("en", "tab.embeddings")) as self.emb_management_tab:
             self.emb_management = EmbeddingManagement(self._app)
 
-        with gr.Tab("Rerankings") as self.rerank_management_tab:
+        with gr.Tab(get_text("en", "tab.rerankings")) as self.rerank_management_tab:
             self.rerank_management = RerankingManagement(self._app)
 
         if self._app.f_user_management:
-            with gr.Tab("Users", visible=False) as self.user_management_tab:
+            with gr.Tab(
+                get_text("en", "tab.users"), visible=False
+            ) as self.user_management_tab:
                 self.user_management = UserManagement(self._app)
+
+    def on_register_events(self):
+        if hasattr(self._app, "lang_dropdown") and self._app.lang_dropdown is not None:
+            outputs = [
+                self.index_management_tab,
+                self.llm_management_tab,
+                self.vlms_tab,
+                self.emb_management_tab,
+                self.rerank_management_tab,
+            ]
+            keys = [
+                "tab.index_collections",
+                "tab.llms",
+                "tab.vlms",
+                "tab.embeddings",
+                "tab.rerankings",
+            ]
+            if self._app.f_user_management:
+                outputs.append(self.user_management_tab)
+                keys.append("tab.users")
+
+            self._app.lang_dropdown.change(
+                fn=lambda lang: [gr.update(label=get_text(lang, k)) for k in keys],
+                inputs=[self._app.lang_dropdown],
+                outputs=outputs,
+                show_progress="hidden",
+            )
 
     def on_subscribe_public_events(self):
         if self._app.f_user_management:

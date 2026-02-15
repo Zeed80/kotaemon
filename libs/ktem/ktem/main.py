@@ -8,6 +8,7 @@ from theflow.settings import settings as flowsettings
 
 from flowsettings_config import config
 from ktem.app import BaseApp
+from ktem.i18n import get_text
 from ktem.pages.chat import ChatPage
 from ktem.pages.help import HelpPage
 from ktem.pages.resources import ResourcesTab
@@ -49,17 +50,20 @@ class App(BaseApp):
         """Render the UI"""
         self._tabs = {}
 
+        def t(key):
+            return get_text("en", key)
+
         with gr.Tabs() as self.tabs:
             if self.f_user_management:
                 from ktem.pages.login import LoginPage
 
                 with gr.Tab(
-                    "Welcome", elem_id="login-tab", id="login-tab"
+                    t("tab.welcome"), elem_id="login-tab", id="login-tab"
                 ) as self._tabs["login-tab"]:
                     self.login_page = LoginPage(self)
 
             with gr.Tab(
-                "Chat",
+                t("tab.chat"),
                 elem_id="chat-tab",
                 id="chat-tab",
                 visible=not self.f_user_management,
@@ -83,7 +87,7 @@ class App(BaseApp):
                         setattr(self, f"_index_{index.id}", page)
             elif len(self.index_manager.indices) > 1:
                 with gr.Tab(
-                    "Files",
+                    t("tab.files"),
                     elem_id="indices-tab",
                     elem_classes=["fill-main-area-height", "scrollable", "indices-tab"],
                     id="indices-tab",
@@ -100,7 +104,7 @@ class App(BaseApp):
             if not KH_DEMO_MODE:
                 if not KH_SSO_ENABLED:
                     with gr.Tab(
-                        "Resources",
+                        t("tab.resources"),
                         elem_id="resources-tab",
                         id="resources-tab",
                         visible=not self.f_user_management,
@@ -109,7 +113,7 @@ class App(BaseApp):
                         self.resources_page = ResourcesTab(self)
 
                 with gr.Tab(
-                    "Settings",
+                    t("tab.settings"),
                     elem_id="settings-tab",
                     id="settings-tab",
                     visible=not self.f_user_management,
@@ -118,7 +122,7 @@ class App(BaseApp):
                     self.settings_page = SettingsPage(self)
 
             with gr.Tab(
-                "Help",
+                t("tab.help"),
                 elem_id="help-tab",
                 id="help-tab",
                 visible=not self.f_user_management,
@@ -204,6 +208,55 @@ class App(BaseApp):
                     "outputs": [self.setup_page_wrapper, self.tabs],
                     "show_progress": "hidden",
                 },
+            )
+
+    def on_register_events(self):
+        super().on_register_events()
+
+        outputs = []
+        keys = []
+        if "login-tab" in self._tabs:
+            outputs.append(self._tabs["login-tab"])
+            keys.append("tab.welcome")
+        outputs.append(self._tabs["chat-tab"])
+        keys.append("tab.chat")
+        if "indices-tab" in self._tabs:
+            outputs.append(self._tabs["indices-tab"])
+            keys.append("tab.files")
+        if "resources-tab" in self._tabs:
+            outputs.append(self._tabs["resources-tab"])
+            keys.append("tab.resources")
+        outputs.append(self._tabs["settings-tab"])
+        keys.append("tab.settings")
+        outputs.append(self._tabs["help-tab"])
+        keys.append("tab.help")
+        outputs.append(self.version_html)
+
+        if (
+            outputs
+            and hasattr(self, "lang_dropdown")
+            and self.lang_dropdown is not None
+        ):
+
+            def on_lang_change(lang):
+                tab_updates = [gr.update(label=get_text(lang, k)) for k in keys]
+                version_update = gr.update(
+                    value=f'<p id="version-display" class="version-text">'
+                    f'{get_text(lang, "version")}: {self.app_version}</p>'
+                )
+                return tab_updates + [version_update]
+
+            self.lang_dropdown.change(
+                fn=on_lang_change,
+                inputs=[self.lang_dropdown],
+                outputs=outputs,
+                show_progress="hidden",
+            )
+            self.lang_dropdown.change(
+                fn=None,
+                inputs=[self.lang_dropdown],
+                outputs=[],
+                js="(lang) => { if (window.applyUiLang) window.applyUiLang(lang); }",
             )
 
     def _on_app_created(self):

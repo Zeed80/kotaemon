@@ -12,11 +12,6 @@ function run() {
     main_parent.parentNode.parentNode.style = "padding: 0";
   }
 
-  const version_node = document.createElement("p");
-  version_node.innerHTML = "version: KH_APP_VERSION";
-  version_node.style = "position: fixed; top: 10px; right: 10px;";
-  main_parent.appendChild(version_node);
-
   // add favicon
   const favicon = document.createElement("link");
   favicon.rel = "icon";
@@ -24,26 +19,36 @@ function run() {
   favicon.href = "/favicon.ico";
   document.head.appendChild(favicon);
 
-  // setup conversation dropdown placeholder
-  let conv_dropdown = document.querySelector("#conversation-dropdown input");
-  if (conv_dropdown) conv_dropdown.placeholder = "Browse conversation";
+  // i18n helper: get translation for key, fallback to en then key
+  const t = (lang, key) =>
+    window.KH_I18N?.[lang]?.[key] || window.KH_I18N?.en?.[key] || key;
 
-  // accessibility: aria-label for icon-only buttons
-  const iconButtonLabels = {
-    "toggle-dark-button": "Toggle dark mode",
-    "chat-expand-button": "Toggle chat column",
-    "info-expand-button": "Toggle info panel",
-    "conversation-rename-button": "Rename conversation",
-    "conversation-delete-button": "Delete conversation",
-    "new-conv-button": "New chat",
+  const ariaKeyMap = {
+    "toggle-dark-button": "aria.toggle_dark",
+    "chat-expand-button": "aria.toggle_chat",
+    "info-expand-button": "aria.toggle_info",
+    "conversation-rename-button": "aria.rename_conv",
+    "conversation-delete-button": "aria.delete_conv",
+    "new-conv-button": "aria.new_chat",
   };
-  for (const [id, label] of Object.entries(iconButtonLabels)) {
-    let el = document.getElementById(id);
-    if (el) {
-      let btn = el.tagName === "BUTTON" ? el : el.querySelector("button");
-      if (btn) btn.setAttribute("aria-label", label);
+
+  const applyUiLang = (lang) => {
+    const L = lang || "en";
+    let conv_dropdown = document.querySelector("#conversation-dropdown input");
+    if (conv_dropdown)
+      conv_dropdown.placeholder = t(L, "chat.browse_conversation");
+    for (const [id, key] of Object.entries(ariaKeyMap)) {
+      const el = document.getElementById(id);
+      if (el) {
+        const btn = el.tagName === "BUTTON" ? el : el.querySelector("button");
+        if (btn) btn.setAttribute("aria-label", t(L, key));
+      }
     }
-  }
+  };
+
+  applyUiLang("en");
+
+  globalThis.applyUiLang = applyUiLang;
 
   // move info-expand-button
   let info_expand_button = document.getElementById("info-expand-button");

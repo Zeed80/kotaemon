@@ -1,0 +1,46 @@
+{
+  "tab.chat": "聊天",
+  "tab.files": "文件",
+  "tab.resources": "资源",
+  "tab.settings": "设置",
+  "tab.help": "帮助",
+  "tab.welcome": "欢迎",
+  "tab.index_collections": "索引集合",
+  "tab.llms": "语言模型",
+  "tab.vlms": "视觉模型",
+  "tab.embeddings": "嵌入",
+  "tab.rerankings": "重排序",
+  "tab.users": "用户",
+  "tab.ollama_servers": "Ollama 服务器",
+  "tab.reasoning_settings": "推理设置",
+  "tab.retrieval_settings": "检索设置",
+  "tab.application": "应用",
+
+  "chat.settings": "聊天设置",
+  "chat.reasoning_method": "推理方法",
+  "chat.model": "模型",
+  "chat.language": "语言",
+  "chat.information_panel": "信息面板",
+  "chat.new": "新聊天",
+  "chat.browse_conversation": "浏览对话",
+
+  "btn.save": "保存并关闭",
+  "btn.restart": "重启",
+  "btn.add_server": "添加服务器",
+  "btn.scan_ollama": "扫描 Ollama",
+  "btn.save_chat_settings": "聊天设置已保存",
+
+  "aria.toggle_dark": "切换深色模式",
+  "aria.toggle_chat": "切换聊天列",
+  "aria.toggle_info": "切换信息面板",
+  "aria.rename_conv": "重命名对话",
+  "aria.delete_conv": "删除对话",
+  "aria.new_chat": "新聊天",
+
+  "preview": "预览",
+  "open": "打开",
+
+  "settings.env_hint": "设置将保存到 .env。要使 TORCH_DEVICE、Qdrant 和索引标志生效，请点击重启或手动重启应用。",
+
+  "version": "版本"
+}

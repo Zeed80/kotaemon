@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from ktem import extension_protocol
 from ktem.assets import PDFJS_PREBUILT_DIR, KotaemonTheme
 from ktem.components import reasonings
 from ktem.exceptions import HookAlreadyDeclared, HookNotDeclared
+from ktem.i18n import SUPPORTED_UI_LANGS, get_all_translations, get_text
 from ktem.index import IndexManager
 from ktem.settings import BaseSettingGroup, SettingGroup, SettingReasoningGroup
 
@@ -80,6 +82,7 @@ class BaseApp:
         self.settings_state = gr.State(self.default_settings.flatten())
 
         self.user_id = gr.State("default" if not self.f_user_management else None)
+        self.ui_lang = gr.State("en")
 
     def initialize_indices(self):
         """Create the index manager, start indices, and register to app settings"""
@@ -183,6 +186,11 @@ class BaseApp:
             };
         </script>
         """
+        i18n_js = (
+            "<script>window.KH_I18N="
+            + json.dumps(get_all_translations(), ensure_ascii=False)
+            + ";</script>"
+        )
         external_js = (
             "<script type='module' "
             "src='https://cdn.skypack.dev/pdfjs-viewer-element'>"
@@ -194,6 +202,7 @@ class BaseApp:
             "<script src='https://cdn.jsdelivr.net/npm/minisearch@7.1.1/dist/umd/index.min.js'></script>"  # noqa
             "</script>"
             "<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/tributejs/5.1.3/tribute.css'/>"  # noqa
+            f"{i18n_js}"
         )
 
         with gr.Blocks(
@@ -207,6 +216,24 @@ class BaseApp:
             self.app = demo
             self.settings_state.render()
             self.user_id.render()
+            self.ui_lang.render()
+
+            with gr.Row(elem_id="header-lang-row", variant="compact"):
+                gr.HTML("<div style='flex:1'></div>")
+                self.lang_dropdown = gr.Dropdown(
+                    choices=SUPPORTED_UI_LANGS,
+                    value="en",
+                    label=None,
+                    show_label=False,
+                    container=False,
+                    elem_id="lang-dropdown",
+                    scale=0,
+                    min_width=100,
+                )
+                self.version_html = gr.HTML(
+                    f'<p id="version-display" class="version-text">'
+                    f'{get_text("en", "version")}: {self.app_version}</p>'
+                )
 
             self.ui()
 

@@ -2,6 +2,29 @@
   --main-area-height: calc(100vh - 110px);
 }
 
+/* Language switcher and version in top-right */
+#header-lang-row {
+  position: fixed !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 1000 !important;
+  background: var(--background-fill-primary);
+  padding: 4px 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color-primary);
+  gap: 12px;
+  min-width: auto !important;
+}
+#header-lang-row .version-text {
+  margin: 0;
+  font-size: 0.85em;
+  color: var(--body-text-color);
+  opacity: 0.8;
+}
+#lang-dropdown {
+  min-width: 100px;
+}
+
 /* no footer */
 footer {
   display: none !important;

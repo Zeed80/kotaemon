@@ -16,6 +16,7 @@ from kotaemon.indices.qa.utils import strip_think_tag
 from ktem.app import BasePage
 from ktem.components import reasonings
 from ktem.db.models import Conversation, engine
+from ktem.i18n import get_text
 from ktem.index.file.ui import File
 from ktem.reasoning.prompt_optimization.mindmap import MINDMAP_HTML_EXPORT_TEMPLATE
 from ktem.reasoning.prompt_optimization.suggest_conversation_name import (
@@ -30,6 +31,7 @@ from ...utils.commands import WEB_SEARCH_COMMAND
 from ...utils.hf_papers import get_recommended_papers
 from ...utils.js_snippets import chat_input_focus_js
 from ...utils.rate_limit import check_rate_limit
+from ..settings import load_chat_settings_values, save_chat_settings
 from .chat_panel import ChatPanel
 from .chat_suggestion import ChatSuggestion
 from .common import STATE
@@ -37,7 +39,6 @@ from .control import ConversationControl
 from .demo_hint import HintPage
 from .paper_list import PaperListPage
 from .report import ReportIssue
-from ..settings import load_chat_settings_values, save_chat_settings
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
@@ -308,17 +309,20 @@ class ChatPage(BasePage):
                 self.chat_panel = ChatPanel(self._app)
 
                 with gr.Accordion(
-                    label="Chat settings",
+                    label=get_text("en", "chat.settings"),
                     elem_id="chat-settings-expand",
                     open=False,
                     visible=not KH_DEMO_MODE,
                 ) as self.chat_settings:
                     with gr.Row(elem_id="quick-setting-labels"):
-                        gr.HTML("Reasoning method")
-                        gr.HTML(
-                            "Model", visible=not KH_DEMO_MODE and not KH_SSO_ENABLED
+                        self.reasoning_label = gr.HTML(
+                            get_text("en", "chat.reasoning_method")
                         )
-                        gr.HTML("Language")
+                        self.model_label = gr.HTML(
+                            get_text("en", "chat.model"),
+                            visible=not KH_DEMO_MODE and not KH_SSO_ENABLED,
+                        )
+                        self.language_label = gr.HTML(get_text("en", "chat.language"))
 
                     with gr.Row():
                         reasoning_setting = (
@@ -384,8 +388,10 @@ class ChatPage(BasePage):
                 scale=INFO_PANEL_SCALES[False], elem_id="chat-info-panel"
             ) as self.info_column:
                 with gr.Accordion(
-                    label="Information panel", open=True, elem_id="info-expand"
-                ):
+                    label=get_text("en", "chat.information_panel"),
+                    open=True,
+                    elem_id="info-expand",
+                ) as self.info_accordion:
                     self.modal = gr.HTML("<div id='pdf-modal'></div>")
                     self.plot_panel = gr.Plot(visible=False)
                     self.info_panel = gr.HTML(elem_id="html-info-panel")
@@ -903,6 +909,34 @@ class ChatPage(BasePage):
                 js=quick_urls_submit_js,
             )
 
+        if hasattr(self._app, "lang_dropdown") and self._app.lang_dropdown is not None:
+
+            def on_chat_lang_change(lang):
+                model_visible = not KH_DEMO_MODE and not KH_SSO_ENABLED
+                return [
+                    gr.update(label=get_text(lang, "chat.settings")),
+                    gr.update(value=get_text(lang, "chat.reasoning_method")),
+                    gr.update(
+                        value=get_text(lang, "chat.model"),
+                        visible=model_visible,
+                    ),
+                    gr.update(value=get_text(lang, "chat.language")),
+                    gr.update(label=get_text(lang, "chat.information_panel")),
+                ]
+
+            self._app.lang_dropdown.change(
+                fn=on_chat_lang_change,
+                inputs=[self._app.lang_dropdown],
+                outputs=[
+                    self.chat_settings,
+                    self.reasoning_label,
+                    self.model_label,
+                    self.language_label,
+                    self.info_accordion,
+                ],
+                show_progress="hidden",
+            )
+
     def submit_msg(
         self,
         chat_input,
@@ -1094,7 +1128,13 @@ class ChatPage(BasePage):
         """Сохранить настройки чата и вернуть обновлённый settings_state."""
         defaults = self._app.default_settings.flatten()
         return save_chat_settings(
-            user_id, reasoning_type, model_type, language, citation, use_mindmap, defaults
+            user_id,
+            reasoning_type,
+            model_type,
+            language,
+            citation,
+            use_mindmap,
+            defaults,
         )
 
     def _on_app_created(self):

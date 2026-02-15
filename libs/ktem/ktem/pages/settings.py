@@ -11,6 +11,7 @@ from theflow.settings import settings as flowsettings
 from ktem.app import BasePage
 from ktem.components import reasonings
 from ktem.db.models import Settings, User, engine
+from ktem.i18n import get_text
 from ktem.pages.resources.ollama_servers import OllamaServersManagement
 
 KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
@@ -200,15 +201,11 @@ def load_chat_settings_values(user_id, default_settings_dict: dict) -> tuple:
         settings.get("reasoning.lang", default_settings_dict.get("reasoning.lang")),
         settings.get(
             "reasoning.options.simple.highlight_citation",
-            default_settings_dict.get(
-                "reasoning.options.simple.highlight_citation"
-            ),
+            default_settings_dict.get("reasoning.options.simple.highlight_citation"),
         ),
         settings.get(
             "reasoning.options.simple.create_mindmap",
-            default_settings_dict.get(
-                "reasoning.options.simple.create_mindmap", False
-            ),
+            default_settings_dict.get("reasoning.options.simple.create_mindmap", False),
         ),
     )
 
@@ -370,13 +367,13 @@ class SettingsPage(BasePage):
         if not KH_SSO_ENABLED:
             with gr.Row(elem_id="settings-action-buttons"):
                 self.setting_save_btn = gr.Button(
-                    "Save & Close",
+                    get_text("en", "btn.save"),
                     variant="primary",
                     elem_classes=["right-button"],
                     elem_id="save-setting-btn",
                 )
                 self.restart_btn = gr.Button(
-                    "Restart",
+                    get_text("en", "btn.restart"),
                     variant="secondary",
                     elem_id="restart-app-btn",
                 )
@@ -446,6 +443,20 @@ class SettingsPage(BasePage):
             )
 
     def on_register_events(self):
+        if (
+            not KH_SSO_ENABLED
+            and hasattr(self._app, "lang_dropdown")
+            and self._app.lang_dropdown is not None
+        ):
+            self._app.lang_dropdown.change(
+                fn=lambda lang: [
+                    gr.update(value=get_text(lang, "btn.save")),
+                    gr.update(value=get_text(lang, "btn.restart")),
+                ],
+                inputs=[self._app.lang_dropdown],
+                outputs=[self.setting_save_btn, self.restart_btn],
+                show_progress="hidden",
+            )
         if not KH_SSO_ENABLED:
             self.setting_save_btn.click(
                 self.save_setting,
