@@ -258,16 +258,29 @@ def generate_gpt4v(
 
     # Для Ollama нативного API формат ответа отличается
     if is_ollama:
-        # Ollama возвращает {"message": {"content": "..."}}
-        if "message" in output and "content" in output["message"]:
-            return output["message"]["content"]
-        else:
-            logger.error(f"Unexpected Ollama response format: {output}")
-            raise ValueError(f"Unexpected Ollama response format: {output}")
+        # Ollama возвращает {"message": {"role": "assistant", "content": "..."}}
+        if "message" not in output:
+            logger.error(f"Ollama response missing 'message': keys={list(output.keys())}")
+            raise ValueError("Unexpected Ollama response format: missing 'message'")
+        msg = output["message"]
+        content = msg.get("content") if isinstance(msg, dict) else None
+        # content может быть None или пустой строкой — нормализуем к ""
+        result = (content or "").strip() if content is not None else ""
+        if not result:
+            # Отладочная информация при пустом ответе
+            logger.warning(
+                f"Ollama VLM returned empty content: ingestion_id={ingestion_id or 'n/a'}, "
+                f"model={model}, message_keys={list(msg.keys()) if isinstance(msg, dict) else 'n/a'}, "
+                f"content_type={type(content).__name__}, content_len={len(str(content or ''))}"
+            )
+            logger.debug(
+                f"Ollama raw response (truncated): {json.dumps({k: (str(v)[:200] + '...' if len(str(v)) > 200 else v) for k, v in output.items()})}"
+            )
+        return result
     else:
         # OpenAI-compatible формат: {"choices": [{"message": {"content": "..."}}]}
-        output = output["choices"][0]["message"]["content"]
-        return output
+        content = output["choices"][0]["message"]["content"]
+        return (content or "").strip() if content is not None else ""
 
 
 def stream_gpt4v(

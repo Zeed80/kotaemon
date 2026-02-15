@@ -59,3 +59,26 @@ def test_generate_gpt4v_uses_native_ollama_payload():
     assert output == "ok"
     assert captured["url"] == "http://localhost:11434/api/chat"
     assert captured["json"]["messages"][0]["images"] == ["AAAA"]
+
+
+def test_generate_gpt4v_ollama_empty_content_returns_empty_string():
+    """Пустой или null content от Ollama должен возвращать '' без исключения."""
+    with patch("requests.post") as mock_post:
+        mock_post.return_value = _FakeResponse({"message": {"content": ""}})
+        output = generate_gpt4v(
+            endpoint="http://localhost:11434/api/chat",
+            images="data:image/png;base64,AAAA",
+            prompt="extract",
+            model="qwen3-vl:8b",
+        )
+    assert output == ""
+
+    with patch("requests.post") as mock_post:
+        mock_post.return_value = _FakeResponse({"message": {"content": None}})
+        output = generate_gpt4v(
+            endpoint="http://localhost:11434/api/chat",
+            images="data:image/png;base64,AAAA",
+            prompt="extract",
+            model="qwen3-vl:8b",
+        )
+    assert output == ""

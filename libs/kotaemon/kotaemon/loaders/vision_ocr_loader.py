@@ -63,6 +63,15 @@ EXTRACT_TEXT_PROMPT = (
     "- Confirm that multi-line text blocks maintain their structure"
 )
 
+# Упрощённый промпт для Ollama/qwen3-vl — длинный промпт может приводить к пустому ответу
+EXTRACT_TEXT_PROMPT_LLAMA = (
+    "Extract ALL text from this document image. "
+    "Output ONLY the extracted text, nothing else. "
+    "Preserve structure: paragraphs, tables, lists. "
+    "Keep numbers, dates, and special characters exactly as shown. "
+    "Include all languages. Do not add explanations."
+)
+
 
 class VisionOCRReader(BaseReader):
     """Extract text from images using a Vision Language Model (VLM) instead of Tesseract.
@@ -329,15 +338,33 @@ class VisionOCRReader(BaseReader):
                 f"image_size={b64_size / 1024:.2f} KB, endpoint_type={endpoint_type}, is_ollama={is_ollama}"
             )
 
+            # Ollama/qwen3-vl лучше работает с коротким промптом; длинный может давать пустой ответ
+            prompt = EXTRACT_TEXT_PROMPT_LLAMA if is_ollama else EXTRACT_TEXT_PROMPT
+
             text = generate_gpt4v(
                 endpoint=endpoint,
-                prompt=EXTRACT_TEXT_PROMPT,
+                prompt=prompt,
                 images=data_url,
                 max_tokens=self.max_tokens,
                 model=model if model else None,
                 timeout=timeout,
                 ingestion_id=ingestion_id,
             )
+
+            # Если Ollama вернул пустой ответ — пробуем полный промпт как fallback
+            if is_ollama and (not text or not text.strip()) and prompt == EXTRACT_TEXT_PROMPT_LLAMA:
+                logger.info(
+                    f"Ollama returned empty with simple prompt, retrying with full prompt: file={file_path.name}"
+                )
+                text = generate_gpt4v(
+                    endpoint=endpoint,
+                    prompt=EXTRACT_TEXT_PROMPT,
+                    images=data_url,
+                    max_tokens=self.max_tokens,
+                    model=model if model else None,
+                    timeout=timeout,
+                    ingestion_id=ingestion_id,
+                )
 
             elapsed_time = time.time() - start_time
             text_length = len(text) if text else 0
