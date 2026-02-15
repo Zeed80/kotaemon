@@ -91,6 +91,8 @@ class FullQAPipeline(BaseReasoning):
     # configuration parameters
     trigger_context: int = 150
     use_rewrite: bool = False
+    show_retrieval_graph: bool = True  # GraphRAG/LightRAG plot from retriever
+    show_evidence_in_info_panel: bool = True  # Show retrieved docs/tables in info panel
 
     retrievers: list[BaseComponent]
 
@@ -152,13 +154,15 @@ class FullQAPipeline(BaseReasoning):
                 content=Render.collapsible_with_header(doc, open_collapsible=True),
             )
             for doc in docs
-        ] + [
-            Document(
-                channel="plot",
-                content=doc.metadata.get("data", ""),
-            )
-            for doc in plot_docs
         ]
+        if self.show_retrieval_graph and plot_docs:
+            info += [
+                Document(
+                    channel="plot",
+                    content=doc.metadata.get("data", ""),
+                )
+                for doc in plot_docs
+            ]
 
         return docs, info
 
@@ -268,9 +272,10 @@ class FullQAPipeline(BaseReasoning):
                     content=f"<h5>Answer confidence: {qa_score}</h5>",
                 )
 
-            yield from with_citation
-            if without_citation:
-                yield from without_citation
+            if self.show_evidence_in_info_panel:
+                yield from with_citation
+                if without_citation:
+                    yield from without_citation
 
     async def ainvoke(  # type: ignore
         self,
@@ -297,7 +302,8 @@ class FullQAPipeline(BaseReasoning):
         # should populate the context
         docs, infos = self.retrieve(message, history)
         print(f"Got {len(docs)} retrieved documents")
-        yield from infos
+        if self.show_evidence_in_info_panel:
+            yield from infos
 
         evidence_mode, evidence, images = self.evidence_pipeline(docs).content
 
@@ -380,6 +386,12 @@ class FullQAPipeline(BaseReasoning):
         )
         answer_pipeline.enable_mindmap = settings[f"{prefix}.create_mindmap"]
         answer_pipeline.enable_citation_viz = settings[f"{prefix}.create_citation_viz"]
+        pipeline.show_retrieval_graph = settings.get(
+            f"{prefix}.show_retrieval_graph", True
+        )
+        pipeline.show_evidence_in_info_panel = settings.get(
+            f"{prefix}.show_evidence_in_info_panel", True
+        )
         answer_pipeline.use_multimodal = settings[f"{prefix}.use_multimodal"]
         answer_pipeline.system_prompt = settings[f"{prefix}.system_prompt"]
         answer_pipeline.qa_template = settings[f"{prefix}.qa_prompt"]
@@ -448,6 +460,18 @@ class FullQAPipeline(BaseReasoning):
                 "value": False,
                 "component": "checkbox",
             },
+            "show_retrieval_graph": {
+                "name": "Show retrieval graph (GraphRAG/LightRAG)",
+                "value": True,
+                "component": "checkbox",
+                "info": "Show graph visualization from graph-based index (GraphRAG, LightRAG, etc.)",
+            },
+            "show_evidence_in_info_panel": {
+                "name": "Show evidence in Information Panel",
+                "value": True,
+                "component": "checkbox",
+                "info": "Show retrieved documents and tables in the Information Panel",
+            },
             "use_multimodal": {
                 "name": "Use Multimodal Input",
                 "value": False,
@@ -506,7 +530,8 @@ class FullDecomposeQAPipeline(FullQAPipeline):
             docs, infos = self.retrieve(message, history)
             print(f"Got {len(docs)} retrieved documents")
 
-            yield from infos
+            if self.show_evidence_in_info_panel:
+                yield from infos
 
             evidence_mode, evidence, images = self.evidence_pipeline(docs).content
             answer = yield from self.answering_pipeline.stream(
@@ -560,7 +585,8 @@ class FullDecomposeQAPipeline(FullQAPipeline):
         # should populate the context
         docs, infos = self.retrieve(message, history)
         print(f"Got {len(docs)} retrieved documents")
-        yield from infos
+        if self.show_evidence_in_info_panel:
+            yield from infos
 
         evidence_mode, evidence, images = self.evidence_pipeline(docs).content
         answer = yield from self.answering_pipeline.stream(
@@ -581,8 +607,9 @@ class FullDecomposeQAPipeline(FullQAPipeline):
             yield Document(channel="info", content="<h5><b>No evidence found.</b></h5>")
         else:
             yield Document(channel="info", content=None)
-            yield from with_citation
-            yield from without_citation
+            if self.show_evidence_in_info_panel:
+                yield from with_citation
+                yield from without_citation
 
         return answer
 
