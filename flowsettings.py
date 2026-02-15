@@ -109,6 +109,22 @@ def _parse_bool(val: str | bool) -> bool:
 
 _qdrant_enable_hybrid = _parse_bool(config("QDRANT_ENABLE_HYBRID", default="false"))
 _qdrant_sparse_model = config("QDRANT_FASTEMBED_SPARSE_MODEL", default="") or None
+
+
+def _qdrant_url() -> str:
+    """Qdrant URL: config + os.getenv fallback for Docker."""
+    val = config("QDRANT_URL", default="http://localhost:6333")
+    if not val or not str(val).strip():
+        val = os.getenv("QDRANT_URL", "http://localhost:6333")
+    return str(val).strip()
+
+
+def _qdrant_api_key() -> str | None:
+    """Qdrant API key; use empty string for local (LlamaIndex rejects None)."""
+    val = config("QDRANT_API_KEY", default="") or ""
+    return str(val).strip() or None
+
+
 KH_VECTORSTORE = {
     "__type__": "kotaemon.storages.QdrantVectorStore",
     "collection_name": "default",
@@ -118,8 +134,8 @@ KH_VECTORSTORE = {
         {"path": _qdrant_path}
         if _qdrant_path
         else {
-            "url": config("QDRANT_URL", default="http://localhost:6333"),
-            "api_key": config("QDRANT_API_KEY", default="") or None,
+            "url": _qdrant_url(),
+            "api_key": _qdrant_api_key() or "",
         }
     ),
     # "__type__": "kotaemon.storages.LanceDBVectorStore",

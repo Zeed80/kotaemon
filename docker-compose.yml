@@ -39,6 +39,7 @@ services:
       - .env
     environment:
       <<: *common-env
+      THEFLOW_SETTINGS_MODULE: flowsettings
       QDRANT_URL: http://qdrant:6333
       SEARXNG_URL: http://searxng:8080
     depends_on:
