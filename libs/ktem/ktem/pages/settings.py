@@ -146,6 +146,143 @@ def _ollama_status_html(ok: bool, message: str) -> str:
     )
 
 
+CHAT_SETTINGS_KEYS = (
+    "reasoning.use",
+    "reasoning.options.simple.llm",
+    "reasoning.lang",
+    "reasoning.options.simple.highlight_citation",
+    "reasoning.options.simple.create_mindmap",
+)
+
+DEFAULT_SETTING_LABEL = "(default)"
+
+
+def get_user_settings(user_id, default_settings_dict: dict) -> dict:
+    """Загрузить объединённые настройки пользователя из БД.
+
+    Args:
+        user_id: ID пользователя (может быть None или "default")
+        default_settings_dict: словарь настроек по умолчанию
+
+    Returns:
+        Объединённый словарь настроек (дефолты + сохранённые)
+    """
+    from ktem.utils.secret_storage import process_dict_for_load
+
+    settings = dict(default_settings_dict)
+    if user_id is None:
+        return settings
+    try:
+        with Session(engine) as session:
+            statement = select(Settings).where(Settings.user == user_id)
+            result = session.exec(statement).all()
+            if result and result[0].setting:
+                settings.update(result[0].setting)
+        process_dict_for_load(settings)
+    except Exception:
+        pass
+    return settings
+
+
+def load_chat_settings_values(user_id, default_settings_dict: dict) -> tuple:
+    """Загрузить значения настроек чата для UI-компонентов.
+
+    Returns:
+        (reasoning_type, model_type, language, citation, use_mindmap)
+    """
+    settings = get_user_settings(user_id, default_settings_dict)
+    return (
+        settings.get("reasoning.use", default_settings_dict.get("reasoning.use")),
+        settings.get(
+            "reasoning.options.simple.llm",
+            default_settings_dict.get("reasoning.options.simple.llm"),
+        ),
+        settings.get("reasoning.lang", default_settings_dict.get("reasoning.lang")),
+        settings.get(
+            "reasoning.options.simple.highlight_citation",
+            default_settings_dict.get(
+                "reasoning.options.simple.highlight_citation"
+            ),
+        ),
+        settings.get(
+            "reasoning.options.simple.create_mindmap",
+            default_settings_dict.get(
+                "reasoning.options.simple.create_mindmap", False
+            ),
+        ),
+    )
+
+
+def save_chat_settings(
+    user_id,
+    reasoning_type,
+    model_type,
+    language,
+    citation,
+    use_mindmap: bool,
+    default_settings_dict: dict,
+) -> dict:
+    """Сохранить настройки чата в БД и вернуть обновлённый словарь настроек.
+
+    Значения DEFAULT_SETTING_LABEL, None или "" трактуются как «использовать по умолчанию».
+
+    Returns:
+        Обновлённый словарь настроек (для settings_state).
+    """
+    if user_id is None:
+        gr.Warning("Необходима авторизация для сохранения настроек")
+        return default_settings_dict
+
+    defaults = default_settings_dict
+    updates = {}
+    if reasoning_type not in (DEFAULT_SETTING_LABEL, None, ""):
+        updates["reasoning.use"] = reasoning_type
+    else:
+        updates["reasoning.use"] = defaults.get("reasoning.use")
+
+    if model_type not in (DEFAULT_SETTING_LABEL, None, ""):
+        updates["reasoning.options.simple.llm"] = model_type
+    else:
+        updates["reasoning.options.simple.llm"] = defaults.get(
+            "reasoning.options.simple.llm"
+        )
+
+    if language not in (DEFAULT_SETTING_LABEL, None, ""):
+        updates["reasoning.lang"] = language
+    else:
+        updates["reasoning.lang"] = defaults.get("reasoning.lang")
+
+    if citation not in (DEFAULT_SETTING_LABEL, None, ""):
+        updates["reasoning.options.simple.highlight_citation"] = citation
+    else:
+        updates["reasoning.options.simple.highlight_citation"] = defaults.get(
+            "reasoning.options.simple.highlight_citation"
+        )
+
+    updates["reasoning.options.simple.create_mindmap"] = bool(use_mindmap)
+
+    try:
+        settings = get_user_settings(user_id, defaults)
+        settings.update(updates)
+
+        with Session(engine) as session:
+            statement = select(Settings).where(Settings.user == user_id)
+            try:
+                user_setting = session.exec(statement).one()
+            except Exception:
+                user_setting = Settings()
+                user_setting.user = user_id
+            user_setting.setting = settings
+            session.add(user_setting)
+            session.commit()
+
+        gr.Info("Настройки чата сохранены")
+        return settings
+    except Exception as e:
+        gr.Warning(f"Ошибка сохранения настроек чата: {e}")
+        return get_user_settings(user_id, defaults)
+
+
 def render_setting_item(setting_item, value):
     """Render the setting component into corresponding Gradio UI component"""
     kwargs = {

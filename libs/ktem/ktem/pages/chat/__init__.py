@@ -37,6 +37,7 @@ from .control import ConversationControl
 from .demo_hint import HintPage
 from .paper_list import PaperListPage
 from .report import ReportIssue
+from .settings import load_chat_settings_values, save_chat_settings
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
@@ -804,15 +805,52 @@ class ChatPage(BasePage):
                 outputs=None,
             )
 
+        _chat_save_inputs = [
+            self._app.user_id,
+            self.reasoning_type,
+            self.model_type,
+            self.language,
+            self.citation,
+            self.use_mindmap_check,
+        ]
+
         self.reasoning_type.change(
             self.reasoning_changed,
             inputs=[self.reasoning_type],
             outputs=[self._reasoning_type],
+        ).then(
+            fn=self._save_chat_settings,
+            inputs=_chat_save_inputs,
+            outputs=[self._app.settings_state],
+            show_progress="hidden",
+        )
+        self.model_type.change(
+            fn=self._save_chat_settings,
+            inputs=_chat_save_inputs,
+            outputs=[self._app.settings_state],
+            show_progress="hidden",
+        )
+        self.language.change(
+            fn=self._save_chat_settings,
+            inputs=_chat_save_inputs,
+            outputs=[self._app.settings_state],
+            show_progress="hidden",
+        )
+        self.citation.change(
+            fn=self._save_chat_settings,
+            inputs=_chat_save_inputs,
+            outputs=[self._app.settings_state],
+            show_progress="hidden",
         )
         self.use_mindmap_check.change(
             lambda x: (x, gr.update(label="Mindmap " + ("(on)" if x else "(off)"))),
             inputs=[self.use_mindmap_check],
             outputs=[self.use_mindmap, self.use_mindmap_check],
+            show_progress="hidden",
+        ).then(
+            fn=self._save_chat_settings,
+            inputs=_chat_save_inputs,
+            outputs=[self._app.settings_state],
             show_progress="hidden",
         )
 
@@ -1045,6 +1083,20 @@ class ChatPage(BasePage):
                 },
             )
 
+    def _load_chat_settings(self, user_id):
+        """Загрузить настройки чата для UI."""
+        defaults = self._app.default_settings.flatten()
+        return load_chat_settings_values(user_id, defaults)
+
+    def _save_chat_settings(
+        self, user_id, reasoning_type, model_type, language, citation, use_mindmap
+    ):
+        """Сохранить настройки чата и вернуть обновлённый settings_state."""
+        defaults = self._app.default_settings.flatten()
+        return save_chat_settings(
+            user_id, reasoning_type, model_type, language, citation, use_mindmap, defaults
+        )
+
     def _on_app_created(self):
         if KH_DEMO_MODE:
             self._app.app.load(
@@ -1066,6 +1118,33 @@ class ChatPage(BasePage):
                 inputs=None,
                 js=chat_input_focus_js,
             )
+
+        if not KH_DEMO_MODE:
+            chat_load_inputs = [self._app.user_id]
+            chat_load_outputs = [
+                self.reasoning_type,
+                self.model_type,
+                self.language,
+                self.citation,
+                self.use_mindmap_check,
+            ]
+            if not self._app.f_user_management:
+                self._app.app.load(
+                    fn=self._load_chat_settings,
+                    inputs=chat_load_inputs,
+                    outputs=chat_load_outputs,
+                    show_progress="hidden",
+                )
+            else:
+                self._app.subscribe_event(
+                    name="onSignIn",
+                    definition={
+                        "fn": self._load_chat_settings,
+                        "inputs": chat_load_inputs,
+                        "outputs": chat_load_outputs,
+                        "show_progress": "hidden",
+                    },
+                )
 
     def persist_data_source(
         self,

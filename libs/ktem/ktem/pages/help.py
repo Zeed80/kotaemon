@@ -98,7 +98,8 @@ class HelpPage:
             with gr.Accordion("User Guide", open=not KH_DEMO_MODE):
                 gr.Markdown(user_guide_md)
 
-        if self.app_version:
+        # Пропускаем загрузку changelogs для версии "local" — такого тега нет на GitHub
+        if self.app_version and self.app_version.lower() not in ("local",):
             # try retrieve from cache
             changelogs = ""
 
