@@ -16,6 +16,7 @@ from kotaemon.base import Document, Param
 from .base import BaseReader
 from .utils.adobe import encode_image_base64
 from .utils.gpt4v import generate_gpt4v, is_ollama_endpoint
+from .utils.table import parse_markdown_text_to_tables, strip_special_chars_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,8 @@ EXTRACT_TEXT_PROMPT = (
     "2. Preserve the exact reading order (left-to-right, top-to-bottom, or as appropriate for the language)\n"
     "3. Maintain original structure: preserve paragraphs, headings, lists, tables, and formatting\n"
     "4. Extract numbers, dates, names, addresses, and special characters with 100% accuracy\n"
-    "5. For tables: preserve column structure, use tabs or spaces to align columns\n"
+    "5. For tables: ALWAYS use Markdown table format with pipes, e.g.\n"
+    "   | Col1 | Col2 | Col3 |\n   | --- | --- | --- |\n   | val1 | val2 | val3 |\n"
     "6. For lists: preserve bullet points, numbering, and indentation\n"
     "7. For multi-column layouts: maintain column separation\n"
     "8. Extract text in ALL languages present - do not translate or skip non-English text\n"
@@ -52,24 +54,20 @@ EXTRACT_TEXT_PROMPT = (
     "OUTPUT FORMAT:\n"
     "- Output ONLY the extracted text\n"
     "- Do NOT add explanations, commentary, or descriptions\n"
-    "- Do NOT add markdown formatting unless the original document uses it\n"
+    "- For TABLES: use Markdown pipe format | header1 | header2 | per row\n"
     "- Use line breaks to separate paragraphs and sections\n"
-    "- For tables, use consistent spacing or tabs between columns\n"
     "- Preserve capitalization and punctuation exactly as shown\n\n"
     "QUALITY CHECK:\n"
     "- Verify that numbers match exactly (especially dates, amounts, IDs)\n"
     "- Ensure all visible text is included - nothing should be missing\n"
-    "- Check that special characters (currency symbols, mathematical operators, etc.) are preserved\n"
-    "- Confirm that multi-line text blocks maintain their structure"
+    "- Check that special characters (currency symbols, mathematical operators, etc.) are preserved"
 )
 
 # Упрощённый промпт для Ollama/qwen3-vl — длинный промпт может приводить к пустому ответу
 EXTRACT_TEXT_PROMPT_LLAMA = (
-    "Extract ALL text from this document image. "
-    "Output ONLY the extracted text, nothing else. "
-    "Preserve structure: paragraphs, tables, lists. "
-    "Keep numbers, dates, and special characters exactly as shown. "
-    "Include all languages. Do not add explanations."
+    "Extract ALL text from this document image. Output ONLY the extracted text.\n"
+    "For TABLES use Markdown format with pipes: | Col1 | Col2 |\n| --- | --- |\n| a | b |\n"
+    "Preserve paragraphs, lists. Keep numbers and special characters exactly as shown."
 )
 
 
@@ -453,10 +451,9 @@ class VisionOCRReader(BaseReader):
             )
             text = ""
 
-        metadata = {
+        base_metadata = {
             "file_name": file_path.name,
             "file_path": str(file_path),
-            "type": "image",
             "extraction_status": extraction_status,
             "extraction_error_code": extraction_error_code,
             "extracted_text_length": len(text.strip()) if text else 0,
@@ -466,13 +463,46 @@ class VisionOCRReader(BaseReader):
             if is_ollama_endpoint(endpoint)
             else "openai_compatible",
             "model": model,
+            "page_number": 1,
+            "page_label": 1,
         }
         if extra_info:
-            metadata.update(extra_info)
+            base_metadata.update(extra_info)
 
-        return [
-            Document(
-                text=text.strip() if text else "",
-                metadata=metadata,
-            )
-        ]
+        if not text or not text.strip():
+            return [
+                Document(
+                    text="",
+                    metadata={**base_metadata, "type": "image"},
+                )
+            ]
+
+        # Разбиваем на таблицы и текст (как при обработке PDF)
+        table_texts, non_table_texts = parse_markdown_text_to_tables(text)
+        documents = []
+
+        for table_content in table_texts:
+            if table_content.strip():
+                meta = {**base_metadata, "type": "table", "table_origin": table_content}
+                documents.append(
+                    Document(
+                        text=strip_special_chars_markdown(table_content),
+                        metadata=meta,
+                    )
+                )
+
+        for text_content in non_table_texts:
+            if text_content.strip():
+                meta = {**base_metadata, "type": "text"}
+                documents.append(Document(text=text_content.strip(), metadata=meta))
+
+        if not documents:
+            # Fallback: не удалось распарсить таблицы — один документ с полным текстом
+            documents = [
+                Document(
+                    text=text.strip(),
+                    metadata={**base_metadata, "type": "text"},
+                )
+            ]
+
+        return documents
