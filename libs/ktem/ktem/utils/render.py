@@ -1,11 +1,26 @@
 import os
 
 import markdown
-from fast_langdetect import detect
 
 from kotaemon.base import RetrievedDocument
 
 BASE_PATH = os.environ.get("GR_FILE_ROOT_PATH", "")
+
+
+def _has_cjk_characters(text: str) -> bool:
+    """Проверить наличие CJK-символов (японский, китайский, корейский) для настройки highlight."""
+    if not text:
+        return False
+    for ch in text[:500]:
+        cp = ord(ch)
+        if (
+            (0x4E00 <= cp <= 0x9FFF)  # CJK Unified Ideographs
+            or (0x3040 <= cp <= 0x309F)  # Hiragana
+            or (0x30A0 <= cp <= 0x30FF)  # Katakana
+            or (0xAC00 <= cp <= 0xD7AF)  # Hangul
+        ):
+            return True
+    return False
 
 
 def is_close(val1, val2, tolerance=1e-9):
@@ -78,50 +93,74 @@ class Render:
         highlight_text: str | None = None,
     ) -> str:
         text = doc.content
-        pdf_path = doc.metadata.get("file_path", "")
+        file_path = doc.metadata.get("file_path", "")
+        file_type = doc.metadata.get("file_type", "")
+        is_image = doc.metadata.get("type") == "image"
+        image_origin = doc.metadata.get("image_origin", "")
 
-        if not os.path.isfile(pdf_path):
-            print(f"pdf-path: {pdf_path} does not exist")
+        if not file_path and not image_origin:
             return html_content
 
-        is_pdf = doc.metadata.get("file_type", "") == "application/pdf"
-        page_idx = int(doc.metadata.get("page_label", 1))
-
-        if not is_pdf:
-            print("Document is not pdf")
+        # Путь к файлу для ссылки (PDF и остальные)
+        path_for_link = image_origin if is_image and image_origin else file_path
+        if not path_for_link:
+            path_for_link = file_path
+        if not path_for_link:
             return html_content
 
-        if page_idx < 0:
-            print("Fail to extract page number")
-            return html_content
+        file_url = f"{BASE_PATH}/file={path_for_link}"
 
-        if not highlight_text:
-            try:
-                lang = detect(text.replace("\n", " "))["lang"]
-                if lang not in ["ja", "cn"]:
+        # PDF — открыть в модальном просмотрщике с поиском
+        is_pdf = file_type == "application/pdf"
+        if is_pdf and os.path.isfile(file_path):
+            page_idx = int(doc.metadata.get("page_label", 1))
+            if page_idx < 0:
+                page_idx = 1
+
+            if not highlight_text:
+                text_clean = text.replace("\n", " ")
+                if not _has_cjk_characters(text_clean):
                     highlight_words = [
                         t[:-1] if t.endswith("-") else t for t in text.split("\n")
                     ]
-                    highlight_text = highlight_words[0]
+                    highlight_text = highlight_words[0] if highlight_words else text
                     phrase = "true"
                 else:
                     phrase = "false"
-
                 highlight_text = (
-                    text.replace("\n", "").replace('"', "").replace("'", "")
+                    (highlight_text or text)
+                    .replace("\n", "")
+                    .replace('"', "")
+                    .replace("'", "")
                 )
-            except Exception as e:
-                print(e)
-                highlight_text = text
-        else:
-            phrase = "true"
+            else:
+                phrase = "true"
 
-        return f"""
-        {html_content}
-        <a href="#" class="pdf-link" data-src="{BASE_PATH}/file={pdf_path}" data-page="{page_idx}" data-search="{highlight_text}" data-phrase="{phrase}">
-            [Preview]
-        </a>
-        """  # noqa
+            return f"""
+            {html_content}
+            <a href="#" class="pdf-link" data-src="{file_url}" data-page="{page_idx}" data-search="{highlight_text}" data-phrase="{phrase}">
+                [Preview]
+            </a>
+            """  # noqa
+
+        # Изображения — ссылка с превью
+        if is_image and (image_origin or (file_path and os.path.isfile(file_path))):
+            src = f"{BASE_PATH}/file={image_origin}" if image_origin else file_url
+            return f"""
+            {html_content}
+            <a href="{file_url}" target="_blank" rel="noopener" class="file-preview-link">
+                <img src="{src}" alt="Preview" style="max-height:120px;max-width:200px;object-fit:contain;">
+            </a>
+            """  # noqa
+
+        # Остальные файлы — простая ссылка
+        if file_path and os.path.isfile(file_path):
+            return f"""
+            {html_content}
+            <a href="{file_url}" target="_blank" rel="noopener" class="file-preview-link">[Open]</a>
+            """  # noqa
+
+        return html_content
 
     @staticmethod
     def highlight(text: str, elem_id: str | None = None) -> str:

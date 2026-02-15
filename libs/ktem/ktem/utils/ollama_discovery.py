@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from theflow.settings import settings as flowsettings
+
 from ktem.ollama_servers import ollama_servers_manager
 from ktem.utils.ollama import check_ollama_available
 
@@ -19,6 +21,19 @@ _OLLAMA_CANDIDATES = [
     "http://192.168.1.1:11434",
     "http://192.168.0.1:11434",
 ]
+
+
+def _get_ollama_candidates() -> list[str]:
+    """Собрать список кандидатов для сканирования, включая KH_OLLAMA_URL из .env."""
+    candidates = list(_OLLAMA_CANDIDATES)
+    env_url = getattr(flowsettings, "KH_OLLAMA_URL", None)
+    if env_url and isinstance(env_url, str):
+        url = env_url.strip().rstrip("/")
+        if url:
+            url = url.replace("/v1/", "").replace("/v1", "").rstrip("/")
+            if url and "11434" in url and url not in candidates:
+                candidates.insert(0, url)
+    return candidates
 
 
 def _normalize_base_url(url: str) -> str:
@@ -38,13 +53,16 @@ def _normalize_base_url(url: str) -> str:
 def discover_ollama_servers() -> list[dict[str, Any]]:
     """Сканировать типичные адреса и вернуть список найденных Ollama.
 
+    Учитывает KH_OLLAMA_URL из .env (важно для Docker).
+
     Returns:
         Список {"url": str, "base_url": str} для каждого найденного сервера.
     """
     found: list[dict[str, Any]] = []
     seen_urls: set[str] = set()
+    candidates = _get_ollama_candidates()
 
-    for candidate in _OLLAMA_CANDIDATES:
+    for candidate in candidates:
         base = candidate.replace("/v1", "").rstrip("/")
         if base in seen_urls:
             continue
