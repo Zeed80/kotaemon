@@ -147,6 +147,7 @@ def generate_gpt4v(
                 "keep_alive": "5m",  # Сохранять модель в памяти 5 минут
             },
             "stream": False,
+            "think": False,  # Отключаем thinking — для OCR нужен прямой ответ в content
         }
 
         if not model:
@@ -258,20 +259,28 @@ def generate_gpt4v(
 
     # Для Ollama нативного API формат ответа отличается
     if is_ollama:
-        # Ollama возвращает {"message": {"role": "assistant", "content": "..."}}
+        # Ollama возвращает {"message": {"role": "assistant", "content": "...", "thinking": "..."}}
         if "message" not in output:
             logger.error(f"Ollama response missing 'message': keys={list(output.keys())}")
             raise ValueError("Unexpected Ollama response format: missing 'message'")
         msg = output["message"]
         content = msg.get("content") if isinstance(msg, dict) else None
+        thinking = msg.get("thinking") if isinstance(msg, dict) else None
         # content может быть None или пустой строкой — нормализуем к ""
         result = (content or "").strip() if content is not None else ""
+        # qwen3-vl и др. thinking-модели иногда возвращают OCR-текст в thinking вместо content
+        if not result and thinking:
+            thinking_text = (thinking or "").strip() if thinking is not None else ""
+            if thinking_text:
+                result = thinking_text
+                logger.info(
+                    f"Ollama returned empty content but non-empty thinking, using thinking: "
+                    f"ingestion_id={ingestion_id or 'n/a'}, model={model}, thinking_len={len(result)}"
+                )
         if not result:
-            # Отладочная информация при пустом ответе
             logger.warning(
-                f"Ollama VLM returned empty content: ingestion_id={ingestion_id or 'n/a'}, "
-                f"model={model}, message_keys={list(msg.keys()) if isinstance(msg, dict) else 'n/a'}, "
-                f"content_type={type(content).__name__}, content_len={len(str(content or ''))}"
+                f"Ollama VLM returned empty content and empty thinking: ingestion_id={ingestion_id or 'n/a'}, "
+                f"model={model}, message_keys={list(msg.keys()) if isinstance(msg, dict) else 'n/a'}"
             )
             logger.debug(
                 f"Ollama raw response (truncated): {json.dumps({k: (str(v)[:200] + '...' if len(str(v)) > 200 else v) for k, v in output.items()})}"

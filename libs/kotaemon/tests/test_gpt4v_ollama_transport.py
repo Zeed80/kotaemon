@@ -82,3 +82,22 @@ def test_generate_gpt4v_ollama_empty_content_returns_empty_string():
             model="qwen3-vl:8b",
         )
     assert output == ""
+
+
+def test_generate_gpt4v_ollama_uses_thinking_when_content_empty():
+    """Если content пустой, но thinking есть — используем thinking (qwen3-vl)."""
+    with patch("requests.post") as mock_post:
+        mock_post.return_value = _FakeResponse({
+            "message": {
+                "role": "assistant",
+                "content": "",
+                "thinking": "Invoice #123\nDate: 2024-01-15\nTotal: $99.99",
+            }
+        })
+        output = generate_gpt4v(
+            endpoint="http://localhost:11434/api/chat",
+            images="data:image/png;base64,AAAA",
+            prompt="extract",
+            model="qwen3-vl:8b",
+        )
+    assert output == "Invoice #123\nDate: 2024-01-15\nTotal: $99.99"
