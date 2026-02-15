@@ -33,9 +33,10 @@ class LoginPage(BasePage):
 
     def on_building_ui(self):
         gr.Markdown(f"# Welcome to {self._app.app_name}!")
-        self.usn = gr.Textbox(label="Username", visible=False)
-        self.pwd = gr.Textbox(label="Password", type="password", visible=False)
-        self.btn_login = gr.Button("Login", visible=False)
+        # visible=True по умолчанию — иначе форма может не появиться (JS load в Docker)
+        self.usn = gr.Textbox(label="Username", visible=True)
+        self.pwd = gr.Textbox(label="Password", type="password", visible=True)
+        self.btn_login = gr.Button("Login", visible=True)
 
     def on_register_events(self):
         onSignIn = gr.on(

@@ -42,6 +42,8 @@ services:
       THEFLOW_SETTINGS_MODULE: flowsettings
       QDRANT_URL: http://qdrant:6333
       SEARXNG_URL: http://searxng:8080
+      # Без логина: прямой доступ к Chat/Files (admin/admin при KH_FEATURE_USER_MANAGEMENT=true)
+      KH_FEATURE_USER_MANAGEMENT: "false"
     depends_on:
       - qdrant
       - searxng
