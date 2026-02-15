@@ -254,6 +254,37 @@ class LCGoogleEmbeddings(LCEmbeddingMixin, BaseEmbeddings):
         return GoogleGenerativeAIEmbeddings
 
 
+class LCOllamaEmbeddings(LCEmbeddingMixin, BaseEmbeddings):
+    """Embeddings через Ollama (nomic-embed-text, mxbai-embed-large и др.)."""
+
+    base_url: str = Param(
+        help="Base Ollama URL (например http://localhost:11434)",
+        default="http://localhost:11434",
+        required=True,
+    )
+    model: str = Param(
+        help="Модель Ollama (https://ollama.com/library, например nomic-embed-text)",
+        default="nomic-embed-text",
+        required=True,
+    )
+
+    def __init__(
+        self,
+        base_url: str = "http://localhost:11434",
+        model: str = "nomic-embed-text",
+        **params,
+    ):
+        super().__init__(base_url=base_url, model=model, **params)
+
+    def _get_lc_class(self):
+        try:
+            from langchain_ollama import OllamaEmbeddings
+        except ImportError:
+            raise ImportError("Please install langchain-ollama")
+
+        return OllamaEmbeddings
+
+
 class LCMistralEmbeddings(LCEmbeddingMixin, BaseEmbeddings):
     """Wrapper around LangChain's MistralAI embedding, focusing on key parameters"""
 

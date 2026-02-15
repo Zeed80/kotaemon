@@ -200,8 +200,8 @@ class EmbeddingManagement(BasePage):
             if value.get("required", False):
                 required[key] = value.get("default", None)
 
-        # Check if this is OpenAIEmbeddings (can be used with Ollama)
-        is_ollama_compatible = vendor_name == "OpenAIEmbeddings"
+        # Ollama: LCOllamaEmbeddings или OpenAIEmbeddings (с base_url для Ollama)
+        is_ollama_compatible = vendor_name in ("LCOllamaEmbeddings", "OpenAIEmbeddings")
 
         # Auto-fill base_url for Ollama if OpenAIEmbeddings
         if is_ollama_compatible:
@@ -402,7 +402,32 @@ class EmbeddingManagement(BasePage):
             type_str = vendor_cls.__module__ + "." + vendor_cls.__qualname__
             vendor_name = vendor_cls.__name__
 
-            if vendor_name == "OpenAIEmbeddings":
+            if vendor_name == "LCOllamaEmbeddings":
+                model = (ollama_model_dropdown or "").strip() or (
+                    ollama_model_input or ""
+                ).strip()
+                if model and ollama_server:
+                    s = ollama_servers_manager.get(ollama_server)
+                    if s:
+                        base = (
+                            s["base_url"]
+                            .rstrip("/")
+                            .replace("/api", "")
+                            .replace("/v1", "")
+                        )
+                        base_url = f"{base}" if base else "http://localhost:11434"
+                        spec = {
+                            "__type__": type_str,
+                            "base_url": base_url,
+                            "model": model,
+                        }
+                    else:
+                        spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
+                        spec["__type__"] = type_str
+                else:
+                    spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
+                    spec["__type__"] = type_str
+            elif vendor_name == "OpenAIEmbeddings":
                 model = (ollama_model_dropdown or "").strip() or (
                     ollama_model_input or ""
                 ).strip()

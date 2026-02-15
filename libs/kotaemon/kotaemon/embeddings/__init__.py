@@ -7,6 +7,7 @@ from .langchain_based import (
     LCGoogleEmbeddings,
     LCHuggingFaceEmbeddings,
     LCMistralEmbeddings,
+    LCOllamaEmbeddings,
     LCOpenAIEmbeddings,
 )
 from .openai import AzureOpenAIEmbeddings, OpenAIEmbeddings
@@ -18,6 +19,7 @@ __all__ = [
     "EndpointEmbeddings",
     "TeiEndpointEmbeddings",
     "LCOpenAIEmbeddings",
+    "LCOllamaEmbeddings",
     "LCAzureOpenAIEmbeddings",
     "LCCohereEmbeddings",
     "LCHuggingFaceEmbeddings",
