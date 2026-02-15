@@ -4,6 +4,9 @@
 
 use_default_settings: true
 
+server:
+  secret_key: "kotaemon-searxng-change-in-production"
+
 search:
   formats:
     - html
