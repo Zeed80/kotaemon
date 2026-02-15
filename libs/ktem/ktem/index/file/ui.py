@@ -1135,7 +1135,7 @@ class FileIndexPage(BasePage):
         reindex: bool,
         settings,
         user_id,
-        progress: gr.Progress = gr.Progress(),
+        progress=None,
     ) -> Generator[tuple[str, str], None, None]:
         """Upload and index the files
 
@@ -1145,8 +1145,14 @@ class FileIndexPage(BasePage):
             reindex: whether to reindex the files
             selected_files: the list of files already selected
             settings: the settings of the app
-            progress: Gradio progress tracker
+            progress: Gradio progress tracker (no-op if None)
         """
+        if progress is None:
+
+            def _noop(*args, **kwargs):
+                pass
+
+            progress = _noop
         if urls:
             files = [it.strip() for it in urls.split("\n")]
             errors = self.validate_urls(files)
