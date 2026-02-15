@@ -1,5 +1,8 @@
 import hashlib
 import json
+import os
+import sys
+import threading
 
 import gradio as gr
 from sqlmodel import Session, select
@@ -228,12 +231,18 @@ class SettingsPage(BasePage):
 
     def on_building_ui(self):
         if not KH_SSO_ENABLED:
-            self.setting_save_btn = gr.Button(
-                "Save & Close",
-                variant="primary",
-                elem_classes=["right-button"],
-                elem_id="save-setting-btn",
-            )
+            with gr.Row(elem_id="settings-action-buttons"):
+                self.setting_save_btn = gr.Button(
+                    "Save & Close",
+                    variant="primary",
+                    elem_classes=["right-button"],
+                    elem_id="save-setting-btn",
+                )
+                self.restart_btn = gr.Button(
+                    "Restart",
+                    variant="secondary",
+                    elem_id="restart-app-btn",
+                )
         if self._app.f_user_management:
             with gr.Tab("User settings"):
                 self.user_tab()
@@ -308,6 +317,12 @@ class SettingsPage(BasePage):
             ).then(
                 lambda: gr.Tabs(selected="chat-tab"),
                 outputs=self._app.tabs,
+            )
+            self.restart_btn.click(
+                self._save_and_restart,
+                inputs=[self._user_id] + self.components(),
+                outputs=[],
+                show_progress="hidden",
             )
         self._components["reasoning.use"].change(
             self.change_reasoning_mode,
@@ -389,6 +404,29 @@ class SettingsPage(BasePage):
 
         return "", ""
 
+    def _save_and_restart(self, user_id, *args):
+        """Сохранить настройки и перезапустить приложение."""
+        # Сначала сохраняем
+        self.save_setting(user_id, *args)
+        gr.Info("Сохранено. Перезапуск через 2 секунды...")
+
+        def _do_restart():
+            import time
+
+            time.sleep(2)
+            try:
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+            except Exception as e:
+                # Если execv недоступен (например, на Windows с ограничениями)
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "Restart via execv failed: %s. Exit and restart manually.", e
+                )
+                os._exit(0)
+
+        threading.Thread(target=_do_restart, daemon=True).start()
+
     def app_tab(self):
         with gr.Tab("General", visible=self._render_app_tab):
             for n, si in self._default_settings.application.settings.items():
@@ -402,8 +440,8 @@ class SettingsPage(BasePage):
                 if si.special_type == "embedding":
                     self._embeddings.append(obj)
             gr.Markdown(
-                "*Настройки сохраняются в .env и вступают в силу после перезапуска. "
-                "Флаги индексов (LightRAG, Nano GraphRAG), Qdrant и т.д. — также после перезапуска.*"
+                "*Настройки сохраняются в .env. Для применения (TORCH_DEVICE, Qdrant, "
+                "флаги индексов) нажмите **Restart** или перезапустите приложение вручную.*"
             )
 
     def index_tab(self):

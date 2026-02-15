@@ -60,11 +60,11 @@ function run() {
   let chat_column = document.getElementById("main-chat-bot");
   let conv_column = document.getElementById("conv-settings-panel");
 
-  // move setting close button
+  // move settings action buttons (Save, Restart) to tab nav bar
   let setting_tab_nav_bar = document.querySelector("#settings-tab .tab-nav");
-  let setting_close_button = document.getElementById("save-setting-btn");
-  if (setting_close_button && setting_tab_nav_bar) {
-    setting_tab_nav_bar.appendChild(setting_close_button);
+  let settings_action_buttons = document.getElementById("settings-action-buttons");
+  if (settings_action_buttons && setting_tab_nav_bar) {
+    setting_tab_nav_bar.appendChild(settings_action_buttons);
   }
 
   let default_conv_column_min_width = "min(300px, 100%)";
