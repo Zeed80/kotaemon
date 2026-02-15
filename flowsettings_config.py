@@ -89,7 +89,14 @@ class EnvSettings(BaseSettings):
     USE_GLOBAL_GRAPHRAG: bool = True
     USE_CUSTOMIZED_GRAPHRAG_SETTING: str = "value"
     USE_MULTIMODAL: bool = False
-    USE_LOW_LLM_REQUESTS: bool = False
+    USE_LOW_LLM_REQUESTS: bool = True  # Выкл LLM relevant scoring по умолчанию — скорость без потери качества
+
+    # RAG quality defaults (оптимизация точности и скорости чата)
+    MAX_CONTEXT_LENGTH: int = 64000
+    MAX_TABLE_COUNT: int = 15
+    NUM_RETRIEVAL_DEFAULT: int = 20
+    PRIORITIZE_TABLE_DEFAULT: bool = True
+    ENABLE_PRE_AGGREGATION: bool = True  # Извлечение агрегатов из таблиц при индексации
 
     # Secret storage (optional): ключ для шифрования API-ключей в БД и application_settings.json
     KH_ENCRYPTION_KEY: str = ""

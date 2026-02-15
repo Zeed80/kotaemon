@@ -18,11 +18,14 @@ class PrepareEvidencePipeline(BaseComponent):
     This step usually happens after `DocumentRetrievalPipeline`.
 
     Args:
+        max_context_length: max tokens for evidence (trimmed if exceeded).
+        max_table_count: max tables included in context (prioritize first by order).
         trim_func: a callback function or a BaseComponent, that splits a large
             chunk of text into smaller ones. The first one will be retained.
     """
 
-    max_context_length: int = 32000
+    max_context_length: int = 64000
+    max_table_count: int = 15
     trim_func: TokenSplitter | None = None
 
     def run(self, docs: list[RetrievedDocument]) -> Document:
@@ -54,7 +57,7 @@ class PrepareEvidencePipeline(BaseComponent):
                 source += f" (Page {page})"
             if retrieved_item.metadata.get("type", "") == "table":
                 evidence_modes.append(EVIDENCE_MODE_TABLE)
-                if table_found < 5:
+                if table_found < self.max_table_count:
                     retrieved_content = retrieved_item.metadata.get(
                         "table_origin", retrieved_item.text
                     )

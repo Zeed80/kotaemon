@@ -44,6 +44,7 @@ from ktem.embeddings.manager import embedding_models_manager
 from ktem.llms.manager import llms
 from ktem.rerankings.manager import reranking_models_manager
 
+from .aggregation import create_aggregate_documents
 from .base import BaseFileIndexIndexing, BaseFileIndexRetriever
 
 logger = logging.getLogger(__name__)
@@ -294,8 +295,9 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             },
             "num_retrieval": {
                 "name": "Number of document chunks to retrieve",
-                "value": 10,
+                "value": config("NUM_RETRIEVAL_DEFAULT", default=20, cast=int),
                 "component": "number",
+                "info": "Больше чанков — выше точность, но дольше ответ. 20–30 для 1000+ документов.",
             },
             "retrieval_mode": {
                 "name": "Retrieval mode",
@@ -305,9 +307,10 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             },
             "prioritize_table": {
                 "name": "Prioritize table",
-                "value": False,
+                "value": config("PRIORITIZE_TABLE_DEFAULT", default=True, cast=bool),
                 "choices": [True, False],
                 "component": "checkbox",
+                "info": "Включать таблицы и окружающий контекст. Рекомендуется для счетов и прайсов.",
             },
             "mmr": {
                 "name": "Use MMR",
@@ -403,6 +406,7 @@ class IndexPipeline(BaseComponent):
     loader: BaseReader
     splitter: BaseSplitter | None
     chunk_batch_size: int = 200
+    enable_pre_aggregation: bool = True
 
     Source = Param(help="The SQLAlchemy Source table")
     Index = Param(help="The SQLAlchemy Index table")
@@ -472,6 +476,21 @@ class IndexPipeline(BaseComponent):
                 chunk.metadata["thumbnail_doc_id"] = page_label_to_thumbnail[page_label]
 
         to_index_chunks = all_chunks + non_text_docs + thumbnail_docs
+
+        if self.enable_pre_aggregation and non_text_docs:
+            try:
+                aggregate_docs = create_aggregate_documents(
+                    non_text_docs, file_id, file_name
+                )
+                if aggregate_docs:
+                    to_index_chunks = to_index_chunks + aggregate_docs
+                    logger.info(
+                        "Pre-aggregation: added %d aggregate docs for %s",
+                        len(aggregate_docs),
+                        file_name,
+                    )
+            except Exception as e:
+                logger.warning("Pre-aggregation failed for %s: %s", file_name, e)
 
         # add to doc store
         chunks = []
@@ -766,6 +785,10 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         "ocr",
         help="Document recognition: 'ocr' (Unstructured/Tesseract etc.) or 'vlm' (multimodal models only)",
     )
+    enable_pre_aggregation: bool = Param(
+        True,
+        help="Extract aggregates from tables during indexing (top items, totals)",
+    )
     vlm_model: str = Param(
         "default", help="VLM model for document recognition (when mode is VLM)"
     )
@@ -837,6 +860,15 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
             pass
 
         return {
+            "enable_pre_aggregation": {
+                "name": "Pre-aggregation (сводки из таблиц)",
+                "value": config("ENABLE_PRE_AGGREGATION", default=True, cast=bool),
+                "component": "checkbox",
+                "info": (
+                    "Извлекать агрегаты (топ позиций, суммы) из таблиц при индексации. "
+                    "Улучшает ответы на запросы «наиболее покупаемое», «итого» и т.п."
+                ),
+            },
             "document_recognition_mode": {
                 "name": "Document recognition",
                 "value": "ocr",
@@ -865,6 +897,10 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
     @classmethod
     def get_pipeline(cls, user_settings, index_settings) -> BaseFileIndexIndexing:
         use_quick_index_mode = user_settings.get("quick_index_mode", False)
+        enable_pre_aggregation = user_settings.get(
+            "enable_pre_aggregation",
+            config("ENABLE_PRE_AGGREGATION", default=True, cast=bool),
+        )
         doc_mode = user_settings.get("document_recognition_mode")
         if doc_mode is None:
             im = user_settings.get("image_reader_mode", "unstructured")
@@ -876,6 +912,7 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                 )
             ],
             run_embedding_in_thread=use_quick_index_mode,
+            enable_pre_aggregation=enable_pre_aggregation,
             document_recognition_mode=doc_mode,
             vlm_model=user_settings.get("vlm_model", "default"),
             llm_model=user_settings.get("llm_model", ""),
@@ -938,6 +975,9 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
             loader=reader,
             splitter=splitter,
             run_embedding_in_thread=self.run_embedding_in_thread,
+            enable_pre_aggregation=getattr(
+                self, "enable_pre_aggregation", True
+            ),
             Source=self.Source,
             Index=self.Index,
             VS=self.VS,

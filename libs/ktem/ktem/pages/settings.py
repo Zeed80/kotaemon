@@ -587,6 +587,13 @@ class SettingsPage(BasePage):
                     self._llms.append(obj)
                 if si.special_type == "embedding":
                     self._embeddings.append(obj)
+            try:
+                from ktem.utils.resource_limits import format_limits_html
+
+                gr.Markdown("### Системные ресурсы")
+                gr.HTML(format_limits_html())
+            except Exception:
+                pass
             gr.Markdown(
                 "*Настройки сохраняются в .env. Для применения (TORCH_DEVICE, Qdrant, "
                 "флаги индексов) нажмите **Restart** или перезапустите приложение вручную.*"

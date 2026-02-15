@@ -358,7 +358,8 @@ class FullQAPipeline(BaseReasoning):
             settings: the settings for the pipeline
             retrievers: the retrievers to use
         """
-        max_context_length_setting = settings.get("reasoning.max_context_length", 32000)
+        max_context_length_setting = settings.get("reasoning.max_context_length", 64000)
+        max_table_count_setting = settings.get("reasoning.max_table_count", 15)
 
         pipeline = cls.prepare_pipeline_instance(settings, retrievers)
 
@@ -369,6 +370,7 @@ class FullQAPipeline(BaseReasoning):
         # prepare evidence pipeline configuration
         evidence_pipeline = pipeline.evidence_pipeline
         evidence_pipeline.max_context_length = max_context_length_setting
+        evidence_pipeline.max_table_count = max_table_count_setting
 
         # answering pipeline configuration
         use_inline_citation = settings[f"{prefix}.highlight_citation"] == "inline"

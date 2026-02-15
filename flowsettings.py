@@ -641,8 +641,15 @@ SETTINGS_REASONING = {
     },
     "max_context_length": {
         "name": "Max context length (LLM)",
-        "value": 32000,
+        "value": config("MAX_CONTEXT_LENGTH", default=64000, cast=int),
         "component": "number",
+        "info": "Макс. токенов контекста для LLM (32k–128k в зависимости от модели).",
+    },
+    "max_table_count": {
+        "name": "Max tables in context",
+        "value": config("MAX_TABLE_COUNT", default=15, cast=int),
+        "component": "number",
+        "info": "Макс. число таблиц в контексте LLM. Увеличьте для документов с множеством таблиц.",
     },
 }
 
