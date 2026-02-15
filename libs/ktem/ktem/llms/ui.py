@@ -365,6 +365,34 @@ class LLMManagement(BasePage):
             gr.update(value=""),
         )
 
+    def _reset_add_llm_form(self, _prev=None):
+        """Сбросить форму Add LLM после успешного добавления. Ровно 19 значений.
+        _prev — вывод предыдущего handler (list_llms), игнорируется."""
+        return (
+            "",
+            gr.update(
+                value=None
+            ),  # llm_choices — gr.update, чтобы избежать "value not in choices"
+            "",
+            False,
+            self.spec_desc_default,
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(value=None),  # api_model_dropdown
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "2024-02-15-preview",
+            gr.update(value=None),  # ollama_server_dropdown
+            8192,
+            gr.update(value=None),  # ollama_model_dropdown
+            "",
+        )
+
     def on_register_events(self):
         self.llm_choices.select(
             self.on_llm_vendor_change,
@@ -438,28 +466,7 @@ class LLMManagement(BasePage):
             ],
             outputs=[],
         ).success(self.list_llms, inputs=[], outputs=[self.llm_list]).success(
-            lambda: (
-                "",
-                None,
-                "",
-                False,
-                self.spec_desc_default,
-                gr.update(visible=False),
-                gr.update(visible=False),
-                gr.update(visible=False),
-                None,
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "2024-02-15-preview",
-                None,
-                8192,
-                "",
-                "",
-            ),
+            self._reset_add_llm_form,
             outputs=[
                 self.name,
                 self.llm_choices,

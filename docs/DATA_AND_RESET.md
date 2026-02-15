@@ -23,6 +23,37 @@
 - `./ktem_app_data/` — в корне проекта (рядом с flowsettings.py)
 - Qdrant: `localhost:6333` или `QDRANT_PATH` для file-режима
 
+---
+
+## Настройка Qdrant (векторное хранилище)
+
+Qdrant используется по умолчанию для хранения векторных индексов. Настройки в **Settings → General**.
+
+### Docker Compose
+
+- Сервис `qdrant` поднимается автоматически (`docker compose up`)
+- `QDRANT_URL=http://qdrant:6333` задаётся в `docker-compose.yml` (сеть между контейнерами)
+- Дополнительная настройка не требуется
+
+### Локальный запуск (без Docker)
+
+**Вариант 1 — Qdrant как отдельный сервер**
+
+1. Запустите Qdrant: `docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant`
+2. В `.env` укажите: `QDRANT_URL=http://localhost:6333`
+3. Либо в **Settings → General** задайте **Qdrant URL** = `http://localhost:6333` и сохраните
+
+**Вариант 2 — file-режим (без отдельного сервера)**
+
+1. В `.env`: `QDRANT_PATH=./qdrant_data` (путь к папке для хранения)
+2. Либо в **Settings → General** задайте **Qdrant local path** = `./qdrant_data`
+3. При заданном `QDRANT_PATH` URL игнорируется — Qdrant работает в файловом режиме
+
+### Проверка
+
+- Убедитесь, что Qdrant доступен: `curl http://localhost:6333/` (при URL-режиме)
+- При ошибках индексации проверьте логи и настройки в General
+
 ### 3. Прочее (вне проекта)
 
 - `~/.cache/huggingface/` — если HF_HOME не переопределён
