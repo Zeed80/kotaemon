@@ -218,6 +218,8 @@ class BaseApp:
             self.user_id.render()
             self.ui_lang.render()
 
+            self.ui()
+
             with gr.Row(elem_id="header-lang-row", variant="compact"):
                 gr.HTML("<div style='flex:1'></div>")
                 self.lang_dropdown = gr.Dropdown(
@@ -234,8 +236,6 @@ class BaseApp:
                     f'<p id="version-display" class="version-text">'
                     f'{get_text("en", "version")}: {self.app_version}</p>'
                 )
-
-            self.ui()
 
             self.declare_public_events()
             self.subscribe_public_events()
