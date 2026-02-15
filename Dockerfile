@@ -32,6 +32,9 @@ RUN apt-get update -qqy && \
         ffmpeg \
         libmagic-dev
 
+# Install uv (быстрый резолвер и установщик вместо pip)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
 # Create working directory
 WORKDIR /app
 
@@ -46,57 +49,48 @@ COPY . /app
 COPY launch.sh /app/launch.sh
 COPY .env.example /app/.env
 
-# Install pip packages - base dependencies
-# Используем --no-cache-dir чтобы избежать Bad CRC-32 из повреждённого кэша (nvidia/torch wheels)
-# Очищаем кэш pip перед установкой для предотвращения ошибок с поврежденными wheel файлами
-# Если ошибка Bad CRC-32 повторяется, очистите кэш Docker BuildKit: docker builder prune -af
-RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
-    rm -rf /root/.cache/pip/wheels/* || true \
-    && pip cache purge || true \
-    && pip install --no-cache-dir -e "libs/kotaemon[adv]" \
-    && pip install --no-cache-dir -e "libs/ktem" \
-    && pip install --no-cache-dir "pdfservices-sdk@git+https://github.com/niallcm/pdfservices-python-sdk.git@bump-and-unfreeze-requirements" \
-    && (pip uninstall -y multipart 2>/dev/null || true) \
-    && pip install --no-cache-dir --force-reinstall "python-multipart>=0.0.12" \
-    && pip install --no-cache-dir "pyparsing<3.0.0"
+# Install Python packages - base dependencies (uv: быстрый резолвер вместо pip)
+RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
+    uv pip install --system -e "libs/kotaemon[adv]" \
+    && uv pip install --system -e "libs/ktem" \
+    && uv pip install --system "pdfservices-sdk@git+https://github.com/niallcm/pdfservices-python-sdk.git@bump-and-unfreeze-requirements" \
+    && (uv pip uninstall --system -y multipart 2>/dev/null || true) \
+    && uv pip install --system --force-reinstall "python-multipart>=0.0.12" \
+    && uv pip install --system "pyparsing<3.0.0"
 
 # Install GraphRAG (MS GraphRAG) for amd64
-RUN --mount=type=cache,target=/root/.cache/pip \
-    if [ "$TARGETARCH" = "amd64" ]; then pip install "graphrag<=0.3.6" future; fi
+RUN --mount=type=cache,target=/root/.cache/uv \
+    if [ "$TARGETARCH" = "amd64" ]; then uv pip install --system "graphrag<=0.3.6" future; fi
 
 # Install torch and torchvision for Unstructured/Docling
 # TORCH_DEVICE: cpu (default) | cu121 | cu124
-# Очищаем кэш перед установкой torch для избежания проблем с поврежденными wheel файлами
-RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
-    rm -rf /root/.cache/pip/wheels/*nvidia* || true \
-    && rm -rf /root/.cache/pip/wheels/*torch* || true \
-    && pip cache purge || true \
-    && if [ "$TORCH_DEVICE" = "cpu" ]; then \
-        pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu; \
+RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
+    if [ "$TORCH_DEVICE" = "cpu" ]; then \
+        uv pip install --system torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu; \
     elif [ "$TORCH_DEVICE" = "cu121" ]; then \
-        pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121; \
+        uv pip install --system torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121; \
     else \
-        pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124; \
+        uv pip install --system torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124; \
     fi
 
 # Install Unstructured
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install unstructured[all-docs]
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system "unstructured[all-docs]"
 
 # Install LightRAG
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install aioboto3 nano-vectordb ollama xxhash "lightrag-hku<=1.3.0"
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system aioboto3 nano-vectordb ollama xxhash "lightrag-hku<=1.3.0"
 
 # Install Docling
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install "docling<=2.5.2"
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system "docling<=2.5.2"
 
 # Install Nano GraphRAG
 # Resolve hnswlib/chroma-hnswlib conflict: nano-graphrag can pull hnswlib; chromadb uses chroma-hnswlib.
 # See https://github.com/Zeed80/kotaemon/issues/440 — reinstall chroma-hnswlib so chromadb works.
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install nano-graphrag \
-    && (pip uninstall -y hnswlib chroma-hnswlib 2>/dev/null; pip install chroma-hnswlib) || true
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system nano-graphrag \
+    && (uv pip uninstall --system -y hnswlib chroma-hnswlib 2>/dev/null; uv pip install --system chroma-hnswlib) || true
 
 # Download NLTK data from LlamaIndex
 RUN python -c "from llama_index.core.readers.base import BaseReader"
