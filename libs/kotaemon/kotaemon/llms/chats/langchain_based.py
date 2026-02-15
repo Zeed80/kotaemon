@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncGenerator, Iterator
 
-from kotaemon.base import BaseMessage, HumanMessage, LLMInterface, Param
+from kotaemon.base import AIMessage, BaseMessage, HumanMessage, LLMInterface, Param
 
 from .base import ChatLLM
 
@@ -50,7 +50,7 @@ class LCChatMixin:
 
     def prepare_response(self, pred):
         all_text = [each.text for each in pred.generations[0]]
-        all_messages = [each.message for each in pred.generations[0]]
+        all_messages_raw = [each.message for each in pred.generations[0]]
 
         completion_tokens, total_tokens, prompt_tokens = 0, 0, 0
         try:
@@ -62,6 +62,15 @@ class LCChatMixin:
             pass
 
         main_text = all_text[0] if len(all_text) > 0 else ""
+        # Конвертируем LCAIMessage в AIMessage, чтобы избежать Pydantic/LangChain ошибок
+        all_messages = []
+        for m in all_messages_raw:
+            try:
+                c = getattr(m, "content", None)
+                all_messages.append(AIMessage(content=c if c is not None else ""))
+            except Exception:
+                pass
+
         return LLMInterface(
             content=main_text,
             candidates=all_text,
