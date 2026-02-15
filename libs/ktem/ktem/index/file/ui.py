@@ -912,7 +912,6 @@ class FileIndexPage(BasePage):
                     self.reindex,
                     self._app.settings_state,
                     self._app.user_id,
-                    self.progress,
                 ],
                 outputs=[self.upload_result, self.upload_info],
                 concurrency_limit=20,
@@ -1130,7 +1129,13 @@ class FileIndexPage(BasePage):
         return remaining_files, errors
 
     def index_fn(
-        self, files, urls, reindex: bool, settings, user_id, progress=lambda x: None
+        self,
+        files,
+        urls,
+        reindex: bool,
+        settings,
+        user_id,
+        progress: gr.Progress = gr.Progress(),
     ) -> Generator[tuple[str, str], None, None]:
         """Upload and index the files
 
