@@ -25,15 +25,22 @@ class ChatPanel(BasePage):
         self.on_building_ui()
 
     def on_building_ui(self):
-        self.chatbot = gr.Chatbot(
-            label=self._app.app_name,
-            placeholder=PLACEHOLDER_TEXT,
-            show_label=False,
-            elem_id="main-chat-bot",
-            show_copy_button=True,
-            likeable=True,
-            bubble_full_width=False,
-        )
+        # likeable, bubble_full_width: только в Gradio 5.x новее; старые версии не поддерживают
+        chatbot_kwargs = {
+            "label": self._app.app_name,
+            "placeholder": PLACEHOLDER_TEXT,
+            "show_label": False,
+            "elem_id": "main-chat-bot",
+            "show_copy_button": True,
+        }
+        try:
+            self.chatbot = gr.Chatbot(
+                **chatbot_kwargs,
+                likeable=True,
+                bubble_full_width=False,
+            )
+        except TypeError:
+            self.chatbot = gr.Chatbot(**chatbot_kwargs)
         with gr.Row():
             self.text_input = gr.MultimodalTextbox(
                 interactive=True,
