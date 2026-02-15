@@ -75,14 +75,18 @@ def get_ollama_base_url_for_langchain() -> str:
 
 
 def _normalize_url_to_api(url: str) -> str:
-    """Привести URL к формату с /api для запросов к Ollama API (на бэкенде)."""
+    """Привести URL к формату с /api для запросов к Ollama API (на бэкенде).
+
+    Поддерживает: http://host:11434, http://host:11434/v1/, http://host:11434/api.
+    """
     url = (url or "").strip().rstrip("/")
-    url = url.replace("/v1/", "/api").replace("/v1", "/api")
-    if not url.endswith("/api"):
-        if ":11434" in url and not url.endswith("/api"):
-            url = f"{url}/api" if not url.endswith("/") else f"{url.rstrip('/')}/api"
-        elif url and not url.endswith("/api"):
-            url = f"{url}/api"
+    if not url:
+        return ""
+    # Убираем /v1/ и /v1, добавляем /api
+    url = url.replace("/v1/", "/").replace("/v1", "/").rstrip("/")
+    if "/api" not in url:
+        url = f"{url}/api" if url else ""
+    # Убеждаемся, что заканчивается на /api (без лишнего слеша перед tags)
     return url.rstrip("/")
 
 
@@ -112,7 +116,8 @@ def check_ollama_available(base_url: str | None = None) -> tuple[bool, str]:
     if not api_url:
         return False, "empty_url"
     try:
-        response = requests.get(f"{api_url}/tags", timeout=3)
+        tags_url = f"{api_url}/tags" if not api_url.endswith("/tags") else api_url
+        response = requests.get(tags_url, timeout=5)
         if response.status_code == 200:
             return True, "ok"
         return False, f"status_{response.status_code}"

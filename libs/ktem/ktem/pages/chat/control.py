@@ -125,6 +125,7 @@ class ConversationControl(BasePage):
                     scale=1,
                     size="sm",
                     elem_classes=["no-background", "body-text-color"],
+                    elem_id="conversation-rename-button",
                 )
                 self.btn_del = gr.Button(
                     value="",
@@ -133,6 +134,7 @@ class ConversationControl(BasePage):
                     scale=1,
                     size="sm",
                     elem_classes=["no-background", "body-text-color"],
+                    elem_id="conversation-delete-button",
                 )
                 self.btn_new = gr.Button(
                     value="",
@@ -188,7 +190,7 @@ class ConversationControl(BasePage):
             self.btn_del_cnl = gr.Button(value="Cancel", min_width=10)
 
         with gr.Row():
-            self.conversation_rn = gr.Text(
+            self.conversation_rn = gr.Textbox(
                 label="(Enter) to save",
                 placeholder="Conversation name",
                 container=True,

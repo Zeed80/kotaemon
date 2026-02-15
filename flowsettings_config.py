@@ -90,6 +90,9 @@ class EnvSettings(BaseSettings):
     USE_MULTIMODAL: bool = False
     USE_LOW_LLM_REQUESTS: bool = False
 
+    # Secret storage (optional): ключ для шифрования API-ключей в БД и application_settings.json
+    KH_ENCRYPTION_KEY: str = ""
+
     # Other
     N_PROMPT_OPT_EXAMPLES: int = 3
     HF_SPACE_URL: str = ""

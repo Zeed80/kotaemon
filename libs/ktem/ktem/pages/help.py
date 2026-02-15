@@ -1,4 +1,3 @@
-from importlib.metadata import version
 from pathlib import Path
 
 import gradio as gr
@@ -13,23 +12,29 @@ HF_SPACE_URL = config("HF_SPACE_URL", default="")
 
 def get_remote_doc(url: str) -> str:
     try:
-        res = requests.get(url)
+        res = requests.get(url, timeout=10)
         res.raise_for_status()
         return res.text
     except Exception as e:
         print(f"Failed to fetch document from {url}: {e}")
-        return ""
+        return (
+            "**Error:** Unable to load content. "
+            "Please check your network connection."
+        )
 
 
 def download_changelogs(release_url: str) -> str:
     try:
-        res = requests.get(release_url).json()
-        changelogs = res.get("body", "")
-
+        res = requests.get(release_url, timeout=10)
+        res.raise_for_status()
+        changelogs = res.json().get("body", "")
         return changelogs
     except Exception as e:
         print(f"Failed to fetch changelogs from {release_url}: {e}")
-        return ""
+        return (
+            "**Error:** Unable to load changelogs. "
+            "Please check your network connection."
+        )
 
 
 class HelpPage:
@@ -97,8 +102,8 @@ class HelpPage:
             # try retrieve from cache
             changelogs = ""
 
-            if (self.changelogs_cache_dir / f"{version}.md").exists():
-                with open(self.changelogs_cache_dir / f"{version}.md") as fi:
+            if (self.changelogs_cache_dir / f"{self.app_version}.md").exists():
+                with open(self.changelogs_cache_dir / f"{self.app_version}.md") as fi:
                     changelogs = fi.read()
             else:
                 release_url_base = (
@@ -108,13 +113,14 @@ class HelpPage:
                     release_url=f"{release_url_base}/tags/v{self.app_version}"
                 )
 
-                # cache the changelogs
-                if not self.changelogs_cache_dir.exists():
-                    self.changelogs_cache_dir.mkdir(parents=True, exist_ok=True)
-                with open(
-                    self.changelogs_cache_dir / f"{self.app_version}.md", "w"
-                ) as fi:
-                    fi.write(changelogs)
+                # cache the changelogs only on success (avoid caching error messages)
+                if changelogs and not changelogs.startswith("**Error:**"):
+                    if not self.changelogs_cache_dir.exists():
+                        self.changelogs_cache_dir.mkdir(parents=True, exist_ok=True)
+                    with open(
+                        self.changelogs_cache_dir / f"{self.app_version}.md", "w"
+                    ) as fi:
+                        fi.write(changelogs)
 
             if changelogs:
                 with gr.Accordion(f"Changelogs (v{self.app_version})"):

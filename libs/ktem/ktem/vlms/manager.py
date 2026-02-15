@@ -45,13 +45,17 @@ class VLMManager:
 
     def load(self) -> None:
         """Загрузить VLM из БД."""
+        from ktem.utils.secret_storage import process_dict_for_load
+
         self._vlms = {}
         with Session(engine) as session:
             stmt = select(VLMTable)
             for row in session.execute(stmt).scalars():
+                spec = dict(row.spec or {})
+                process_dict_for_load(spec)
                 self._vlms[row.name] = {
                     "name": row.name,
-                    "spec": row.spec or {},
+                    "spec": spec,
                 }
 
     def list(self) -> list[dict]:
@@ -64,11 +68,15 @@ class VLMManager:
 
     def add(self, name: str, spec: dict[str, Any]) -> None:
         """Добавить VLM."""
+        from ktem.utils.secret_storage import process_dict_for_save
+
         name = name.strip()
         if not name:
             raise ValueError("Имя VLM не может быть пустым")
+        spec_to_store = dict(spec)
+        process_dict_for_save(spec_to_store)
         with Session(engine) as session:
-            item = VLMTable(name=name, spec=spec)
+            item = VLMTable(name=name, spec=spec_to_store)
             session.add(item)
             session.commit()
         self.load()
@@ -76,12 +84,16 @@ class VLMManager:
 
     def update(self, name: str, spec: dict[str, Any]) -> None:
         """Обновить VLM."""
+        from ktem.utils.secret_storage import process_dict_for_save
+
         if not name or name not in self._vlms:
             raise ValueError(f"VLM {name!r} не найден")
+        spec_to_store = dict(spec)
+        process_dict_for_save(spec_to_store)
         with Session(engine) as session:
             item = session.get(VLMTable, name)
             if item:
-                item.spec = spec
+                item.spec = spec_to_store
                 session.add(item)
                 session.commit()
         self.load()

@@ -25,7 +25,9 @@ class ChatPanel(BasePage):
         self.on_building_ui()
 
     def on_building_ui(self):
-        # likeable, bubble_full_width: только в Gradio 5.x новее; старые версии не поддерживают
+        # TODO: type="messages" устраняет UserWarning, но требует миграции chat_history
+        # (pipeline, select_conv, persist) на формат [{"role","content"}]
+        # likeable/bubble_full_width — только в Gradio 5.x+
         chatbot_kwargs = {
             "label": self._app.app_name,
             "placeholder": PLACEHOLDER_TEXT,

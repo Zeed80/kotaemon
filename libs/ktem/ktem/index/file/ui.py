@@ -20,6 +20,7 @@ from theflow.settings import settings as flowsettings
 
 from ktem.app import BasePage
 from ktem.db.engine import engine
+from ktem.utils.js_snippets import chat_input_focus_js_with_submit
 from ktem.utils.render import Render
 
 from ...utils.commands import WEB_SEARCH_COMMAND
@@ -32,22 +33,6 @@ DOWNLOAD_MESSAGE = "Start download"
 MAX_FILENAME_LENGTH = 20
 MAX_FILE_COUNT = 200
 logger = logging.getLogger(__name__)
-
-chat_input_focus_js = """
-function() {
-    let chatInput = document.querySelector("#chat-input textarea");
-    chatInput.focus();
-}
-"""
-
-chat_input_focus_js_with_submit = """
-function() {
-    let chatInput = document.querySelector("#chat-input textarea");
-    let chatInputSubmit = document.querySelector("#chat-input button.submit-button");
-    chatInputSubmit.click();
-    chatInput.focus();
-}
-"""
 
 update_file_list_js = """
 function(file_list) {
@@ -249,7 +234,7 @@ class FileIndexPage(BasePage):
 
         self.chunks = gr.HTML(visible=False)
 
-        with gr.Accordion("Advance options", open=False):
+        with gr.Accordion("Advanced options", open=False):
             with gr.Row():
                 if not KH_SSO_ENABLED:
                     self.download_all_button = gr.DownloadButton(
@@ -629,7 +614,8 @@ class FileIndexPage(BasePage):
     def on_register_quick_uploads(self):
         try:
             # quick file upload event registration of first Index only
-            if self._index.id == 1:
+            indices_input = getattr(self._app.chat_page, "_indices_input", [])
+            if self._index.id == 1 and len(indices_input) >= 2:
                 self.quick_upload_state = gr.State(value=[])
                 print("Setting up quick upload event")
 
@@ -665,7 +651,7 @@ class FileIndexPage(BasePage):
                             ],
                             outputs=[
                                 self._app.chat_page.quick_file_upload,
-                                self._app.chat_page._indices_input[0],
+                                indices_input[0],
                             ],
                         )
                     )
@@ -678,7 +664,7 @@ class FileIndexPage(BasePage):
                         quickUploadedEvent.success(
                             fn=lambda x: x,
                             inputs=self.quick_upload_state,
-                            outputs=self._app.chat_page._indices_input[1],
+                            outputs=indices_input[1],
                         )
                         .then(
                             fn=lambda ids: gr.update(
@@ -727,7 +713,7 @@ class FileIndexPage(BasePage):
                         ],
                         outputs=[
                             self._app.chat_page.quick_urls,
-                            self._app.chat_page._indices_input[0],
+                            indices_input[0],
                         ],
                     )
                 )
@@ -737,7 +723,7 @@ class FileIndexPage(BasePage):
                 quickURLUploadedEvent = quickURLUploadedEvent.success(
                     fn=lambda x: x,
                     inputs=self.quick_upload_state,
-                    outputs=self._app.chat_page._indices_input[1],
+                    outputs=indices_input[1],
                 ).then(
                     fn=lambda ids: gr.update(value=_format_quick_upload_status(ids)),
                     inputs=self.quick_upload_state,

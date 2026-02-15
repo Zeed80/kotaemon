@@ -34,20 +34,31 @@ class RerankingManager:
 
     def load(self):
         """Load the model pool from database"""
+        from ktem.utils.secret_storage import process_dict_for_load
+
         self._models, self._info, self._default = {}, {}, ""
         with Session(engine) as sess:
             stmt = select(RerankingTable)
             items = sess.execute(stmt)
 
             for (item,) in items:
-                self._models[item.name] = deserialize(item.spec, safe=False)
-                self._info[item.name] = {
-                    "name": item.name,
-                    "spec": item.spec,
-                    "default": item.default,
-                }
-                if item.default:
-                    self._default = item.name
+                try:
+                    spec = dict(item.spec or {})
+                    process_dict_for_load(spec)
+                    self._models[item.name] = deserialize(spec, safe=False)
+                    self._info[item.name] = {
+                        "name": item.name,
+                        "spec": spec,
+                        "default": item.default,
+                    }
+                    if item.default:
+                        self._default = item.name
+                except Exception as e:
+                    import logging
+
+                    logging.getLogger(__name__).warning(
+                        "Skipping reranking %r due to load error: %s", item.name, e
+                    )
 
     def load_vendors(self):
         from kotaemon.rerankings import (
@@ -140,8 +151,13 @@ class RerankingManager:
         return self._info
 
     def add(self, name: str, spec: dict, default: bool):
+        from ktem.utils.secret_storage import process_dict_for_save
+
         if not name:
             raise ValueError("Name must not be empty")
+
+        spec_to_store = dict(spec)
+        process_dict_for_save(spec_to_store)
 
         try:
             with Session(engine) as sess:
@@ -150,7 +166,7 @@ class RerankingManager:
                     sess.query(RerankingTable).update({"default": False})
                     sess.commit()
 
-                item = RerankingTable(name=name, spec=spec, default=default)
+                item = RerankingTable(name=name, spec=spec_to_store, default=default)
                 sess.add(item)
                 sess.commit()
         except Exception as e:
@@ -172,8 +188,13 @@ class RerankingManager:
 
     def update(self, name: str, spec: dict, default: bool):
         """Update a model in the pool"""
+        from ktem.utils.secret_storage import process_dict_for_save
+
         if not name:
             raise ValueError("Name must not be empty")
+
+        spec_to_store = dict(spec)
+        process_dict_for_save(spec_to_store)
 
         try:
             with Session(engine) as sess:
@@ -185,7 +206,7 @@ class RerankingManager:
                 item = sess.query(RerankingTable).filter_by(name=name).first()
                 if not item:
                     raise ValueError(f"Model {name} not found")
-                item.spec = spec
+                item.spec = spec_to_store
                 item.default = default
                 sess.commit()
         except Exception as e:

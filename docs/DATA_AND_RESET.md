@@ -4,12 +4,13 @@
 
 ### 1. Docker (volumes — переживают удаление проекта)
 
-| Volume | Путь в контейнере | Содержимое |
-|--------|-------------------|------------|
-| `kotaemon_ktem_app_data` | `/app/ktem_app_data` | Всё приложение |
-| `kotaemon_qdrant_data` | `/qdrant/storage` | Векторный индекс (Qdrant) |
+| Volume                   | Путь в контейнере    | Содержимое                |
+| ------------------------ | -------------------- | ------------------------- |
+| `kotaemon_ktem_app_data` | `/app/ktem_app_data` | Всё приложение            |
+| `kotaemon_qdrant_data`   | `/qdrant/storage`    | Векторный индекс (Qdrant) |
 
 **ktem_app_data** содержит:
+
 - `user_data/sql.db` — SQLite: пользователи, индексы, настройки LLM/Embeddings/Rerankings
 - `user_data/files/` — загруженные файлы
 - `user_data/docstore/` — LanceDB docstore
@@ -48,12 +49,13 @@ docker compose up -d
 ### Влияние `KH_FEATURE_USER_MANAGEMENT=false` (в docker-compose)
 
 При отключённом управлении пользователями:
+
 - **Скрывается вкладка «User settings»** (смена пароля, Logout)
 - Остальные вкладки (General, Retrieval settings, Reasoning, Ollama servers) должны быть
 
 ### Влияние `.env` и `application_settings.json`
 
-- **General**: Ollama URL, reranker, флаги GraphRAG — из `SETTINGS_APP` и `application_settings.json`
+- **General**: Ollama URL, reranker, Qdrant (URL, API key, path, hybrid, sparse model), флаги GraphRAG — из `SETTINGS_APP` и `application_settings.json`
 - **Retrieval settings**: LLM, Embedding, VLM для каждого индекса — из БД и `flowsettings`
 - **Reasoning**: модель, язык и т.п. — из БД
 
@@ -64,9 +66,11 @@ docker compose up -d
 ## Проверка Web UI
 
 Убедитесь, что:
+
 1. В Settings есть вкладки: **Ollama servers**, **General**, **Retrieval settings**, **Reasoning settings**
 2. В `.env` заданы нужные API-ключи (OpenAI, Google, и т.д.) для нужных провайдеров
-3. После полного сброса volumes (см. выше) UI загружается с дефолтами
+3. Для шифрования ключей в БД задайте `KH_ENCRYPTION_KEY` в `.env` (рекомендуется для production)
+4. После полного сброса volumes (см. выше) UI загружается с дефолтами
 
 ---
 

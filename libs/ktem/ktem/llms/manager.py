@@ -38,20 +38,30 @@ class LLMManager:
 
     def load(self):
         """Load the model pool from database"""
+        import logging
+
+        from ktem.utils.secret_storage import process_dict_for_load
+
+        logger = logging.getLogger(__name__)
         self._models, self._info, self._default = {}, {}, ""
         with Session(engine) as session:
             stmt = select(LLMTable)
             items = session.execute(stmt)
 
             for (item,) in items:
-                self._models[item.name] = deserialize(item.spec, safe=False)
-                self._info[item.name] = {
-                    "name": item.name,
-                    "spec": item.spec,
-                    "default": item.default,
-                }
-                if item.default:
-                    self._default = item.name
+                try:
+                    spec = dict(item.spec or {})
+                    process_dict_for_load(spec)
+                    self._models[item.name] = deserialize(spec, safe=False)
+                    self._info[item.name] = {
+                        "name": item.name,
+                        "spec": spec,
+                        "default": item.default,
+                    }
+                    if item.default:
+                        self._default = item.name
+                except Exception as e:
+                    logger.warning("Skipping LLM %r due to load error: %s", item.name, e)
 
     def load_vendors(self):
         from kotaemon.llms import (
@@ -158,9 +168,14 @@ class LLMManager:
 
     def add(self, name: str, spec: dict, default: bool):
         """Add a new model to the pool"""
+        from ktem.utils.secret_storage import process_dict_for_save
+
         name = name.strip()
         if not name:
             raise ValueError("Name must not be empty")
+
+        spec_to_store = dict(spec)
+        process_dict_for_save(spec_to_store)
 
         try:
             with Session(engine) as session:
@@ -169,7 +184,7 @@ class LLMManager:
                     session.query(LLMTable).update({"default": False})
                     session.commit()
 
-                item = LLMTable(name=name, spec=spec, default=default)
+                item = LLMTable(name=name, spec=spec_to_store, default=default)
                 session.add(item)
                 session.commit()
         except Exception as e:
@@ -191,8 +206,13 @@ class LLMManager:
 
     def update(self, name: str, spec: dict, default: bool):
         """Update a model in the pool"""
+        from ktem.utils.secret_storage import process_dict_for_save
+
         if not name:
             raise ValueError("Name must not be empty")
+
+        spec_to_store = dict(spec)
+        process_dict_for_save(spec_to_store)
 
         try:
             with Session(engine) as session:
@@ -204,7 +224,7 @@ class LLMManager:
                 item = session.query(LLMTable).filter_by(name=name).first()
                 if not item:
                     raise ValueError(f"Model {name} not found")
-                item.spec = spec
+                item.spec = spec_to_store
                 item.default = default
                 session.commit()
         except Exception as e:

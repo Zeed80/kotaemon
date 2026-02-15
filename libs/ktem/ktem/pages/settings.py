@@ -16,7 +16,11 @@ APPLICATION_SETTINGS_PREFIX = "application."
 
 
 def _persist_application_settings_file(setting: dict) -> None:
-    """Записать настройки приложения (application.*) в JSON-файл для учёта при следующем запуске (индексы, флаги)."""
+    """Записать настройки приложения (application.*) в JSON-файл для учёта при следующем запуске (индексы, флаги).
+    Чувствительные поля (api_key и т.п.) шифруются перед записью.
+    """
+    from ktem.utils.secret_storage import process_dict_for_save
+
     app_data_dir = getattr(flowsettings, "KH_APP_DATA_DIR", None)
     if not app_data_dir:
         return
@@ -34,6 +38,7 @@ def _persist_application_settings_file(setting: dict) -> None:
                 subset[short_key] = value
             except (TypeError, ValueError):
                 pass
+    process_dict_for_save(subset, prefix="application.")
     try:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(subset, f, ensure_ascii=False, indent=2)
@@ -81,6 +86,14 @@ gr_cls_single_value = {
     "number": gr.Number,
     "checkbox": gr.Checkbox,
 }
+
+
+def _make_password_component(**kwargs):
+    """Textbox с маскировкой для паролей и API-ключей."""
+    return gr.Textbox(**{**kwargs, "type": "password"})
+
+
+gr_cls_single_value["password"] = _make_password_component
 
 
 gr_cls_choices = {
@@ -367,8 +380,8 @@ class SettingsPage(BasePage):
                 if si.special_type == "embedding":
                     self._embeddings.append(obj)
             gr.Markdown(
-                "*Изменение флагов индексов (LightRAG, Nano GraphRAG и т.д.) "
-                "вступает в силу после перезапуска приложения.*"
+                "*Изменение флагов индексов (LightRAG, Nano GraphRAG), "
+                "настроек Qdrant и т.д. вступает в силу после перезапуска приложения.*"
             )
 
     def index_tab(self):
@@ -449,15 +462,21 @@ class SettingsPage(BasePage):
         return output
 
     def load_setting(self, user_id=None):
+        from ktem.utils.secret_storage import process_dict_for_load
+
         settings = self._settings_dict.copy()  # Копируем дефолтные настройки
-        with Session(engine) as session:
-            statement = select(Settings).where(Settings.user == user_id)
-            result = session.exec(statement).all()
-            if result:
-                # Обновляем только те настройки, которые есть в БД
-                db_settings = result[0].setting
-                if db_settings:
-                    settings.update(db_settings)
+        try:
+            with Session(engine) as session:
+                statement = select(Settings).where(Settings.user == user_id)
+                result = session.exec(statement).all()
+                if result:
+                    # Обновляем только те настройки, которые есть в БД
+                    db_settings = result[0].setting
+                    if db_settings:
+                        settings.update(db_settings)
+            process_dict_for_load(settings)
+        except Exception as e:
+            gr.Warning(f"Failed to load settings: {e}")
 
         output = [settings]
         # Безопасное получение настроек с дефолтными значениями
@@ -481,21 +500,28 @@ class SettingsPage(BasePage):
             gr.Warning("Need to login before saving settings")
             return setting
 
-        with Session(engine) as session:
-            statement = select(Settings).where(Settings.user == user_id)
-            try:
-                user_setting = session.exec(statement).one()
-            except Exception:
-                user_setting = Settings()
-                user_setting.user = user_id
-            user_setting.setting = setting
-            session.add(user_setting)
-            session.commit()
+        from ktem.utils.secret_storage import process_dict_for_save
 
-        _sync_application_settings_to_ollama_reranker(setting)
-        _persist_application_settings_file(setting)
+        process_dict_for_save(setting)
 
-        gr.Info("Setting saved")
+        try:
+            with Session(engine) as session:
+                statement = select(Settings).where(Settings.user == user_id)
+                try:
+                    user_setting = session.exec(statement).one()
+                except Exception:
+                    user_setting = Settings()
+                    user_setting.user = user_id
+                user_setting.setting = setting
+                session.add(user_setting)
+                session.commit()
+
+            _sync_application_settings_to_ollama_reranker(setting)
+            _persist_application_settings_file(setting)
+
+            gr.Info("Setting saved")
+        except Exception as e:
+            gr.Warning(f"Failed to save settings: {e}")
         return setting
 
     def components(self) -> list:

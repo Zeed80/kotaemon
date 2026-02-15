@@ -66,6 +66,34 @@ os.environ["HF_HUB_CACHE"] = str(KH_APP_DATA_DIR / "huggingface")
 # doc directory
 KH_DOC_DIR = this_dir / "docs"
 
+
+def get_application_setting(key: str, default: str | int | float | bool | None = None):  # noqa: ANN201
+    """Взять значение настройки приложения: сначала из application_settings.json, иначе default.
+    Используется в рантайме (чаты, пайплайны), при построении векторного хранилища и т.д.
+    Чувствительные значения (api_key и т.п.) расшифровываются при чтении.
+    """
+    path = KH_APP_DATA_DIR / "application_settings.json"
+    if not path.exists():
+        return default
+    try:
+        import json
+
+        from ktem.utils.secret_storage import decrypt_value
+
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        if key in data:
+            val = data[key]
+            if isinstance(val, str) and (
+                "api_key" in key or "secret" in key or "password" in key
+            ):
+                val = decrypt_value(val)
+            return val
+    except Exception:  # noqa: S110
+        pass
+    return default
+
+
 KH_MODE = "dev"
 KH_SSO_ENABLED = config("KH_SSO_ENABLED", default=False, cast=bool)
 
@@ -125,24 +153,37 @@ def _qdrant_api_key() -> str | None:
     return str(val).strip() or None
 
 
-KH_VECTORSTORE = {
-    "__type__": "kotaemon.storages.QdrantVectorStore",
-    "collection_name": "default",
-    "enable_hybrid": _qdrant_enable_hybrid,
-    "fastembed_sparse_model": _qdrant_sparse_model,
-    **(
-        {"path": _qdrant_path}
-        if _qdrant_path
-        else {
-            "url": _qdrant_url(),
-            "api_key": _qdrant_api_key() or "",
-        }
-    ),
-    # "__type__": "kotaemon.storages.LanceDBVectorStore",
-    # "__type__": "kotaemon.storages.ChromaVectorStore",
-    # "__type__": "kotaemon.storages.MilvusVectorStore",
-    # "path": str(KH_USER_DATA_DIR / "vectorstore"),
-}
+def _build_vectorstore_config() -> dict:
+    """Собрать конфиг векторного хранилища: application_settings.json → .env."""
+    path_val = get_application_setting("qdrant_path") or _qdrant_path
+    enable_hybrid = get_application_setting("qdrant_enable_hybrid")
+    if enable_hybrid is None:
+        enable_hybrid = _qdrant_enable_hybrid
+    elif isinstance(enable_hybrid, str):
+        enable_hybrid = _parse_bool(enable_hybrid)
+    sparse_model = get_application_setting("qdrant_sparse_model") or _qdrant_sparse_model or ""
+    sparse_model = (sparse_model or "") or None
+    url_val = get_application_setting("qdrant_url") or _qdrant_url()
+    url_val = str(url_val or "").strip() or _qdrant_url()
+    api_key_val = get_application_setting("qdrant_api_key")
+    if api_key_val is None:
+        api_key_val = _qdrant_api_key() or ""
+    else:
+        api_key_val = str(api_key_val or "").strip() or ""
+    return {
+        "__type__": "kotaemon.storages.QdrantVectorStore",
+        "collection_name": "default",
+        "enable_hybrid": bool(enable_hybrid),
+        "fastembed_sparse_model": sparse_model,
+        **(
+            {"path": str(path_val)}
+            if path_val
+            else {"url": url_val, "api_key": api_key_val}
+        ),
+    }
+
+
+KH_VECTORSTORE = _build_vectorstore_config()
 KH_LLMS = {}
 KH_EMBEDDINGS = {}
 KH_RERANKINGS = {}
@@ -409,25 +450,6 @@ def get_vlm_endpoint(value: str) -> str:
     return KH_VLM_ENDPOINT
 
 
-def get_application_setting(key: str, default: str | int | float | bool | None = None):  # noqa: ANN201
-    """Взять значение настройки приложения: сначала из application_settings.json, иначе default.
-    Используется в рантайме (чаты, пайплайны), когда нет доступа к settings_state.
-    """
-    path = KH_APP_DATA_DIR / "application_settings.json"
-    if not path.exists():
-        return default
-    try:
-        import json
-
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-        if key in data:
-            return data[key]
-    except Exception:  # noqa: S110
-        pass
-    return default
-
-
 # Несекретные настройки приложения — редактируются в веб-интерфейсе (Settings → General).
 # Значения по умолчанию из .env; после сохранения в UI используются сохранённые (в т.ч. для Ollama reranker).
 SETTINGS_APP: dict[str, dict] = {
@@ -439,6 +461,32 @@ SETTINGS_APP: dict[str, dict] = {
     "ollama_reranker_model": {
         "name": "Ollama reranker model",
         "value": config("OLLAMA_RERANKER_MODEL", default="qwen3-reranker"),
+        "component": "text",
+    },
+    # Qdrant / векторное хранилище — вступает в силу после перезапуска приложения.
+    "qdrant_url": {
+        "name": "Qdrant URL",
+        "value": config("QDRANT_URL", default="http://localhost:6333"),
+        "component": "text",
+    },
+    "qdrant_api_key": {
+        "name": "Qdrant API key",
+        "value": config("QDRANT_API_KEY", default=""),
+        "component": "password",
+    },
+    "qdrant_path": {
+        "name": "Qdrant local path (overrides URL if set)",
+        "value": config("QDRANT_PATH", default=""),
+        "component": "text",
+    },
+    "qdrant_enable_hybrid": {
+        "name": "Qdrant hybrid search (dense + sparse)",
+        "value": _parse_bool(config("QDRANT_ENABLE_HYBRID", default="false")),
+        "component": "checkbox",
+    },
+    "qdrant_sparse_model": {
+        "name": "Qdrant sparse model (e.g. Qdrant/bm25)",
+        "value": config("QDRANT_FASTEMBED_SPARSE_MODEL", default="") or "",
         "component": "text",
     },
     # Флаги индексов: отображаются в UI и сохраняются; для применения нужна перезагрузка приложения.

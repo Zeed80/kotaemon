@@ -39,17 +39,25 @@ class OllamaServerManager:
 
     def add(self, name: str, base_url: str, num_ctx: int = 8192) -> None:
         """Добавить сервер."""
+        from sqlalchemy.exc import IntegrityError
+
         name = name.strip()
         if not name:
             raise ValueError("Имя сервера не может быть пустым")
-        with Session(engine) as session:
-            item = OllamaServerTable(
-                name=name,
-                base_url=base_url.strip(),
-                num_ctx=num_ctx,
-            )
-            session.add(item)
-            session.commit()
+        base_url = base_url.strip()
+        if not base_url:
+            raise ValueError("Ollama API URL не может быть пустым")
+        try:
+            with Session(engine) as session:
+                item = OllamaServerTable(
+                    name=name,
+                    base_url=base_url,
+                    num_ctx=num_ctx,
+                )
+                session.add(item)
+                session.commit()
+        except IntegrityError:
+            raise ValueError(f"Сервер с именем «{name}» уже существует")
         self.load()
 
     def update(self, name: str, base_url: str, num_ctx: int) -> None:

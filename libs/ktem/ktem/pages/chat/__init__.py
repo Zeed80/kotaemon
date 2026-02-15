@@ -28,6 +28,7 @@ from ktem.reasoning.prompt_optimization.suggest_followup_chat import (
 from ...utils import SUPPORTED_LANGUAGE_MAP, get_file_names_regex, get_urls
 from ...utils.commands import WEB_SEARCH_COMMAND
 from ...utils.hf_papers import get_recommended_papers
+from ...utils.js_snippets import chat_input_focus_js
 from ...utils.rate_limit import check_rate_limit
 from .chat_panel import ChatPanel
 from .chat_suggestion import ChatSuggestion
@@ -55,13 +56,6 @@ DEFAULT_QUESTION = (
     if not KH_DEMO_MODE
     else "What is the summary of this paper?"
 )
-
-chat_input_focus_js = """
-function() {
-    let chatInput = document.querySelector("#chat-input textarea");
-    chatInput.focus();
-}
-"""
 
 quick_urls_submit_js = """
 function() {
@@ -211,7 +205,7 @@ class ChatPage(BasePage):
         )
         self._info_panel_expanded = gr.State(value=True)
         self._command_state = gr.State(value=None)
-        self._user_api_key = gr.Text(value="", visible=False)
+        self._user_api_key = gr.Textbox(value="", visible=False)
 
     def on_building_ui(self):
         with gr.Row():
@@ -407,11 +401,14 @@ class ChatPage(BasePage):
         return plot
 
     def on_register_events(self):
-        # first index paper recommendation
-        if KH_DEMO_MODE and len(self._indices_input) > 0:
-            self._indices_input[1].change(
+        indices_input = self._indices_input
+        has_index_selectors = len(indices_input) >= 2
+
+        # first index paper recommendation (requires file selector + mode)
+        if KH_DEMO_MODE and has_index_selectors:
+            indices_input[1].change(
                 self.get_recommendations,
-                inputs=[self.first_selector_choices, self._indices_input[1]],
+                inputs=[self.first_selector_choices, indices_input[1]],
                 outputs=[self.related_papers],
             ).then(
                 fn=None,
@@ -420,130 +417,131 @@ class ChatPage(BasePage):
                 js=recommended_papers_js,
             )
 
-        chat_event = (
-            gr.on(
-                triggers=[
-                    self.chat_panel.text_input.submit,
-                ],
-                fn=self.submit_msg,
-                inputs=[
-                    self.chat_panel.text_input,
-                    self.chat_panel.chatbot,
-                    self._app.user_id,
-                    self._app.settings_state,
-                    self.chat_control.conversation_id,
-                    self.chat_control.conversation_rn,
-                    self.first_selector_choices,
-                ],
-                outputs=[
-                    self.chat_panel.text_input,
-                    self.chat_panel.chatbot,
-                    self.chat_control.conversation_id,
-                    self.chat_control.conversation,
-                    self.chat_control.conversation_rn,
-                    # file selector from the first index
-                    self._indices_input[0],
-                    self._indices_input[1],
-                    self._command_state,
-                ],
-                concurrency_limit=20,
-                show_progress="hidden",
+        if has_index_selectors:
+            chat_event = (
+                gr.on(
+                    triggers=[
+                        self.chat_panel.text_input.submit,
+                    ],
+                    fn=self.submit_msg,
+                    inputs=[
+                        self.chat_panel.text_input,
+                        self.chat_panel.chatbot,
+                        self._app.user_id,
+                        self._app.settings_state,
+                        self.chat_control.conversation_id,
+                        self.chat_control.conversation_rn,
+                        self.first_selector_choices,
+                    ],
+                    outputs=[
+                        self.chat_panel.text_input,
+                        self.chat_panel.chatbot,
+                        self.chat_control.conversation_id,
+                        self.chat_control.conversation,
+                        self.chat_control.conversation_rn,
+                        # file selector from the first index
+                        indices_input[0],
+                        indices_input[1],
+                        self._command_state,
+                    ],
+                    concurrency_limit=20,
+                    show_progress="hidden",
+                )
+                .success(
+                    fn=self.chat_fn,
+                    inputs=[
+                        self.chat_control.conversation_id,
+                        self.chat_panel.chatbot,
+                        self._app.settings_state,
+                        self._reasoning_type,
+                        self.model_type,
+                        self.use_mindmap,
+                        self.citation,
+                        self.language,
+                        self.state_chat,
+                        self._command_state,
+                        self._app.user_id,
+                    ]
+                    + self._indices_input,
+                    outputs=[
+                        self.chat_panel.chatbot,
+                        self.info_panel,
+                        self.plot_panel,
+                        self.state_plot_panel,
+                        self.state_chat,
+                    ],
+                    concurrency_limit=20,
+                    show_progress="minimal",
+                )
+                .then(
+                    fn=lambda: True,
+                    inputs=None,
+                    outputs=[self._preview_links],
+                    js=pdfview_js,
+                )
+                .success(
+                    fn=self.check_and_suggest_name_conv,
+                    inputs=self.chat_panel.chatbot,
+                    outputs=[
+                        self.chat_control.conversation_rn,
+                        self._conversation_renamed,
+                    ],
+                )
+                .success(
+                    self.chat_control.rename_conv,
+                    inputs=[
+                        self.chat_control.conversation_id,
+                        self.chat_control.conversation_rn,
+                        self._conversation_renamed,
+                        self._app.user_id,
+                    ],
+                    outputs=[
+                        self.chat_control.conversation,
+                        self.chat_control.conversation,
+                        self.chat_control.conversation_rn,
+                    ],
+                    show_progress="hidden",
+                )
             )
-            .success(
-                fn=self.chat_fn,
-                inputs=[
-                    self.chat_control.conversation_id,
-                    self.chat_panel.chatbot,
+
+            onSuggestChatEvent = {
+                "fn": self.suggest_chat_conv,
+                "inputs": [
                     self._app.settings_state,
-                    self._reasoning_type,
-                    self.model_type,
-                    self.use_mindmap,
-                    self.citation,
                     self.language,
-                    self.state_chat,
-                    self._command_state,
-                    self._app.user_id,
-                ]
-                + self._indices_input,
-                outputs=[
                     self.chat_panel.chatbot,
-                    self.info_panel,
-                    self.plot_panel,
-                    self.state_plot_panel,
-                    self.state_chat,
+                    self._use_suggestion,
                 ],
-                concurrency_limit=20,
-                show_progress="minimal",
-            )
-            .then(
-                fn=lambda: True,
-                inputs=None,
-                outputs=[self._preview_links],
-                js=pdfview_js,
-            )
-            .success(
-                fn=self.check_and_suggest_name_conv,
-                inputs=self.chat_panel.chatbot,
-                outputs=[
-                    self.chat_control.conversation_rn,
-                    self._conversation_renamed,
+                "outputs": [
+                    self.followup_questions_ui,
+                    self.followup_questions,
                 ],
-            )
-            .success(
-                self.chat_control.rename_conv,
-                inputs=[
-                    self.chat_control.conversation_id,
-                    self.chat_control.conversation_rn,
-                    self._conversation_renamed,
-                    self._app.user_id,
-                ],
-                outputs=[
-                    self.chat_control.conversation,
-                    self.chat_control.conversation,
-                    self.chat_control.conversation_rn,
-                ],
-                show_progress="hidden",
-            )
-        )
+                "show_progress": "hidden",
+            }
+            # chat suggestion toggle
+            chat_event = chat_event.success(**onSuggestChatEvent)
 
-        onSuggestChatEvent = {
-            "fn": self.suggest_chat_conv,
-            "inputs": [
-                self._app.settings_state,
-                self.language,
-                self.chat_panel.chatbot,
-                self._use_suggestion,
-            ],
-            "outputs": [
-                self.followup_questions_ui,
-                self.followup_questions,
-            ],
-            "show_progress": "hidden",
-        }
-        # chat suggestion toggle
-        chat_event = chat_event.success(**onSuggestChatEvent)
-
-        # final data persist
-        if not KH_DEMO_MODE:
-            chat_event = chat_event.then(
-                fn=self.persist_data_source,
-                inputs=[
-                    self.chat_control.conversation_id,
-                    self._app.user_id,
-                    self.info_panel,
-                    self.state_plot_panel,
-                    self.state_retrieval_history,
-                    self.state_plot_history,
-                    self.chat_panel.chatbot,
-                    self.state_chat,
-                ]
-                + self._indices_input,
-                outputs=[
-                    self.state_retrieval_history,
-                    self.state_plot_history,
-                ],
-                concurrency_limit=20,
-            )
+            # final data persist
+            if not KH_DEMO_MODE:
+                chat_event = chat_event.then(
+                    fn=self.persist_data_source,
+                    inputs=[
+                        self.chat_control.conversation_id,
+                        self._app.user_id,
+                        self.info_panel,
+                        self.state_plot_panel,
+                        self.state_retrieval_history,
+                        self.state_plot_history,
+                        self.chat_panel.chatbot,
+                        self.state_chat,
+                    ]
+                    + self._indices_input,
+                    outputs=[
+                        self.state_retrieval_history,
+                        self.state_plot_history,
+                    ],
+                    concurrency_limit=20,
+                )
 
         self.chat_control.btn_info_expand.click(
             fn=lambda is_expanded: (
@@ -1354,7 +1352,9 @@ class ChatPage(BasePage):
                     chat_state,
                 )
         except ValueError as e:
-            print(e)
+            gr.Warning(str(e))
+        except Exception as e:
+            gr.Warning(f"An error occurred: {e}")
 
         if not text:
             empty_msg = (

@@ -55,7 +55,7 @@ class OllamaServersManagement(BasePage):
                 with gr.Row():
                     self.edit_base_url = gr.Textbox(
                         label="Ollama API URL",
-                        info="Проверка выполняется на сервере Kotaemon. localhost — машина, где запущено приложение.",
+                        info="Проверка выполняется на сервере Kotaemon. В Docker: localhost=контейнер — используйте IP хоста или имя сервиса.",
                         placeholder="http://localhost:11434/v1/",
                         scale=4,
                     )
@@ -96,8 +96,8 @@ class OllamaServersManagement(BasePage):
             with gr.Row():
                 self.add_base_url = gr.Textbox(
                     label="Ollama API URL",
-                    info="Проверка выполняется на сервере Kotaemon. localhost — машина, где запущено приложение.",
-                    placeholder="http://localhost:11434/v1/",
+                    info="Проверка выполняется на сервере Kotaemon. В Docker: localhost=контейнер — используйте IP хоста (например 192.168.1.246:11434) или имя сервиса.",
+                    placeholder="http://192.168.1.246:11434/v1/",
                     scale=4,
                 )
                 self.add_status_html = gr.HTML(
