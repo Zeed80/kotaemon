@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import cast
 
 import gradio as gr
 import pandas as pd
@@ -6,12 +7,9 @@ import yaml
 from theflow.utils.modules import deserialize
 
 from ktem.app import BasePage
+from ktem.ollama_servers import ollama_servers_manager
 from ktem.utils.file import YAMLNoDateSafeLoader
-from ktem.utils.ollama import (
-    get_ollama_base_url,
-    get_ollama_models,
-    pull_ollama_model,
-)
+from ktem.utils.ollama import get_ollama_base_url, get_ollama_models, pull_ollama_model
 
 from .manager import embedding_models_manager
 
@@ -129,11 +127,14 @@ class EmbeddingManagement(BasePage):
 
                     # Ollama-specific UI elements for OpenAIEmbeddings
                     with gr.Column(visible=False) as self.ollama_section:
-                        gr.Markdown("### Ollama Model Selection")
-                        gr.Markdown(
-                            "*Для использования Ollama выберите вендор OpenAIEmbeddings "
-                            "и установите base_url на Ollama URL*"
+                        gr.Markdown("### Ollama")
+                        self.ollama_server_dropdown = gr.Dropdown(
+                            label="Ollama server",
+                            choices=[],
+                            value=None,
+                            info="Choose a registered Ollama server (Settings → Ollama servers)",
                         )
+                        gr.Markdown("### Model")
                         with gr.Row():
                             self.ollama_model_dropdown = gr.Dropdown(
                                 label="Available Ollama models",
@@ -171,10 +172,21 @@ class EmbeddingManagement(BasePage):
             lambda: gr.update(choices=list(embedding_models_manager.vendors().keys())),
             outputs=[self.emb_choices],
         )
-        # Load Ollama models on startup if available
+
+        def _ollama_server_choices() -> list[str]:
+            opts = cast(
+                list[tuple[str, str]],
+                ollama_servers_manager.options_for_dropdown() or [],
+            )
+            return [c[1] for c in opts]
+
         self._app.app.load(
-            self.refresh_ollama_models,
-            inputs=[],
+            lambda: gr.update(choices=_ollama_server_choices()),
+            outputs=[self.ollama_server_dropdown],
+        )
+        self._app.app.load(
+            self._refresh_ollama_models_for_embeddings,
+            inputs=[self.ollama_server_dropdown],
             outputs=[self.ollama_model_dropdown],
         )
 
@@ -200,13 +212,36 @@ class EmbeddingManagement(BasePage):
         spec_yaml = yaml.dump(required)
         desc_markdown = format_description(vendor_cls)
 
+        opts = cast(
+            list[tuple[str, str]],
+            ollama_servers_manager.options_for_dropdown() or [],
+        )
+        server_choices = [c[1] for c in opts]
+        server_value = server_choices[0] if server_choices else None
+
         return (
             spec_yaml,
             desc_markdown,
             gr.update(visible=is_ollama_compatible),
+            gr.update(choices=server_choices, value=server_value),
             gr.update(value=""),
             gr.update(value=""),
         )
+
+    def _refresh_ollama_models_for_embeddings(self, server_name=None):
+        """Refresh Ollama embedding models, optionally from specific server."""
+        base_url = None
+        if server_name:
+            s = ollama_servers_manager.get(server_name)
+            if s:
+                base_url = s["base_url"]
+        try:
+            models = get_ollama_models(base_url)
+            choices = [m["name"] for m in models] if models else []
+            return gr.update(choices=choices, value=choices[0] if choices else None)
+        except Exception as e:
+            gr.Warning(f"Не удалось получить модели Ollama: {e}")
+            return gr.update(choices=[], value=None)
 
     def on_register_events(self):
         self.emb_choices.select(
@@ -216,13 +251,19 @@ class EmbeddingManagement(BasePage):
                 self.spec,
                 self.spec_desc,
                 self.ollama_section,
+                self.ollama_server_dropdown,
                 self.ollama_model_dropdown,
                 self.ollama_model_input,
             ],
         )
+        self.ollama_server_dropdown.change(
+            self._refresh_ollama_models_for_embeddings,
+            inputs=[self.ollama_server_dropdown],
+            outputs=[self.ollama_model_dropdown],
+        )
         self.btn_refresh_ollama_models.click(
-            self.refresh_ollama_models,
-            inputs=[],
+            self._refresh_ollama_models_for_embeddings,
+            inputs=[self.ollama_server_dropdown],
             outputs=[self.ollama_model_dropdown],
         )
         self.ollama_model_dropdown.change(
@@ -237,16 +278,36 @@ class EmbeddingManagement(BasePage):
         )
         self.btn_new.click(
             self.create_emb,
-            inputs=[self.name, self.emb_choices, self.spec, self.default],
+            inputs=[
+                self.name,
+                self.emb_choices,
+                self.spec,
+                self.default,
+                self.ollama_server_dropdown,
+                self.ollama_model_dropdown,
+                self.ollama_model_input,
+            ],
             outputs=None,
         ).success(self.list_embeddings, inputs=[], outputs=[self.emb_list]).success(
-            lambda: ("", None, "", False, self.spec_desc_default),
+            lambda: (
+                "",
+                None,
+                "",
+                False,
+                self.spec_desc_default,
+                None,
+                "",
+                "",
+            ),
             outputs=[
                 self.name,
                 self.emb_choices,
                 self.spec,
                 self.default,
                 self.spec_desc,
+                self.ollama_server_dropdown,
+                self.ollama_model_dropdown,
+                self.ollama_model_input,
             ],
         )
         self.emb_list.select(
@@ -324,17 +385,56 @@ class EmbeddingManagement(BasePage):
             outputs=[self.connection_logs],
         )
 
-    def create_emb(self, name, choices, spec, default):
+    def create_emb(
+        self,
+        name,
+        choices,
+        spec,
+        default,
+        ollama_server=None,
+        ollama_model_dropdown=None,
+        ollama_model_input=None,
+    ):
         try:
-            spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
-            spec["__type__"] = (
-                embedding_models_manager.vendors()[choices].__module__
-                + "."
-                + embedding_models_manager.vendors()[choices].__qualname__
-            )
+            vendor_cls = embedding_models_manager.vendors().get(choices)
+            if not vendor_cls:
+                raise gr.Error("Выберите провайдера")
+            type_str = vendor_cls.__module__ + "." + vendor_cls.__qualname__
+            vendor_name = vendor_cls.__name__
+
+            if vendor_name == "OpenAIEmbeddings":
+                model = (ollama_model_dropdown or "").strip() or (
+                    ollama_model_input or ""
+                ).strip()
+                if model:
+                    base_url = get_ollama_base_url().replace("/api", "/v1/")
+                    if ollama_server:
+                        s = ollama_servers_manager.get(ollama_server)
+                        if s:
+                            base = (
+                                s["base_url"]
+                                .rstrip("/")
+                                .replace("/api", "")
+                                .replace("/v1", "")
+                            )
+                            base_url = f"{base}/v1/" if base else base_url
+                    spec = {
+                        "__type__": type_str,
+                        "model": model,
+                        "base_url": base_url,
+                        "api_key": "ollama",
+                    }
+                else:
+                    spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
+                    spec["__type__"] = type_str
+            else:
+                spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
+                spec["__type__"] = type_str
 
             embedding_models_manager.add(name, spec=spec, default=default)
             gr.Info(f'Create Embedding model "{name}" successfully')
+        except gr.Error:
+            raise
         except Exception as e:
             raise gr.Error(f"Failed to create Embedding model {name}: {e}")
 

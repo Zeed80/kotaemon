@@ -167,10 +167,11 @@ class SettingsPage(BasePage):
         self._components = {}
         self._reasoning_mode = {}
 
-        # store llms, embeddings and vlms components
+        # store llms, embeddings, vlms and rerankings components
         self._llms = []
         self._embeddings = []
         self._vlms = []
+        self._rerankings = []
 
         # render application page if there are application settings
         self._render_app_tab = False
@@ -409,6 +410,8 @@ class SettingsPage(BasePage):
                             self._llms.append(obj)
                         if si.special_type == "embedding":
                             self._embeddings.append(obj)
+                        if si.special_type == "reranking":
+                            self._rerankings.append(obj)
                         if si.special_type == "vlm":
                             self._vlms.append(obj)
 
@@ -451,6 +454,8 @@ class SettingsPage(BasePage):
                             self._llms.append(obj)
                         if si.special_type == "embedding":
                             self._embeddings.append(obj)
+                        if si.special_type == "reranking":
+                            self._rerankings.append(obj)
 
     def change_reasoning_mode(self, value):
         output = []
@@ -583,6 +588,14 @@ class SettingsPage(BasePage):
                 )[1:]
             return gr.update(choices=vlm_choices)
 
+        def update_rerankings():
+            from ktem.rerankings.manager import reranking_models_manager
+
+            rerank_choices = [
+                (name, name) for name in reranking_models_manager.options().keys()
+            ]
+            return gr.update(choices=rerank_choices)
+
         for llm in self._llms:
             self._app.app.load(
                 update_llms,
@@ -602,5 +615,12 @@ class SettingsPage(BasePage):
                 update_vlms,
                 inputs=[],
                 outputs=[vlm],
+                show_progress="hidden",
+            )
+        for rerank in self._rerankings:
+            self._app.app.load(
+                update_rerankings,
+                inputs=[],
+                outputs=[rerank],
                 show_progress="hidden",
             )

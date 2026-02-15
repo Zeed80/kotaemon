@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from theflow.settings import settings as flowsettings
-from theflow.utils.modules import deserialize
+from theflow.utils.modules import deserialize, import_dotted_string
 
 from kotaemon.embeddings.base import BaseEmbeddings
 
@@ -86,6 +86,8 @@ class EmbeddingManager:
             TeiEndpointEmbeddings,
             VoyageAIEmbeddings,
         ]
+        for extra_vendor in getattr(flowsettings, "KH_EMBEDDING_EXTRA_VENDORS", []):
+            self._vendors.append(import_dotted_string(extra_vendor, safe=False))
 
     def __getitem__(self, key: str) -> BaseEmbeddings:
         """Get model by name"""
@@ -164,8 +166,13 @@ class EmbeddingManager:
 
     def add(self, name: str, spec: dict, default: bool):
         """Add a new model to the pool"""
+        from ktem.utils.secret_storage import process_dict_for_save
+
         if not name:
             raise ValueError("Name must not be empty")
+
+        spec_to_store = dict(spec)
+        process_dict_for_save(spec_to_store)
 
         try:
             with Session(engine) as sess:

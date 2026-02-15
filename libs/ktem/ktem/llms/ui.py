@@ -127,6 +127,52 @@ class LLMManagement(BasePage):
                     )
                     self.btn_new = gr.Button("Add LLM", variant="primary")
 
+                    # Guided UI for API-based vendors (OpenAI, Anthropic, Cohere, Gemini)
+                    with gr.Column(visible=False) as self.api_guided_section:
+                        gr.Markdown("### API configuration")
+                        self.api_model_dropdown = gr.Dropdown(
+                            label="Model",
+                            choices=[],
+                            value=None,
+                            allow_custom_value=True,
+                            interactive=True,
+                            info="Select a model or enter custom name",
+                        )
+                        self.api_base_url = gr.Textbox(
+                            label="Base URL (optional)",
+                            placeholder="https://api.openai.com/v1",
+                            info="Custom API base URL (for ChatOpenAI / OpenAI-compatible)",
+                            visible=True,
+                        )
+                        self.api_key_input = gr.Textbox(
+                            label="API Key",
+                            type="password",
+                            placeholder="sk-...",
+                            info="API key for the provider",
+                        )
+
+                    # Azure-specific UI elements
+                    with gr.Column(visible=False) as self.azure_section:
+                        gr.Markdown("### Azure OpenAI")
+                        self.azure_endpoint = gr.Textbox(
+                            label="Azure Endpoint",
+                            placeholder="https://your-resource.openai.azure.com",
+                        )
+                        self.azure_deployment = gr.Textbox(
+                            label="Deployment name",
+                            placeholder="gpt-4",
+                        )
+                        self.azure_api_key = gr.Textbox(
+                            label="API Key",
+                            type="password",
+                            placeholder="...",
+                        )
+                        self.azure_api_version = gr.Textbox(
+                            label="API Version",
+                            placeholder="2024-02-15-preview",
+                            value="2024-02-15-preview",
+                        )
+
                     # Ollama-specific UI elements
                     with gr.Column(visible=False) as self.ollama_section:
                         gr.Markdown("### Ollama")
@@ -195,8 +241,59 @@ class LLMManagement(BasePage):
             outputs=[self.ollama_model_dropdown],
         )
 
+    OPENAI_MODELS = [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4-turbo",
+        "gpt-3.5-turbo",
+        "o1",
+        "o1-mini",
+    ]
+    ANTHROPIC_MODELS = [
+        "claude-3-5-sonnet-20241022",
+        "claude-3-5-haiku-20241022",
+        "claude-3-opus-20240229",
+        "claude-3-sonnet-20240229",
+        "claude-3-haiku-20240307",
+    ]
+    COHERE_MODELS = [
+        "command-r-plus",
+        "command-r",
+        "command",
+        "command-light",
+    ]
+    GEMINI_MODELS = [
+        "gemini-1.5-pro",
+        "gemini-1.5-flash",
+        "gemini-1.0-pro",
+    ]
+
     def on_llm_vendor_change(self, vendor):
-        vendor_cls = llms.vendors()[vendor]
+        vendor_cls = llms.vendors().get(vendor)
+        if not vendor_cls:
+            return (
+                "",
+                self.spec_desc_default,
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(choices=[], value=None),
+                gr.update(visible=False),
+                gr.update(value=""),
+                gr.update(value=""),
+                gr.update(value=""),
+                gr.update(value=""),
+                gr.update(value="2024-02-15-preview"),
+                gr.update(
+                    choices=[
+                        c[1] for c in ollama_servers_manager.options_for_dropdown()
+                    ],
+                    value=None,
+                ),
+                gr.update(value=8192),
+                gr.update(value=""),
+                gr.update(value=""),
+            )
         vendor_name = vendor_cls.__name__
 
         required: dict = {}
@@ -205,10 +302,15 @@ class LLMManagement(BasePage):
             if value.get("required", False):
                 required[key] = None
 
-        # Check if this is LCOllamaChat vendor
         is_ollama = vendor_name == "LCOllamaChat"
+        is_azure = vendor_name == "AzureChatOpenAI"
+        is_api_guided = vendor_name in (
+            "ChatOpenAI",
+            "LCAnthropicChat",
+            "LCCohereChat",
+            "LCGeminiChat",
+        )
 
-        # Auto-fill base_url for Ollama (fallback if no server selected)
         if is_ollama:
             base_url = get_ollama_base_url_for_langchain()
             required["base_url"] = base_url
@@ -221,7 +323,7 @@ class LLMManagement(BasePage):
         server_choices = ollama_servers_manager.options_for_dropdown()
         server_value = server_choices[0][1] if server_choices else None
         num_ctx_value = 8192
-        if server_value:
+        if is_ollama and server_value:
             s = ollama_servers_manager.get(server_value)
             if s:
                 num_ctx_value = s["num_ctx"]
@@ -229,10 +331,34 @@ class LLMManagement(BasePage):
                 required["num_ctx"] = s["num_ctx"]
                 spec_yaml = yaml.dump(required)
 
+        model_choices = []
+        if vendor_name == "ChatOpenAI":
+            model_choices = [(m, m) for m in self.OPENAI_MODELS]
+        elif vendor_name == "LCAnthropicChat":
+            model_choices = [(m, m) for m in self.ANTHROPIC_MODELS]
+        elif vendor_name == "LCCohereChat":
+            model_choices = [(m, m) for m in self.COHERE_MODELS]
+        elif vendor_name == "LCGeminiChat":
+            model_choices = [(m, m) for m in self.GEMINI_MODELS]
+
+        base_url_visible = vendor_name == "ChatOpenAI"
+
         return (
             spec_yaml,
             desc_markdown,
+            gr.update(visible=is_api_guided),
+            gr.update(visible=is_azure),
             gr.update(visible=is_ollama),
+            gr.update(
+                choices=model_choices,
+                value=model_choices[0][0] if model_choices else None,
+            ),
+            gr.update(visible=base_url_visible),
+            gr.update(value=""),
+            gr.update(value=""),
+            gr.update(value=""),
+            gr.update(value=""),
+            gr.update(value="2024-02-15-preview"),
             gr.update(choices=[c[1] for c in server_choices], value=server_value),
             gr.update(value=num_ctx_value),
             gr.update(value=""),
@@ -246,7 +372,16 @@ class LLMManagement(BasePage):
             outputs=[
                 self.spec,
                 self.spec_desc,
+                self.api_guided_section,
+                self.azure_section,
                 self.ollama_section,
+                self.api_model_dropdown,
+                self.api_base_url,
+                self.api_key_input,
+                self.azure_endpoint,
+                self.azure_deployment,
+                self.azure_api_key,
+                self.azure_api_version,
                 self.ollama_server_dropdown,
                 self.ollama_num_ctx,
                 self.ollama_model_dropdown,
@@ -289,6 +424,13 @@ class LLMManagement(BasePage):
                 self.llm_choices,
                 self.spec,
                 self.default,
+                self.api_model_dropdown,
+                self.api_base_url,
+                self.api_key_input,
+                self.azure_endpoint,
+                self.azure_deployment,
+                self.azure_api_key,
+                self.azure_api_version,
                 self.ollama_server_dropdown,
                 self.ollama_model_dropdown,
                 self.ollama_model_input,
@@ -296,13 +438,44 @@ class LLMManagement(BasePage):
             ],
             outputs=[],
         ).success(self.list_llms, inputs=[], outputs=[self.llm_list]).success(
-            lambda: ("", None, "", False, self.spec_desc_default, None, 8192, "", ""),
+            lambda: (
+                "",
+                None,
+                "",
+                False,
+                self.spec_desc_default,
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                None,
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "2024-02-15-preview",
+                None,
+                8192,
+                "",
+                "",
+            ),
             outputs=[
                 self.name,
                 self.llm_choices,
                 self.spec,
                 self.default,
                 self.spec_desc,
+                self.api_guided_section,
+                self.azure_section,
+                self.ollama_section,
+                self.api_model_dropdown,
+                self.api_base_url,
+                self.api_key_input,
+                self.azure_endpoint,
+                self.azure_deployment,
+                self.azure_api_key,
+                self.azure_api_version,
                 self.ollama_server_dropdown,
                 self.ollama_num_ctx,
                 self.ollama_model_dropdown,
@@ -391,6 +564,13 @@ class LLMManagement(BasePage):
         choices,
         spec,
         default,
+        api_model=None,
+        api_base_url=None,
+        api_key=None,
+        azure_endpoint=None,
+        azure_deployment=None,
+        azure_api_key=None,
+        azure_api_version=None,
         ollama_server=None,
         ollama_model_dropdown=None,
         ollama_model_input=None,
@@ -399,7 +579,55 @@ class LLMManagement(BasePage):
         try:
             vendor_cls = llms.vendors()[choices]
             vendor_name = vendor_cls.__name__
-            if vendor_name == "LCOllamaChat" and ollama_server:
+            type_str = vendor_cls.__module__ + "." + vendor_cls.__qualname__
+
+            if vendor_name == "AzureChatOpenAI" and azure_endpoint and azure_deployment:
+                spec = {
+                    "__type__": type_str,
+                    "azure_endpoint": azure_endpoint.strip(),
+                    "azure_deployment": azure_deployment.strip(),
+                    "api_key": (azure_api_key or "").strip() or None,
+                    "api_version": (azure_api_version or "2024-02-15-preview").strip(),
+                }
+            elif vendor_name in (
+                "ChatOpenAI",
+                "LCAnthropicChat",
+                "LCCohereChat",
+                "LCGeminiChat",
+            ):
+                model_val = (api_model or "").strip()
+                if not model_val:
+                    raise gr.Error("Выберите или введите имя модели")
+                key_val = (api_key or "").strip()
+                if not key_val:
+                    raise gr.Error("Введите API ключ")
+                if vendor_name == "ChatOpenAI":
+                    spec = {
+                        "__type__": type_str,
+                        "model": model_val,
+                        "api_key": key_val,
+                    }
+                    if (api_base_url or "").strip():
+                        spec["base_url"] = api_base_url.strip()
+                elif vendor_name == "LCAnthropicChat":
+                    spec = {
+                        "__type__": type_str,
+                        "model_name": model_val,
+                        "api_key": key_val,
+                    }
+                elif vendor_name == "LCCohereChat":
+                    spec = {
+                        "__type__": type_str,
+                        "model_name": model_val,
+                        "cohere_api_key": key_val,
+                    }
+                elif vendor_name == "LCGeminiChat":
+                    spec = {
+                        "__type__": type_str,
+                        "model_name": model_val,
+                        "api_key": key_val,
+                    }
+            elif vendor_name == "LCOllamaChat" and ollama_server:
                 s = ollama_servers_manager.get(ollama_server)
                 if s:
                     model = (ollama_model_dropdown or "").strip() or (
@@ -408,9 +636,7 @@ class LLMManagement(BasePage):
                     if not model:
                         raise gr.Error("Выберите или введите имя модели Ollama")
                     spec = {
-                        "__type__": vendor_cls.__module__
-                        + "."
-                        + vendor_cls.__qualname__,
+                        "__type__": type_str,
                         "base_url": server_url_to_langchain_base(s["base_url"]),
                         "model": model,
                         "num_ctx": int(ollama_num_ctx)
@@ -419,12 +645,10 @@ class LLMManagement(BasePage):
                     }
                 else:
                     spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
-                    spec["__type__"] = (
-                        vendor_cls.__module__ + "." + vendor_cls.__qualname__
-                    )
+                    spec["__type__"] = type_str
             else:
                 spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
-                spec["__type__"] = vendor_cls.__module__ + "." + vendor_cls.__qualname__
+                spec["__type__"] = type_str
 
             llms.add(name, spec=spec, default=default)
             gr.Info(f"LLM {name} created successfully")

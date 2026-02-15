@@ -48,7 +48,9 @@ def _get_fernet():
     try:
         from flowsettings_config import config
 
-        raw = config("KH_ENCRYPTION_KEY", default="") or os.getenv("KH_ENCRYPTION_KEY", "")
+        raw = config("KH_ENCRYPTION_KEY", default="") or os.getenv(
+            "KH_ENCRYPTION_KEY", ""
+        )
     except Exception:
         raw = os.getenv("KH_ENCRYPTION_KEY", "")
     if not raw or not str(raw).strip():
@@ -117,7 +119,9 @@ def process_dict_for_save(d: dict, prefix: str = "") -> dict:
         full_key = f"{prefix}{k}" if prefix else k
         if isinstance(v, dict):
             process_dict_for_save(v, f"{full_key}.")
-        elif isinstance(v, str) and _key_sensitive(full_key) and not v.startswith("enc:"):
+        elif (
+            isinstance(v, str) and _key_sensitive(full_key) and not v.startswith("enc:")
+        ):
             d[k] = encrypt_value(v)
     return d
 

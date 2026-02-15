@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import cast
 
 import gradio as gr
 import pandas as pd
@@ -7,7 +8,9 @@ from theflow.utils.modules import deserialize
 
 from kotaemon.base import Document
 from ktem.app import BasePage
+from ktem.ollama_servers import ollama_servers_manager
 from ktem.utils.file import YAMLNoDateSafeLoader
+from ktem.utils.ollama import get_ollama_models, pull_ollama_model
 
 from .manager import reranking_models_manager
 
@@ -123,6 +126,74 @@ class RerankingManagement(BasePage):
                     )
                     self.btn_new = gr.Button("Add", variant="primary")
 
+                    # Ollama section
+                    with gr.Column(visible=False) as self.ollama_section:
+                        gr.Markdown("### Ollama")
+                        self.ollama_server = gr.Dropdown(
+                            label="Ollama server",
+                            choices=[],
+                            value=None,
+                            info="Choose a registered Ollama server",
+                        )
+                        with gr.Row():
+                            self.ollama_model = gr.Dropdown(
+                                label="Model",
+                                choices=[],
+                                value=None,
+                                allow_custom_value=True,
+                            )
+                            self.btn_refresh_ollama = gr.Button("🔄 Refresh", scale=0)
+                        self.ollama_model_input = gr.Textbox(
+                            label="Or enter model name",
+                            placeholder="e.g., qwen3-reranker",
+                        )
+                        self.btn_pull_ollama = gr.Button(
+                            "⬇️ Pull Model", variant="secondary"
+                        )
+                        self.ollama_pull_progress = gr.HTML(visible=False)
+
+                    # Cohere section
+                    with gr.Column(visible=False) as self.cohere_section:
+                        gr.Markdown("### Cohere")
+                        self.cohere_model = gr.Dropdown(
+                            label="Model",
+                            choices=["rerank-multilingual-v2.0", "rerank-english-v2.0"],
+                            value="rerank-multilingual-v2.0",
+                            allow_custom_value=True,
+                        )
+                        self.cohere_api_key = gr.Textbox(
+                            label="API Key",
+                            type="password",
+                            placeholder="...",
+                        )
+
+                    # Voyage section
+                    with gr.Column(visible=False) as self.voyage_section:
+                        gr.Markdown("### VoyageAI")
+                        self.voyage_model = gr.Dropdown(
+                            label="Model",
+                            choices=["rerank-2", "rerank-lite-1"],
+                            value="rerank-2",
+                            allow_custom_value=True,
+                        )
+                        self.voyage_api_key = gr.Textbox(
+                            label="API Key",
+                            type="password",
+                            placeholder="...",
+                        )
+
+                    # Tei section
+                    with gr.Column(visible=False) as self.tei_section:
+                        gr.Markdown("### TeiFastReranking (TEI)")
+                        self.tei_endpoint = gr.Textbox(
+                            label="Endpoint URL",
+                            placeholder="http://localhost:8080",
+                        )
+                        self.tei_model = gr.Textbox(
+                            label="Model name (optional)",
+                            placeholder="",
+                        )
+
                 with gr.Column(scale=3):
                     self.spec_desc = gr.Markdown(self.spec_desc_default)
 
@@ -138,35 +209,258 @@ class RerankingManagement(BasePage):
             outputs=[self.rerank_choices],
         )
 
-    def on_rerank_vendor_change(self, vendor):
-        vendor = reranking_models_manager.vendors()[vendor]
+        def _ollama_server_choices() -> list[str]:
+            opts = cast(
+                list[tuple[str, str]],
+                ollama_servers_manager.options_for_dropdown() or [],
+            )
+            return [c[1] for c in opts]
 
+        self._app.app.load(
+            lambda: gr.update(choices=_ollama_server_choices()),
+            outputs=[self.ollama_server],
+        )
+
+    def refresh_ollama_models(self, server_name):
+        """Refresh Ollama reranker models list."""
+        base_url = None
+        if server_name:
+            s = ollama_servers_manager.get(server_name)
+            if s:
+                base_url = s["base_url"]
+        try:
+            models = get_ollama_models(base_url)
+            choices = [m["name"] for m in models] if models else []
+            return gr.update(choices=choices, value=choices[0] if choices else None)
+        except Exception as e:
+            gr.Warning(f"Не удалось получить модели Ollama: {e}")
+            return gr.update(choices=[], value=None)
+
+    def on_ollama_server_change(self, server_name, current_spec):
+        """Update spec when Ollama server changes."""
+        if not server_name:
+            return gr.update(), gr.update()
+        s = ollama_servers_manager.get(server_name)
+        if not s:
+            return gr.update(), gr.update()
+        base_url = s["base_url"].rstrip("/").replace("/v1", "")
+        try:
+            spec = yaml.load(current_spec, Loader=YAMLNoDateSafeLoader) or {}
+            spec["base_url"] = base_url
+            models = get_ollama_models(s["base_url"])
+            choices = [m["name"] for m in models] if models else []
+            return (
+                gr.update(value=yaml.dump(spec)),
+                gr.update(choices=choices, value=choices[0] if choices else None),
+            )
+        except Exception:
+            return gr.update(), gr.update()
+
+    def on_ollama_model_selected(self, model_name, current_spec):
+        """Update spec model when Ollama model selected."""
+        if not model_name:
+            return gr.update()
+        try:
+            spec = yaml.load(current_spec, Loader=YAMLNoDateSafeLoader) or {}
+            spec["model_name"] = model_name
+            return gr.update(value=yaml.dump(spec))
+        except Exception:
+            return gr.update()
+
+    def pull_ollama_rerank_ui(self, server_name, model_name):
+        """Pull Ollama reranker model."""
+        if not model_name:
+            gr.Warning("Введите имя модели")
+            yield gr.update(visible=False), gr.update()
+            return
+        base_url = None
+        if server_name:
+            s = ollama_servers_manager.get(server_name)
+            if s:
+                base_url = s["base_url"]
+        progress = "<p>Загрузка...</p>"
+        yield gr.update(visible=True, value=progress), gr.update()
+        try:
+            for _ in pull_ollama_model(base_url=base_url, model_name=model_name):
+                yield gr.update(visible=True, value=progress), gr.update()
+            models = get_ollama_models(base_url)
+            choices = [m["name"] for m in models] if models else []
+            gr.Info(f"Модель {model_name} загружена")
+            yield (
+                gr.update(visible=True, value=f"<p>Готово: {model_name}</p>"),
+                gr.update(choices=choices, value=model_name),
+            )
+        except Exception as e:
+            gr.Error(str(e))
+            yield gr.update(visible=True, value=f"<p>Ошибка: {e}</p>"), gr.update()
+
+    def on_rerank_vendor_change(self, vendor):
+        vendor_cls = reranking_models_manager.vendors().get(vendor)
+        if not vendor_cls:
+            return (
+                "",
+                self.spec_desc_default,
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(choices=[], value=None),
+                gr.update(value=""),
+                gr.update(value=""),
+                gr.update(value="rerank-multilingual-v2.0"),
+                gr.update(value=""),
+                gr.update(value="rerank-2"),
+                gr.update(value=""),
+                gr.update(value=""),
+                gr.update(value=""),
+            )
         required: dict = {}
-        desc = vendor.describe()
+        desc = vendor_cls.describe()
         for key, value in desc["params"].items():
             if value.get("required", False):
                 required[key] = value.get("default", None)
+        spec_yaml = yaml.dump(required)
+        desc_markdown = format_description(vendor_cls)
 
-            return yaml.dump(required), format_description(vendor)
+        vendor_name = vendor_cls.__name__
+        is_ollama = vendor_name == "OllamaReranking"
+        is_cohere = vendor_name == "CohereReranking"
+        is_voyage = vendor_name == "VoyageAIReranking"
+        is_tei = vendor_name == "TeiFastReranking"
+
+        opts = cast(
+            list[tuple[str, str]],
+            ollama_servers_manager.options_for_dropdown() or [],
+        )
+        server_choices = [c[1] for c in opts]
+        server_value = server_choices[0] if server_choices else None
+        model_choices = []
+        if is_ollama and server_value:
+            s = ollama_servers_manager.get(server_value)
+            if s:
+                models = get_ollama_models(s["base_url"])
+                model_choices = [m["name"] for m in models] if models else []
+
+        return (
+            spec_yaml,
+            desc_markdown,
+            gr.update(visible=is_ollama),
+            gr.update(visible=is_cohere),
+            gr.update(visible=is_voyage),
+            gr.update(visible=is_tei),
+            gr.update(choices=server_choices, value=server_value),
+            gr.update(
+                choices=model_choices, value=model_choices[0] if model_choices else None
+            ),
+            gr.update(value=""),
+            gr.update(value="rerank-multilingual-v2.0"),
+            gr.update(value=""),
+            gr.update(value="rerank-2"),
+            gr.update(value=""),
+            gr.update(value=""),
+            gr.update(value=""),
+        )
 
     def on_register_events(self):
         self.rerank_choices.select(
             self.on_rerank_vendor_change,
             inputs=[self.rerank_choices],
-            outputs=[self.spec, self.spec_desc],
+            outputs=[
+                self.spec,
+                self.spec_desc,
+                self.ollama_section,
+                self.cohere_section,
+                self.voyage_section,
+                self.tei_section,
+                self.ollama_server,
+                self.ollama_model,
+                self.ollama_model_input,
+                self.cohere_model,
+                self.cohere_api_key,
+                self.voyage_model,
+                self.voyage_api_key,
+                self.tei_endpoint,
+                self.tei_model,
+            ],
+        )
+        self.ollama_server.change(
+            self.on_ollama_server_change,
+            inputs=[self.ollama_server, self.spec],
+            outputs=[self.spec, self.ollama_model],
+        )
+        self.btn_refresh_ollama.click(
+            self.refresh_ollama_models,
+            inputs=[self.ollama_server],
+            outputs=[self.ollama_model],
+        )
+        self.ollama_model.change(
+            self.on_ollama_model_selected,
+            inputs=[self.ollama_model, self.spec],
+            outputs=[self.spec],
+        )
+        self.btn_pull_ollama.click(
+            self.pull_ollama_rerank_ui,
+            inputs=[self.ollama_server, self.ollama_model_input],
+            outputs=[self.ollama_pull_progress, self.ollama_model],
         )
         self.btn_new.click(
             self.create_rerank,
-            inputs=[self.name, self.rerank_choices, self.spec, self.default],
+            inputs=[
+                self.name,
+                self.rerank_choices,
+                self.spec,
+                self.default,
+                self.ollama_server,
+                self.ollama_model,
+                self.ollama_model_input,
+                self.cohere_model,
+                self.cohere_api_key,
+                self.voyage_model,
+                self.voyage_api_key,
+                self.tei_endpoint,
+                self.tei_model,
+            ],
             outputs=None,
         ).success(self.list_rerankings, inputs=[], outputs=[self.rerank_list]).success(
-            lambda: ("", None, "", False, self.spec_desc_default),
+            lambda: (
+                "",
+                None,
+                "",
+                False,
+                self.spec_desc_default,
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                None,
+                "",
+                "",
+                "rerank-multilingual-v2.0",
+                "",
+                "rerank-2",
+                "",
+                "",
+                "",
+            ),
             outputs=[
                 self.name,
                 self.rerank_choices,
                 self.spec,
                 self.default,
                 self.spec_desc,
+                self.ollama_section,
+                self.cohere_section,
+                self.voyage_section,
+                self.tei_section,
+                self.ollama_server,
+                self.ollama_model,
+                self.ollama_model_input,
+                self.cohere_model,
+                self.cohere_api_key,
+                self.voyage_model,
+                self.voyage_api_key,
+                self.tei_endpoint,
+                self.tei_model,
             ],
         )
         self.rerank_list.select(
@@ -241,17 +535,78 @@ class RerankingManagement(BasePage):
             outputs=[self.connection_logs],
         )
 
-    def create_rerank(self, name, choices, spec, default):
+    def create_rerank(
+        self,
+        name,
+        choices,
+        spec,
+        default,
+        ollama_server=None,
+        ollama_model=None,
+        ollama_model_input=None,
+        cohere_model=None,
+        cohere_api_key=None,
+        voyage_model=None,
+        voyage_api_key=None,
+        tei_endpoint=None,
+        tei_model=None,
+    ):
         try:
-            spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
-            spec["__type__"] = (
-                reranking_models_manager.vendors()[choices].__module__
-                + "."
-                + reranking_models_manager.vendors()[choices].__qualname__
-            )
+            vendor_cls = reranking_models_manager.vendors().get(choices)
+            if not vendor_cls:
+                raise gr.Error("Выберите провайдера")
+            type_str = vendor_cls.__module__ + "." + vendor_cls.__qualname__
+            vendor_name = vendor_cls.__name__
+
+            if vendor_name == "OllamaReranking" and ollama_server:
+                s = ollama_servers_manager.get(ollama_server)
+                if s:
+                    model = (ollama_model or "").strip() or (
+                        ollama_model_input or ""
+                    ).strip()
+                    if not model:
+                        raise gr.Error("Выберите или введите модель Ollama")
+                    base_url = s["base_url"].rstrip("/").replace("/v1", "")
+                    spec = {
+                        "__type__": type_str,
+                        "base_url": base_url,
+                        "model_name": model,
+                    }
+                else:
+                    spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
+                    spec["__type__"] = type_str
+            elif vendor_name == "CohereReranking" and (cohere_model or cohere_api_key):
+                spec = {
+                    "__type__": type_str,
+                    "model_name": (cohere_model or "rerank-multilingual-v2.0").strip(),
+                    "cohere_api_key": (cohere_api_key or "").strip() or None,
+                }
+                if not spec["cohere_api_key"]:
+                    raise gr.Error("Введите Cohere API ключ")
+            elif vendor_name == "VoyageAIReranking" and (
+                voyage_model or voyage_api_key
+            ):
+                spec = {
+                    "__type__": type_str,
+                    "model_name": (voyage_model or "rerank-2").strip(),
+                    "api_key": (voyage_api_key or "").strip() or None,
+                }
+                if not spec["api_key"]:
+                    raise gr.Error("Введите VoyageAI API ключ")
+            elif vendor_name == "TeiFastReranking" and tei_endpoint:
+                spec = {
+                    "__type__": type_str,
+                    "endpoint_url": tei_endpoint.strip(),
+                    "model_name": (tei_model or "").strip() or None,
+                }
+            else:
+                spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
+                spec["__type__"] = type_str
 
             reranking_models_manager.add(name, spec=spec, default=default)
             gr.Info(f'Create Reranking model "{name}" successfully')
+        except gr.Error:
+            raise
         except Exception as e:
             raise gr.Error(f"Failed to create Reranking model {name}: {e}")
 

@@ -61,7 +61,9 @@ class LLMManager:
                     if item.default:
                         self._default = item.name
                 except Exception as e:
-                    logger.warning("Skipping LLM %r due to load error: %s", item.name, e)
+                    logger.warning(
+                        "Skipping LLM %r due to load error: %s", item.name, e
+                    )
 
     def load_vendors(self):
         from kotaemon.llms import (

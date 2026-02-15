@@ -16,6 +16,17 @@ if DEFAULT_OLLAMA_URL.endswith("/"):
     DEFAULT_OLLAMA_URL = DEFAULT_OLLAMA_URL[:-1]
 
 
+def _add_or_update(manager, name: str, spec: dict, default: bool):
+    """Add model if not exists, else update."""
+    try:
+        manager.update(name, spec=spec, default=default)
+    except ValueError as e:
+        if "not found" in str(e).lower():
+            manager.add(name, spec=spec, default=default)
+        else:
+            raise
+
+
 DEMO_MESSAGE = (
     "This is a public space. Please use the "
     '"Duplicate Space" function on the top right '
@@ -61,6 +72,8 @@ class SetupPage(BasePage):
                 ("Cohere API (*free registration*) - recommended", "cohere"),
                 ("Google API (*free registration*)", "google"),
                 ("OpenAI API (for GPT-based models)", "openai"),
+                ("Azure OpenAI (enterprise)", "azure_openai"),
+                ("Anthropic (Claude)", "anthropic"),
                 ("Local LLM (for completely *private RAG*)", "ollama"),
             ],
             label="Select your model provider",
@@ -102,6 +115,40 @@ class SetupPage(BasePage):
                 show_label=False, placeholder="Google API Key"
             )
 
+        with gr.Column(visible=False) as self.azure_option:
+            gr.Markdown(
+                "#### Azure OpenAI\n\n"
+                "Get your credentials from Azure Portal. "
+                "Create a resource at https://portal.azure.com"
+            )
+            self.azure_endpoint = gr.Textbox(
+                label="Azure Endpoint",
+                placeholder="https://your-resource.openai.azure.com",
+            )
+            self.azure_deployment = gr.Textbox(
+                label="Deployment name",
+                placeholder="gpt-4",
+            )
+            self.azure_api_key = gr.Textbox(
+                label="API Key",
+                type="password",
+                placeholder="...",
+            )
+            self.azure_api_version = gr.Textbox(
+                label="API Version",
+                value="2024-02-15-preview",
+                placeholder="2024-02-15-preview",
+            )
+
+        with gr.Column(visible=False) as self.anthropic_option:
+            gr.Markdown(
+                "#### Anthropic API Key\n\n"
+                "(create at https://console.anthropic.com/settings/keys)"
+            )
+            self.anthropic_api_key = gr.Textbox(
+                show_label=False, placeholder="Anthropic API Key", type="password"
+            )
+
         with gr.Column(visible=False) as self.ollama_option:
             gr.Markdown(
                 "#### Setup Ollama\n\n"
@@ -134,12 +181,18 @@ class SetupPage(BasePage):
                 self.btn_finish.click,
                 self.cohere_api_key.submit,
                 self.openai_api_key.submit,
+                self.anthropic_api_key.submit,
             ],
             fn=self.update_model,
             inputs=[
                 self.cohere_api_key,
                 self.openai_api_key,
                 self.google_api_key,
+                self.azure_endpoint,
+                self.azure_deployment,
+                self.azure_api_key,
+                self.azure_api_version,
+                self.anthropic_api_key,
                 self.ollama_model_name,
                 self.ollama_emb_model_name,
                 self.radio_model,
@@ -173,8 +226,10 @@ class SetupPage(BasePage):
             outputs=[
                 self.cohere_option,
                 self.openai_option,
-                self.ollama_option,
                 self.google_option,
+                self.azure_option,
+                self.anthropic_option,
+                self.ollama_option,
             ],
         )
 
@@ -183,11 +238,17 @@ class SetupPage(BasePage):
         cohere_api_key,
         openai_api_key,
         google_api_key,
+        azure_endpoint,
+        azure_deployment,
+        azure_api_key,
+        azure_api_version,
+        anthropic_api_key,
         ollama_model_name,
         ollama_emb_model_name,
         radio_model_value,
     ):
         log_content = ""
+        emb_output = None
         if not radio_model_value:
             gr.Info("Skip setup models.")
             yield gr.value(visible=False)
@@ -247,6 +308,48 @@ class SetupPage(BasePage):
                         "context_length": 8191,
                     },
                     default=True,
+                )
+        elif radio_model_value == "azure_openai":
+            if azure_endpoint and azure_deployment and azure_api_key:
+                _add_or_update(
+                    llms,
+                    "azure_openai",
+                    {
+                        "__type__": "kotaemon.llms.AzureChatOpenAI",
+                        "azure_endpoint": azure_endpoint.strip(),
+                        "azure_deployment": azure_deployment.strip(),
+                        "api_key": azure_api_key.strip(),
+                        "api_version": (
+                            azure_api_version or "2024-02-15-preview"
+                        ).strip(),
+                    },
+                    True,
+                )
+                _add_or_update(
+                    embeddings,
+                    "azure_openai",
+                    {
+                        "__type__": "kotaemon.embeddings.AzureOpenAIEmbeddings",
+                        "azure_endpoint": azure_endpoint.strip(),
+                        "azure_deployment": azure_deployment.strip(),
+                        "api_key": azure_api_key.strip(),
+                        "api_version": (
+                            azure_api_version or "2024-02-15-preview"
+                        ).strip(),
+                    },
+                    True,
+                )
+        elif radio_model_value == "anthropic":
+            if anthropic_api_key:
+                _add_or_update(
+                    llms,
+                    "anthropic",
+                    {
+                        "__type__": "kotaemon.llms.LCAnthropicChat",
+                        "model_name": "claude-3-5-sonnet-20241022",
+                        "api_key": anthropic_api_key.strip(),
+                    },
+                    True,
                 )
         elif radio_model_value == "google":
             if google_api_key:
@@ -349,31 +452,32 @@ class SetupPage(BasePage):
         yield log_content
 
         if llm_output:
-            # embedding model
-            log_content += f"- Testing Embedding model: {radio_model_value}<br>"
-            yield log_content
-
+            # embedding model (Anthropic has no native embedding, skip)
             emb = embeddings.get(radio_model_value)
-            assert emb, f"Embedding model {radio_model_value} not found."
+            if emb:
+                log_content += f"- Testing Embedding model: {radio_model_value}<br>"
+                yield log_content
 
-            log_content += "- Sending a message `Hi`<br>"
-            yield log_content
-            try:
-                emb_output = emb("Hi")
-            except Exception as e:
-                log_content += (
-                    f"<mark style='color: yellow; background: red'>"
-                    "- Connection failed. "
-                    f"Got error:\n {str(e)}</mark>"
-                )
-
-            if emb_output:
-                log_content += (
-                    "<mark style='background: green; color: white'>"
-                    "- Connection success. "
-                    "</mark><br>"
-                )
-            yield log_content
+                log_content += "- Sending a message `Hi`<br>"
+                yield log_content
+                try:
+                    emb_output = emb("Hi")
+                except Exception as e:
+                    emb_output = None
+                    log_content += (
+                        f"<mark style='color: yellow; background: red'>"
+                        "- Connection failed. "
+                        f"Got error:\n {str(e)}</mark>"
+                    )
+                if emb_output:
+                    log_content += (
+                        "<mark style='background: green; color: white'>"
+                        "- Connection success. "
+                        "</mark><br>"
+                    )
+                yield log_content
+            else:
+                emb_output = True  # No embedding (e.g. Anthropic), consider OK
 
         if llm_output and emb_output:
             gr.Info("Setup models completed successfully!")
@@ -392,13 +496,20 @@ class SetupPage(BasePage):
         return default_settings
 
     def switch_options_view(self, radio_model_value):
-        components_visible = [gr.update(visible=False) for _ in range(4)]
+        values = [
+            "cohere",
+            "openai",
+            "google",
+            "azure_openai",
+            "anthropic",
+            "ollama",
+            None,
+        ]
+        components_visible = [gr.update(visible=False) for _ in range(6)]
 
-        values = ["cohere", "openai", "ollama", "google", None]
-        assert radio_model_value in values, f"Invalid value {radio_model_value}"
-
-        if radio_model_value is not None:
+        if radio_model_value is not None and radio_model_value in values:
             idx = values.index(radio_model_value)
-            components_visible[idx] = gr.update(visible=True)
+            if idx < 6:
+                components_visible[idx] = gr.update(visible=True)
 
         return components_visible

@@ -65,7 +65,9 @@ class IndexManagement(BasePage):
                         gr.Markdown(
                             "IMPORTANT: Changing or deleting the index will require "
                             "restarting the system. Some config settings will require "
-                            "rebuilding the index for the index to work properly."
+                            "rebuilding the index for the index to work properly.\n\n"
+                            "**Note:** Embedding and Reranking model selection is configured "
+                            "in **Settings → Retrieval settings**, not in Index config."
                         )
                         with gr.Row():
                             self.btn_edit_save = gr.Button(

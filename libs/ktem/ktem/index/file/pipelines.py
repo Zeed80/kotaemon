@@ -252,7 +252,39 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             reranking_llm = None
             reranking_llm_choices = []
 
+        try:
+            embedding_default = embedding_models_manager.get_default_name()
+            embedding_choices = list(embedding_models_manager.options().keys())
+        except Exception as e:
+            logger.error(e)
+            embedding_default = ""
+            embedding_choices = []
+
+        try:
+            reranking_default = reranking_models_manager.get_default_name()
+            reranking_choices = list(reranking_models_manager.options().keys())
+        except Exception as e:
+            logger.error(e)
+            reranking_default = ""
+            reranking_choices = []
+
         return {
+            "embedding": {
+                "name": "Embedding model",
+                "value": embedding_default,
+                "component": "dropdown",
+                "choices": embedding_choices,
+                "special_type": "embedding",
+                "info": "Embedding model for vector retrieval.",
+            },
+            "reranking": {
+                "name": "Reranking model",
+                "value": reranking_default,
+                "component": "dropdown",
+                "choices": reranking_choices,
+                "special_type": "reranking",
+                "info": "Reranking model to reorder retrieved documents.",
+            },
             "reranking_llm": {
                 "name": "LLM for relevant scoring",
                 "value": reranking_llm,
@@ -306,25 +338,25 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             kwargs: other arguments
         """
         use_llm_reranking = user_settings.get("use_llm_reranking", False)
+        embedding_name = (
+            user_settings.get("embedding")
+            or index_settings.get("embedding")
+            or embedding_models_manager.get_default_name()
+        )
+        reranking_name = (
+            user_settings.get("reranking")
+            or index_settings.get("reranking")
+            or reranking_models_manager.get_default_name()
+        )
 
         retriever = cls(
             get_extra_table=user_settings["prioritize_table"],
             top_k=user_settings["num_retrieval"],
             mmr=user_settings["mmr"],
-            embedding=embedding_models_manager[
-                index_settings.get(
-                    "embedding", embedding_models_manager.get_default_name()
-                )
-            ],
+            embedding=embedding_models_manager[embedding_name],
             retrieval_mode=user_settings["retrieval_mode"],
             llm_scorer=(LLMTrulensScoring() if use_llm_reranking else None),
-            rerankers=[
-                reranking_models_manager[
-                    index_settings.get(
-                        "reranking", reranking_models_manager.get_default_name()
-                    )
-                ]
-            ],
+            rerankers=[reranking_models_manager[reranking_name]],
         )
         if not user_settings["use_reranking"]:
             retriever.rerankers = []  # type: ignore

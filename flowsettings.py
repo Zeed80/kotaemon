@@ -161,7 +161,9 @@ def _build_vectorstore_config() -> dict:
         enable_hybrid = _qdrant_enable_hybrid
     elif isinstance(enable_hybrid, str):
         enable_hybrid = _parse_bool(enable_hybrid)
-    sparse_model = get_application_setting("qdrant_sparse_model") or _qdrant_sparse_model or ""
+    sparse_model = (
+        get_application_setting("qdrant_sparse_model") or _qdrant_sparse_model or ""
+    )
     sparse_model = (sparse_model or "") or None
     url_val = get_application_setting("qdrant_url") or _qdrant_url()
     url_val = str(url_val or "").strip() or _qdrant_url()
