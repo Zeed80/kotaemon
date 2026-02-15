@@ -465,6 +465,24 @@ SETTINGS_APP: dict[str, dict] = {
         "value": config("OLLAMA_RERANKER_MODEL", default="qwen3-reranker"),
         "component": "text",
     },
+    "torch_device": {
+        "name": "PyTorch device (Unstructured/Docling)",
+        "value": config("TORCH_DEVICE", default="cuda"),
+        "component": "text",
+        "info": "cuda | cpu | cu121 (Docker). По умолчанию GPU.",
+    },
+    "local_model": {
+        "name": "Ollama LLM model (default)",
+        "value": config("LOCAL_MODEL", default=""),
+        "component": "text",
+        "info": "Модель по умолчанию для Ollama LLM при первой инициализации (например qwen2.5:7b).",
+    },
+    "local_model_embeddings": {
+        "name": "Ollama Embedding model (default)",
+        "value": config("LOCAL_MODEL_EMBEDDINGS", default="nomic-embed-text"),
+        "component": "text",
+        "info": "Модель эмбеддингов по умолчанию (Ollama или FastEmbed).",
+    },
     # Qdrant / векторное хранилище — вступает в силу после перезапуска приложения.
     "qdrant_url": {
         "name": "Qdrant URL",

@@ -80,6 +80,7 @@ class EnvSettings(BaseSettings):
     LOCAL_MODEL: str = ""
     LOCAL_MODEL_EMBEDDINGS: str = "nomic-embed-text"
     OLLAMA_RERANKER_MODEL: str = "qwen3-reranker"
+    TORCH_DEVICE: str = "cuda"  # cuda | cpu | cu121 (Docling/Unstructured)
 
     # GraphRAG
     USE_LIGHTRAG: bool = True

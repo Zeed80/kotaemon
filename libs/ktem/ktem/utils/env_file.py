@@ -139,9 +139,13 @@ def persist_ollama_url(url: str) -> bool:
 
 
 # Маппинг: ключ в application_settings (без префикса) -> переменная .env
+# Все ключи из SETTINGS_APP (application.*) должны быть здесь для синхронизации .env при сохранении.
 APPLICATION_TO_ENV: dict[str, str] = {
     "kh_ollama_url": "KH_OLLAMA_URL",
     "ollama_reranker_model": "OLLAMA_RERANKER_MODEL",
+    "torch_device": "TORCH_DEVICE",
+    "local_model": "LOCAL_MODEL",
+    "local_model_embeddings": "LOCAL_MODEL_EMBEDDINGS",
     "qdrant_url": "QDRANT_URL",
     "qdrant_api_key": "QDRANT_API_KEY",
     "qdrant_path": "QDRANT_PATH",
