@@ -1710,6 +1710,7 @@ class FileSelector(BasePage):
             choices=[
                 ("Search All", "all"),
                 ("Search In File(s)", "select"),
+                ("Disabled", "disabled"),
             ],
             container=False,
         )

@@ -27,8 +27,8 @@ class SuggestConvNamePipeline(BaseComponent):
 
         messages = []
         for human, ai in chat_history:
-            messages.append(HumanMessage(content=human))
-            messages.append(AIMessage(content=ai))
+            messages.append(HumanMessage(content=human or ""))
+            messages.append(AIMessage(content=ai if ai is not None else ""))
 
         messages.append(HumanMessage(content=prompt))
 
