@@ -6,6 +6,7 @@ import pandas as pd
 from ktem.app import BasePage
 from ktem.ollama_servers import ollama_servers_manager
 from ktem.utils.ollama import check_ollama_available
+from ktem.utils.ollama_discovery import auto_add_discovered_ollama
 
 
 def _status_icon(ok: bool) -> str:
@@ -44,10 +45,16 @@ class OllamaServersManagement(BasePage):
                     interactive=False,
                     label="Серверы Ollama",
                 )
-                self.btn_refresh_status = gr.Button(
-                    "Проверить доступность",
-                    size="sm",
-                )
+                with gr.Column(scale=0):
+                    self.btn_scan_ollama = gr.Button(
+                        "🔍 Найти Ollama на хосте",
+                        size="sm",
+                        variant="secondary",
+                    )
+                    self.btn_refresh_status = gr.Button(
+                        "Проверить доступность",
+                        size="sm",
+                    )
             with gr.Column(visible=False) as self._edit_panel:
                 gr.Markdown("### Основные параметры")
                 self.edit_name = gr.Textbox(label="Имя", interactive=False)
@@ -117,6 +124,8 @@ class OllamaServersManagement(BasePage):
             self.btn_add = gr.Button("Добавить сервер", variant="primary")
 
     def _on_app_created(self):
+        # Автодобавление Ollama при первом запуске (если найден на типичных адресах)
+        auto_add_discovered_ollama()
         self._app.app.load(
             self.list_servers,
             inputs=[],
@@ -158,6 +167,17 @@ class OllamaServersManagement(BasePage):
     def list_servers_with_status(self):
         return self.list_servers(with_status=True)
 
+    def _scan_and_add_ollama(self):
+        """Сканировать типичные адреса, добавить найденные Ollama."""
+        count, names = auto_add_discovered_ollama()
+        if count > 0:
+            gr.Info(f"Добавлено серверов Ollama: {', '.join(names)}")
+        elif count == 0:
+            gr.Info(
+                "Ollama не обнаружен. Добавьте сервер вручную (в т.ч. IP хоста в Docker)."
+            )
+        return self.list_servers(with_status=True)
+
     def _check_add_url_and_return_html(self, url):
         """Проверка доступности по URL (форма Add). Выполняется на бэкенде."""
         ok, msg = check_ollama_available(url)
@@ -179,6 +199,12 @@ class OllamaServersManagement(BasePage):
             self._check_edit_url_and_return_html,
             inputs=[self.edit_base_url],
             outputs=[self.edit_status_html],
+            show_progress="hidden",
+        )
+        self.btn_scan_ollama.click(
+            self._scan_and_add_ollama,
+            inputs=[],
+            outputs=[self.server_list],
             show_progress="hidden",
         )
         self.btn_refresh_status.click(

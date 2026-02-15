@@ -529,6 +529,82 @@ SETTINGS_APP: dict[str, dict] = {
         "value": config("N_PROMPT_OPT_EXAMPLES", default=3, cast=int),
         "component": "number",
     },
+    # API Keys и сервисы — записываются в .env при сохранении.
+    "openai_api_key": {
+        "name": "OpenAI API Key",
+        "value": config("OPENAI_API_KEY", default=""),
+        "component": "password",
+    },
+    "openai_api_base": {
+        "name": "OpenAI API Base URL",
+        "value": config("OPENAI_API_BASE", default="https://api.openai.com/v1"),
+        "component": "text",
+    },
+    "openai_chat_model": {
+        "name": "OpenAI Chat Model",
+        "value": config("OPENAI_CHAT_MODEL", default="gpt-4o-mini"),
+        "component": "text",
+    },
+    "openai_embeddings_model": {
+        "name": "OpenAI Embeddings Model",
+        "value": config("OPENAI_EMBEDDINGS_MODEL", default="text-embedding-3-large"),
+        "component": "text",
+    },
+    "google_api_key": {
+        "name": "Google API Key (Gemini)",
+        "value": config("GOOGLE_API_KEY", default=""),
+        "component": "password",
+    },
+    "cohere_api_key": {
+        "name": "Cohere API Key",
+        "value": config("COHERE_API_KEY", default=""),
+        "component": "password",
+    },
+    "voyage_api_key": {
+        "name": "VoyageAI API Key",
+        "value": config("VOYAGE_API_KEY", default=""),
+        "component": "password",
+    },
+    "mistral_api_key": {
+        "name": "Mistral API Key",
+        "value": config("MISTRAL_API_KEY", default=""),
+        "component": "password",
+    },
+    "tavily_api_key": {
+        "name": "Tavily API Key (web search)",
+        "value": config("TAVILY_API_KEY", default=""),
+        "component": "password",
+    },
+    "azure_openai_endpoint": {
+        "name": "Azure OpenAI Endpoint",
+        "value": config("AZURE_OPENAI_ENDPOINT", default=""),
+        "component": "text",
+    },
+    "azure_openai_api_key": {
+        "name": "Azure OpenAI API Key",
+        "value": config("AZURE_OPENAI_API_KEY", default=""),
+        "component": "password",
+    },
+    "azure_openai_chat_deployment": {
+        "name": "Azure OpenAI Chat Deployment",
+        "value": config("AZURE_OPENAI_CHAT_DEPLOYMENT", default=""),
+        "component": "text",
+    },
+    "azure_openai_embeddings_deployment": {
+        "name": "Azure OpenAI Embeddings Deployment",
+        "value": config("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT", default=""),
+        "component": "text",
+    },
+    "openai_api_version": {
+        "name": "OpenAI API Version (Azure)",
+        "value": config("OPENAI_API_VERSION", default="2024-02-15-preview"),
+        "component": "text",
+    },
+    "searxng_url": {
+        "name": "SearXNG URL (web search, self-hosted)",
+        "value": config("SEARXNG_URL", default="http://localhost:8080"),
+        "component": "text",
+    },
 }
 
 

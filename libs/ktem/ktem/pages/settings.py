@@ -18,6 +18,7 @@ APPLICATION_SETTINGS_PREFIX = "application."
 def _persist_application_settings_file(setting: dict) -> None:
     """Записать настройки приложения (application.*) в JSON-файл для учёта при следующем запуске (индексы, флаги).
     Чувствительные поля (api_key и т.п.) шифруются перед записью.
+    Также синхронизирует значения в .env для persistence и следующего запуска.
     """
     from ktem.utils.secret_storage import process_dict_for_save
 
@@ -38,12 +39,32 @@ def _persist_application_settings_file(setting: dict) -> None:
                 subset[short_key] = value
             except (TypeError, ValueError):
                 pass
+
+    # Сначала сохраняем в .env (сырые значения, до шифрования)
+    _persist_env_file(subset)
+
     process_dict_for_save(subset, prefix="application.")
     try:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(subset, f, ensure_ascii=False, indent=2)
     except OSError:
         pass
+
+
+def _persist_env_file(subset: dict) -> None:
+    """Записать application settings в .env для persistence и следующего запуска."""
+    from ktem.utils.env_file import APPLICATION_TO_ENV, write_env_updates
+
+    updates = {}
+    for short_key, value in subset.items():
+        env_var = APPLICATION_TO_ENV.get(short_key)
+        if env_var and value is not None:
+            if isinstance(value, bool):
+                updates[env_var] = "true" if value else "false"
+            else:
+                updates[env_var] = str(value).strip()
+    if updates:
+        write_env_updates(updates)
 
 
 def _sync_application_settings_to_ollama_reranker(setting: dict) -> None:
@@ -381,8 +402,8 @@ class SettingsPage(BasePage):
                 if si.special_type == "embedding":
                     self._embeddings.append(obj)
             gr.Markdown(
-                "*Изменение флагов индексов (LightRAG, Nano GraphRAG), "
-                "настроек Qdrant и т.д. вступает в силу после перезапуска приложения.*"
+                "*Настройки сохраняются в .env и вступают в силу после перезапуска. "
+                "Флаги индексов (LightRAG, Nano GraphRAG), Qdrant и т.д. — также после перезапуска.*"
             )
 
     def index_tab(self):
