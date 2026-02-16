@@ -1,9 +1,20 @@
+import logging
 import os
+import sys
 
 # Применяем патч для httplib2/pyparsing совместимости ДО импорта других модулей
 from ktem.utils.httplib2_patch import patch_httplib2_pyparsing  # noqa
 
 patch_httplib2_pyparsing()
+
+# Логи индексации (VLM, эмбеддинги, GraphRAG/LightRAG) в stdout → видны в docker logs
+if not logging.root.handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+        stream=sys.stdout,
+        force=True,
+    )
 
 from theflow.settings import settings as flowsettings
 

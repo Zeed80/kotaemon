@@ -56,10 +56,11 @@ class UnifiedUploadPage(BasePage):
 
             with gr.Accordion("Job status", open=True) as self.status_accordion:
                 self.status_text = gr.Textbox(
-                    label="Status",
+                    label="Status (обновляется автоматически во время индексации)",
                     value="No active job",
                     interactive=False,
-                    lines=4,
+                    lines=22,
+                    max_lines=40,
                 )
                 self.refresh_btn = gr.Button("Refresh status", variant="secondary")
 
@@ -126,16 +127,24 @@ class UnifiedUploadPage(BasePage):
             progress = job.progress * 100
             msg = job.message or ""
             err = job.error or ""
+            total_indices = len(job.target_indices)
+            current = int(progress * total_indices / 100) if total_indices else 0
+            stage = f"Index {current + 1}/{total_indices}" if total_indices else ""
             lines = [
                 f"Job: {job_id}",
                 f"Status: {status}",
                 f"Progress: {progress:.0f}%",
+                stage and f"Stage: {stage}",
                 msg,
             ]
+            lines = [x for x in lines if x]
             if err:
                 lines.append(f"Error: {err}")
             if job.result:
                 lines.append(f"Result: {job.result}")
+            if getattr(job, "debug_logs", None):
+                lines.append("\n--- Log (last lines) ---")
+                lines.extend(job.debug_logs[-80:])
             return "\n".join(lines)
 
         def _chain_refresh_file_indices(chain):
@@ -175,3 +184,11 @@ class UnifiedUploadPage(BasePage):
             outputs=[self.status_text],
         )
         _chain_refresh_file_indices(refresh_chain)
+
+        # Автообновление статуса каждые 2 с — видно этап и лог во время индексации
+        self._status_timer = gr.Timer(value=2)
+        self._status_timer.tick(
+            fn=refresh_status,
+            inputs=[self._job_id_state],
+            outputs=[self.status_text],
+        )

@@ -24,6 +24,10 @@ class JobStatus(str, Enum):
     FAILED = "failed"
 
 
+# Макс. строк лога в задаче (чтобы не раздувать память)
+JOB_DEBUG_LOG_MAX_LINES = 300
+
+
 @dataclass
 class JobInfo:
     """Информация о задаче индексации."""
@@ -41,6 +45,7 @@ class JobInfo:
     result: dict[int, list[str | None]] = field(default_factory=dict)
     error: str | None = None
     callbacks: list[Callable[[JobInfo], None]] = field(default_factory=list, repr=False)
+    debug_logs: list[str] = field(default_factory=list, repr=False)
 
 
 class IndexingJobQueue:
@@ -127,6 +132,7 @@ class IndexingJobQueue:
                 continue
 
             try:
+                job.message = f"Indexing {index_obj.name}..."
                 pipeline = index_obj.get_indexing_pipeline(job.settings, job.user_id)
                 output_stream = pipeline.stream(
                     job.file_paths,
@@ -136,15 +142,25 @@ class IndexingJobQueue:
                 results: list[str | None] = []
                 while True:
                     try:
-                        next(output_stream)
+                        doc = next(output_stream)
                     except StopIteration as e:
                         if e.value:
                             file_ids, _, _ = e.value
                             results = list(file_ids) if file_ids else []
                         break
+                    if doc is None:
+                        continue
+                    if getattr(doc, "channel", None) == "debug":
+                        line = getattr(doc, "text", None) or str(getattr(doc, "content", ""))
+                        if line:
+                            job.debug_logs.append(line)
+                            if len(job.debug_logs) > JOB_DEBUG_LOG_MAX_LINES:
+                                job.debug_logs = job.debug_logs[-JOB_DEBUG_LOG_MAX_LINES:]
+                            job.message = line[:200] + ("..." if len(line) > 200 else "")
                 index_results[index_id] = results
                 job.progress = (idx + 1) / total_indices
                 job.message = f"Indexed {index_obj.name}"
+                logger.info("Job %s: finished index %s (%s)", job.job_id, index_id, index_obj.name)
             except Exception as e:
                 logger.exception("Indexing failed for index %s: %s", index_id, e)
                 job.error = str(e)
