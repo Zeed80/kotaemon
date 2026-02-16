@@ -340,11 +340,17 @@ class LightRAGIndexingPipeline(GraphRAGIndexingPipeline):
                 PROMPTS[prompt_name] = content
 
         # Единая инструкция: сохранять язык исходного текста (кириллицу не транслитерировать)
+        # Добавляем только к промптам, которые НЕ содержат разделители формата <|>
+        # (шаблоны формата вывода содержат <|>, инструкция там попадает в каждое поле)
         for prompt_name in PROMPTS:
             content = PROMPTS[prompt_name]
-            if isinstance(content, str) and content.strip():
-                if not content.strip().startswith("Important: Preserve the original"):
-                    PROMPTS[prompt_name] = LIGHTRAG_LANGUAGE_INSTRUCTION + content
+            if (
+                isinstance(content, str)
+                and content.strip()
+                and "<|>" not in content  # Пропускаем шаблоны формата вывода
+                and not content.strip().startswith("Important: Preserve the original")
+            ):
+                PROMPTS[prompt_name] = LIGHTRAG_LANGUAGE_INSTRUCTION + content
 
         _, input_path = prepare_graph_index_path(graph_id)
         input_path.mkdir(parents=True, exist_ok=True)
