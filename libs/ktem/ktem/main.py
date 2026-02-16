@@ -303,9 +303,9 @@ class App(BaseApp):
         # Загрузить сохранённый язык интерфейса при старте приложения
         def load_saved_lang():
             """Загрузить сохранённый язык из localStorage."""
-            # Значение будет установлено через JavaScript
-            return "en"
-        
+            # Значение будет установлено через JavaScript; Python возвращает дефолт для обоих outputs
+            return "en", "en"
+
         self.app.load(
             fn=load_saved_lang,
             inputs=[],

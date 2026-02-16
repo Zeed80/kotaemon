@@ -45,13 +45,30 @@ except ImportError:
 filestorage_path = Path(settings.KH_FILESTORAGE_PATH) / "graphrag"
 filestorage_path.mkdir(parents=True, exist_ok=True)
 
+# Ключ нужен только для облачного Microsoft GraphRAG (OpenAI). Для локального Ollama
+# достаточно OPENAI_API_BASE или KH_OLLAMA_URL — api_key не требуется.
 GRAPHRAG_KEY_MISSING_MESSAGE = (
-    "GRAPHRAG_API_KEY is not set. Please set it to use the GraphRAG retriever pipeline."
+    "Для MS GraphRAG retriever нужен либо GRAPHRAG_API_KEY (облако OpenAI), "
+    "либо локальный эндпоинт: задайте OPENAI_API_BASE или KH_OLLAMA_URL (например "
+    "http://localhost:11434/v1/) и при необходимости GRAPHRAG_EMBEDDING_MODEL под Ollama (например nomic-embed-text)."
 )
 
 
 def check_graphrag_api_key():
-    return len(os.getenv("GRAPHRAG_API_KEY", "")) > 0
+    """True, если есть ключ OpenAI или локальный эндпоинт (Ollama / OpenAI‑совместимый)."""
+    if len(os.getenv("GRAPHRAG_API_KEY", "")) > 0:
+        return True
+    base = (
+        os.getenv("OPENAI_API_BASE", "").strip()
+        or config("OPENAI_API_BASE", default="").strip()
+    )
+    if base:
+        return True
+    ollama = (
+        os.getenv("KH_OLLAMA_URL", "").strip()
+        or config("KH_OLLAMA_URL", default="").strip()
+    )
+    return bool(ollama)
 
 
 def prepare_graph_index_path(graph_id: str):
@@ -251,8 +268,25 @@ class GraphRAGRetrieverPipeline(BaseFileIndexRetriever):
         embedding_model = os.getenv(
             "GRAPHRAG_EMBEDDING_MODEL", "text-embedding-3-small"
         )
-        embedding_api_key = os.getenv("GRAPHRAG_API_KEY")
-        embedding_api_base = None
+        embedding_api_key = os.getenv("GRAPHRAG_API_KEY", "").strip()
+        embedding_api_base = (
+            os.getenv("OPENAI_API_BASE", "").strip()
+            or config("OPENAI_API_BASE", default="").strip()
+            or None
+        )
+        if not embedding_api_base:
+            embedding_api_base = (
+                os.getenv("KH_OLLAMA_URL", "").strip()
+                or config("KH_OLLAMA_URL", default="").strip()
+                or None
+            )
+        # Для локального Ollama/OpenAI-совместимого эндпоинта ключ не обязателен — подставляем заглушку
+        if not embedding_api_key and embedding_api_base:
+            embedding_api_key = "ollama"
+            if not os.getenv("GRAPHRAG_EMBEDDING_MODEL"):
+                embedding_model = config(
+                    "LOCAL_MODEL_EMBEDDINGS", default="nomic-embed-text"
+                )
 
         # use customized GraphRAG settings if the flag is set
         if config("USE_CUSTOMIZED_GRAPHRAG_SETTING", default="value").lower() == "true":
@@ -267,7 +301,7 @@ class GraphRAGRetrieverPipeline(BaseFileIndexRetriever):
                 embedding_api_base = settings["embeddings"]["llm"]["api_base"]
 
         text_embedder = OpenAIEmbedding(
-            api_key=embedding_api_key,
+            api_key=embedding_api_key or "ollama",
             api_base=embedding_api_base,
             api_type=OpenaiApiType.OpenAI,
             model=embedding_model,
