@@ -320,21 +320,9 @@ class App(BaseApp):
         load_lang_keys.append("tab.help")
         load_lang_outputs.append(self.version_html)
 
-        def load_saved_lang(request: gr.Request):
-            """Загрузить язык из cookie (при перезагрузке страницы)."""
+        def load_saved_lang():
+            """Возвращает дефолт (en); сохранённый язык подставляется на клиенте через JS."""
             saved = "en"
-            if request and getattr(request, "cookies", None):
-                try:
-                    c = request.cookies
-                    saved = (
-                        c.get("ui_lang", "en")
-                        if isinstance(c, dict)
-                        else getattr(c, "get", lambda k, d="en": d)(
-                            "ui_lang", "en"
-                        )
-                    )
-                except Exception:
-                    pass
             valid_codes = [code for _, code in SUPPORTED_UI_LANGS]
             if saved not in valid_codes:
                 saved = "en"
@@ -348,7 +336,28 @@ class App(BaseApp):
         if load_lang_outputs and hasattr(self, "lang_dropdown") and self.lang_dropdown is not None:
             self.app.load(
                 fn=load_saved_lang,
-                inputs=[gr.Request()],
+                inputs=[],
                 outputs=[self.lang_dropdown, self.ui_lang] + load_lang_outputs,
                 show_progress="hidden",
+                js="""
+                () => {
+                    var saved = localStorage.getItem('ui_lang') || 'en';
+                    setTimeout(function() {
+                        var el = document.querySelector('#lang-dropdown');
+                        if (el) {
+                            var sel = el.querySelector('select');
+                            var inp = el.querySelector('input');
+                            if (sel && sel.value !== saved) {
+                                sel.value = saved;
+                                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                            } else if (inp && inp.value !== saved) {
+                                inp.value = saved;
+                                inp.dispatchEvent(new Event('input', { bubbles: true }));
+                                inp.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }
+                        if (window.applyUiLang) window.applyUiLang(saved);
+                    }, 300);
+                }
+                """,
             )

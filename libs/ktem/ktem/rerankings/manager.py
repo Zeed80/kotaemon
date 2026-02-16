@@ -60,6 +60,37 @@ class RerankingManager:
                         "Skipping reranking %r due to load error: %s", item.name, e
                     )
 
+    def reload_one(self, name: str) -> None:
+        """Перезагрузить только одну модель из БД (без полного load всех реранкеров)."""
+        from ktem.utils.secret_storage import process_dict_for_load
+
+        with Session(engine) as sess:
+            item = sess.query(RerankingTable).filter_by(name=name).first()
+            if not item:
+                if name in self._models:
+                    del self._models[name]
+                    del self._info[name]
+                    if self._default == name:
+                        self._default = next(iter(self._models), "") or ""
+                return
+            try:
+                spec = dict(item.spec or {})
+                process_dict_for_load(spec)
+                self._models[name] = deserialize(spec, safe=False)
+                self._info[name] = {
+                    "name": item.name,
+                    "spec": spec,
+                    "default": item.default,
+                }
+                if item.default:
+                    self._default = name
+            except Exception as e:
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "Skipping reranking %r due to reload error: %s", name, e
+                )
+
     def load_vendors(self):
         from kotaemon.rerankings import (
             CohereReranking,
@@ -172,7 +203,12 @@ class RerankingManager:
         except Exception as e:
             raise ValueError(f"Failed to add model {name}: {e}")
 
-        self.load()
+        self.reload_one(name)
+        if default:
+            self._default = name
+            for k in self._info:
+                if k != name:
+                    self._info[k]["default"] = False
 
     def delete(self, name: str):
         """Delete a model from the pool"""
@@ -184,7 +220,7 @@ class RerankingManager:
         except Exception as e:
             raise ValueError(f"Failed to delete model {name}: {e}")
 
-        self.load()
+        self.reload_one(name)
 
     def update(self, name: str, spec: dict, default: bool):
         """Update a model in the pool"""
@@ -212,7 +248,18 @@ class RerankingManager:
         except Exception as e:
             raise ValueError(f"Failed to update model {name}: {e}")
 
-        self.load()
+        self.reload_one(name)
+        if default:
+            self._default = name
+            for k in self._info:
+                if k != name:
+                    self._info[k]["default"] = False
+        elif self._default == name:
+            # Обновлённая модель больше не default — выбрать другую
+            self._default = next(
+                (n for n, inf in self._info.items() if inf.get("default")),
+                next(iter(self._models), ""),
+            )
 
     def vendors(self) -> dict:
         """Return list of vendors"""

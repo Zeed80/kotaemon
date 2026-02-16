@@ -72,7 +72,9 @@ def _persist_env_file(subset: dict) -> None:
 
 
 def _sync_application_settings_to_ollama_reranker(setting: dict) -> None:
-    """Обновить spec реранкера Ollama в БД из настроек приложения (application.kh_ollama_url, application.ollama_reranker_model)."""
+    """Обновить spec реранкера Ollama в БД из настроек приложения.
+    Перезагружается только реранкер Ollama, без полной перезагрузки всех моделей.
+    """
     url = setting.get("application.kh_ollama_url")
     model = setting.get("application.ollama_reranker_model")
     if url is None and model is None:
@@ -87,14 +89,18 @@ def _sync_application_settings_to_ollama_reranker(setting: dict) -> None:
             return
         item = row[0] if isinstance(row, (tuple, list)) else row
         spec = dict(item.spec or {})
+        old_url, old_model = spec.get("base_url"), spec.get("model_name")
         if url is not None:
             spec["base_url"] = url
         if model is not None:
             spec["model_name"] = model
+        # Не трогать БД и не перезагружать, если ничего не изменилось
+        if old_url == spec.get("base_url") and old_model == spec.get("model_name"):
+            return
         item.spec = spec
         session.add(item)
         session.commit()
-    reranking_models_manager.load()
+    reranking_models_manager.reload_one("ollama")
 
 
 signout_js = """
