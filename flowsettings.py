@@ -586,7 +586,9 @@ SETTINGS_APP: dict[str, dict] = {
     "ollama_reranker_model": {
         "name": "Ollama reranker model",
         "value": config("OLLAMA_RERANKER_MODEL", default="qwen3-reranker"),
-        "component": "text",
+        "component": "dropdown",
+        "choices": [],
+        "info": "Модель по умолчанию для реранкера Ollama. Список подставляется с сервера Ollama при открытии настроек.",
     },
     "torch_device": {
         "name": "PyTorch device (Unstructured/Docling)",
@@ -597,14 +599,16 @@ SETTINGS_APP: dict[str, dict] = {
     "local_model": {
         "name": "Ollama LLM model (default)",
         "value": config("LOCAL_MODEL", default=""),
-        "component": "text",
-        "info": "Модель по умолчанию для Ollama LLM при первой инициализации (например qwen2.5:7b).",
+        "component": "dropdown",
+        "choices": [],
+        "info": "Модель по умолчанию для Ollama LLM. Список подставляется с сервера Ollama при открытии настроек.",
     },
     "local_model_embeddings": {
         "name": "Ollama Embedding model (default)",
         "value": config("LOCAL_MODEL_EMBEDDINGS", default="nomic-embed-text"),
-        "component": "text",
-        "info": "Модель эмбеддингов по умолчанию (Ollama или FastEmbed).",
+        "component": "dropdown",
+        "choices": [],
+        "info": "Модель эмбеддингов по умолчанию (Ollama). Список подставляется с сервера при открытии настроек.",
     },
     # Векторное хранилище — вступает в силу после перезапуска приложения.
     "vectorstore_type": {

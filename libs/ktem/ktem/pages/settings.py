@@ -233,7 +233,7 @@ def save_chat_settings(
         Обновлённый словарь настроек (для settings_state).
     """
     if user_id is None:
-        gr.Warning("Необходима авторизация для сохранения настроек", duration=2)
+        gr.Warning("Необходима авторизация для сохранения настроек", duration=1)
         return default_settings_dict
 
     defaults = default_settings_dict
@@ -279,10 +279,10 @@ def save_chat_settings(
             session.add(user_setting)
             session.commit()
 
-        gr.Info("Настройки чата сохранены", duration=2)
+        gr.Info("Настройки чата сохранены", duration=1)
         return settings
     except Exception as e:
-        gr.Warning(f"Ошибка сохранения настроек чата: {e}", duration=2)
+        gr.Warning(f"Ошибка сохранения настроек чата: {e}", duration=1)
         return get_user_settings(user_id, defaults)
 
 
@@ -298,6 +298,8 @@ def render_setting_item(setting_item, value):
         return gr_cls_single_value[setting_item.component](**kwargs)
 
     kwargs["choices"] = setting_item.choices
+    if setting_item.component == "dropdown":
+        kwargs["allow_custom_value"] = True
 
     if setting_item.component in gr_cls_choices:
         return gr_cls_choices[setting_item.component](**kwargs)
@@ -468,6 +470,7 @@ class SettingsPage(BasePage):
                 self.save_setting,
                 inputs=[self._user_id] + self.components(),
                 outputs=self._settings_state,
+                show_progress="hidden",
             ).then(
                 lambda: gr.Tabs(selected="chat-tab"),
                 outputs=self._app.tabs,
@@ -540,7 +543,7 @@ class SettingsPage(BasePage):
         errors = validate_password(password, password_confirm)
         if errors:
             print(errors)
-            gr.Warning(errors, duration=2)
+            gr.Warning(errors, duration=1)
             return password, password_confirm
 
         with Session(engine) as session:
@@ -552,9 +555,9 @@ class SettingsPage(BasePage):
                 user.password = hashed_password
                 session.add(user)
                 session.commit()
-                gr.Info("Password changed", duration=2)
+                gr.Info("Password changed", duration=1)
             else:
-                gr.Warning("User not found", duration=2)
+                gr.Warning("User not found", duration=1)
 
         return "", ""
 
@@ -562,7 +565,7 @@ class SettingsPage(BasePage):
         """Сохранить настройки и перезапустить приложение."""
         # Сначала сохраняем
         self.save_setting(user_id, *args)
-        gr.Info("Сохранено. Перезапуск через 2 секунды...", duration=2)
+        gr.Info("Сохранено. Перезапуск через 2 секунды...", duration=1)
 
         def _do_restart():
             import time
@@ -701,7 +704,7 @@ class SettingsPage(BasePage):
                         settings.update(db_settings)
             process_dict_for_load(settings)
         except Exception as e:
-            gr.Warning(f"Failed to load settings: {e}", duration=2)
+            gr.Warning(f"Failed to load settings: {e}", duration=1)
 
         output = [settings]
         # Безопасное получение настроек с дефолтными значениями
@@ -722,7 +725,7 @@ class SettingsPage(BasePage):
             key: value for key, value in zip(self.component_names(), args, strict=False)
         }
         if user_id is None:
-            gr.Warning("Need to login before saving settings", duration=2)
+            gr.Warning("Need to login before saving settings", duration=1)
             return setting
 
         from ktem.utils.secret_storage import process_dict_for_save
@@ -744,9 +747,9 @@ class SettingsPage(BasePage):
             _sync_application_settings_to_ollama_reranker(setting)
             _persist_application_settings_file(setting)
 
-            gr.Info("Setting saved", duration=2)
+            gr.Info("Setting saved", duration=1)
         except Exception as e:
-            gr.Warning(f"Failed to save settings: {e}", duration=2)
+            gr.Warning(f"Failed to save settings: {e}", duration=1)
         return setting
 
     def components(self) -> list:
@@ -842,5 +845,33 @@ class SettingsPage(BasePage):
                 update_rerankings,
                 inputs=[],
                 outputs=[rerank],
+                show_progress="hidden",
+            )
+
+        # Подставить списки моделей Ollama в поля General (LLM, Embedding, Reranker)
+        _ollama_dropdown_keys = [
+            "application.ollama_reranker_model",
+            "application.local_model",
+            "application.local_model_embeddings",
+        ]
+        _ollama_dropdowns = [
+            self._components[k] for k in _ollama_dropdown_keys if k in self._components
+        ]
+        if _ollama_dropdowns:
+
+            def update_ollama_model_choices():
+                try:
+                    from ktem.utils.ollama import get_ollama_models
+
+                    models = get_ollama_models()
+                    names = [m["name"] for m in models] if models else []
+                except Exception:
+                    names = []
+                return tuple(gr.update(choices=names) for _ in _ollama_dropdowns)
+
+            self._app.app.load(
+                update_ollama_model_choices,
+                inputs=[],
+                outputs=_ollama_dropdowns,
                 show_progress="hidden",
             )

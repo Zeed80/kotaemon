@@ -484,6 +484,12 @@ div.markmap {
   place-items: center;
 }
 
+/* Скрыть дублирующее сообщение о времени обработки (Gradio показывает его вместе с gr.Info) */
+.gradio-container .progress-text,
+.gradio-container [class*="progress"] .progress-text {
+  display: none !important;
+}
+
 /* Компактные уведомления gr.Info / gr.Warning — меньше размер, не перекрывают правую часть */
 .gradio-container .modal-content,
 .gradio-container [class*="modal"] > div:first-child {
