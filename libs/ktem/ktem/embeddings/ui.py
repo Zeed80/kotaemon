@@ -51,6 +51,21 @@ class EmbeddingManagement(BasePage):
                                 "if no Embedding is specified for such components."
                             ),
                         )
+                        with gr.Row(visible=False) as self._edit_ollama_row:
+                            self.edit_ollama_server = gr.Dropdown(
+                                label="Ollama server",
+                                choices=[],
+                                value=None,
+                                allow_custom_value=False,
+                            )
+                            self.edit_ollama_model = gr.Dropdown(
+                                label="Ollama model",
+                                info="Смена модели обновит спецификацию ниже",
+                                choices=[],
+                                value=None,
+                                allow_custom_value=True,
+                                interactive=True,
+                            )
                         self.edit_spec = gr.Textbox(
                             label="Specification",
                             info="Specification of the Embedding model in YAML format",
@@ -189,6 +204,11 @@ class EmbeddingManagement(BasePage):
             inputs=[self.ollama_server_dropdown],
             outputs=[self.ollama_model_dropdown],
         )
+        self._app.app.load(
+            lambda: gr.update(choices=_ollama_server_choices()),
+            inputs=[],
+            outputs=[self.edit_ollama_server],
+        )
 
     def on_emb_vendor_change(self, vendor):
         vendor_cls = embedding_models_manager.vendors()[vendor]
@@ -273,8 +293,13 @@ class EmbeddingManagement(BasePage):
         )
         self.btn_pull_ollama_model.click(
             self.pull_ollama_model_ui,
-            inputs=[self.ollama_model_input],
+            inputs=[
+                self.ollama_server_dropdown,
+                self.ollama_model_dropdown,
+                self.ollama_model_input,
+            ],
             outputs=[self.ollama_pull_progress, self.ollama_model_dropdown],
+            show_progress="minimal",
         )
         self.btn_new.click(
             self.create_emb,
@@ -331,9 +356,26 @@ class EmbeddingManagement(BasePage):
                 self.edit_spec_desc,
                 self.edit_default,
                 self._check_connection_panel,
+                # Ollama edit row (visible only for Ollama embeddings)
+                self._edit_ollama_row,
+                self.edit_ollama_server,
+                self.edit_ollama_model,
             ],
             show_progress="hidden",
         ).success(lambda: gr.update(value=""), outputs=[self.connection_logs])
+
+        self.edit_ollama_model.change(
+            self._on_edit_ollama_model_change,
+            inputs=[self.edit_ollama_model, self.edit_spec],
+            outputs=[self.edit_spec],
+            show_progress="hidden",
+        )
+        self.edit_ollama_server.change(
+            self._refresh_edit_ollama_models,
+            inputs=[self.edit_ollama_server],
+            outputs=[self.edit_ollama_model],
+            show_progress="hidden",
+        )
 
         self.btn_delete.click(
             self.on_btn_delete_click,
@@ -503,6 +545,9 @@ class EmbeddingManagement(BasePage):
             edit_spec = gr.update(value="")
             edit_spec_desc = gr.update(value="")
             edit_default = gr.update(value=False)
+            edit_ollama_row = gr.update(visible=False)
+            edit_ollama_server = gr.update(choices=[], value=None)
+            edit_ollama_model = gr.update(choices=[], value=None)
         else:
             _check_connection_panel = gr.update(visible=True)
             _selected_panel = gr.update(visible=True)
@@ -512,12 +557,58 @@ class EmbeddingManagement(BasePage):
             btn_delete_no = gr.update(visible=False)
 
             info = deepcopy(embedding_models_manager.info()[selected_emb_name])
-            vendor_str = info["spec"].pop("__type__", "-").split(".")[-1]
+            spec = info["spec"]
+            vendor_str = spec.pop("__type__", "-").split(".")[-1]
             vendor = embedding_models_manager.vendors()[vendor_str]
 
-            edit_spec = yaml.dump(info["spec"])
+            edit_spec = yaml.dump(spec)
             edit_spec_desc = format_description(vendor)
             edit_default = info["default"]
+
+            # Показать ряд Ollama (сервер + модель) только для Ollama-эмбеддингов
+            is_ollama = vendor_str == "LCOllamaEmbeddings" or (
+                vendor_str == "OpenAIEmbeddings"
+                and (
+                    spec.get("api_key") == "ollama"
+                    or "11434" in str(spec.get("base_url", ""))
+                )
+            )
+            if is_ollama and spec:
+                server_choices = [
+                    c[1] for c in (ollama_servers_manager.options_for_dropdown() or [])
+                ]
+                current_base = (spec.get("base_url") or "").rstrip("/").replace("/v1", "").replace("/api", "")
+                current_model = spec.get("model") or ""
+                # Подобрать текущий сервер по base_url
+                server_value = None
+                for sid in server_choices:
+                    s = ollama_servers_manager.get(sid)
+                    if s:
+                        b = (s.get("base_url") or "").rstrip("/").replace("/v1", "").replace("/api", "")
+                        if b == current_base or current_base in b or b in current_base:
+                            server_value = sid
+                            break
+                if not server_value and server_choices:
+                    server_value = server_choices[0]
+                models = []
+                if server_value:
+                    base_url = None
+                    s = ollama_servers_manager.get(server_value)
+                    if s:
+                        base_url = s.get("base_url")
+                    models = get_ollama_models(base_url=base_url)
+                model_choices = [m["name"] for m in models]
+                if current_model and current_model not in model_choices:
+                    model_choices = [current_model] + model_choices
+                edit_ollama_row = gr.update(visible=True)
+                edit_ollama_server = gr.update(choices=server_choices, value=server_value)
+                edit_ollama_model = gr.update(
+                    choices=model_choices, value=current_model or (model_choices[0] if model_choices else None)
+                )
+            else:
+                edit_ollama_row = gr.update(visible=False)
+                edit_ollama_server = gr.update(choices=[], value=None)
+                edit_ollama_model = gr.update(choices=[], value=None)
 
         return (
             _selected_panel,
@@ -529,7 +620,33 @@ class EmbeddingManagement(BasePage):
             edit_spec_desc,
             edit_default,
             _check_connection_panel,
+            edit_ollama_row,
+            edit_ollama_server,
+            edit_ollama_model,
         )
+
+    def _on_edit_ollama_model_change(self, model_name: str | None, current_spec: str):
+        """Обновить YAML спецификации при смене модели Ollama в панели редактирования."""
+        if not model_name:
+            return gr.update(value=current_spec)
+        try:
+            spec = yaml.load(current_spec, Loader=YAMLNoDateSafeLoader) or {}
+            spec["model"] = model_name
+            return gr.update(value=yaml.dump(spec))
+        except Exception:
+            return gr.update(value=current_spec)
+
+    def _refresh_edit_ollama_models(self, server_name: str | None):
+        """Обновить список моделей Ollama при смене сервера в панели редактирования."""
+        if not server_name:
+            return gr.update(choices=[], value=None)
+        base_url = None
+        s = ollama_servers_manager.get(server_name)
+        if s:
+            base_url = s.get("base_url")
+        models = get_ollama_models(base_url=base_url)
+        choices = [m["name"] for m in models]
+        return gr.update(choices=choices, value=choices[0] if choices else None)
 
     def on_btn_delete_click(self):
         btn_delete = gr.update(visible=False)
@@ -630,19 +747,33 @@ class EmbeddingManagement(BasePage):
         except Exception:
             return gr.update(value=current_spec)
 
-    def pull_ollama_model_ui(self, model_name: str):
-        """Загрузить модель из Ollama с отображением прогресса."""
+    def pull_ollama_model_ui(
+        self,
+        server_name: str | None,
+        dropdown_model: str | None,
+        input_model: str | None,
+    ):
+        """Загрузить модель из Ollama с отображением прогресса. Модель берётся из выпадающего списка или поля ввода."""
+        model_name = (input_model or "").strip() or (dropdown_model or "").strip()
         if not model_name:
-            gr.Warning("Введите имя модели для загрузки")
+            gr.Warning("Выберите модель из списка или введите имя вручную")
             yield gr.update(visible=False, value=""), gr.update()
             return
+
+        base_url = None
+        if server_name:
+            s = ollama_servers_manager.get(server_name)
+            if s:
+                base_url = s.get("base_url")
 
         progress_html = "<div style='padding: 10px;'>"
         progress_html += f"<p>Загрузка модели <strong>{model_name}</strong>...</p>"
         yield gr.update(visible=True, value=progress_html), gr.update()
 
         try:
-            for response in pull_ollama_model(model_name=model_name):
+            for response in pull_ollama_model(
+                base_url=base_url, model_name=model_name
+            ):
                 status = response.get("status", "")
                 completed = response.get("completed", 0)
                 total = response.get("total", 0)
@@ -673,8 +804,8 @@ class EmbeddingManagement(BasePage):
                     </div>
                     """
                     gr.Info(f"Модель {model_name} успешно загружена")
-                    # Обновить список моделей
-                    models = get_ollama_models()
+                    # Обновить список моделей для выбранного сервера
+                    models = get_ollama_models(base_url=base_url)
                     choices = [m["name"] for m in models]
                     yield (
                         gr.update(visible=True, value=progress_html),

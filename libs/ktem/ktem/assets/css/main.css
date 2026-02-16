@@ -483,3 +483,22 @@ div.markmap {
   display: grid;
   place-items: center;
 }
+
+/* Компактные уведомления gr.Info / gr.Warning — меньше размер, не перекрывают правую часть */
+.gradio-container .modal-content,
+.gradio-container [class*="modal"] > div:first-child {
+  max-width: min(360px, 90vw) !important;
+  width: auto !important;
+}
+.gradio-container .modal-body,
+.gradio-container [class*="modal"] [class*="body"] {
+  padding: 8px 12px !important;
+  font-size: 0.9rem !important;
+  max-height: 80px;
+  overflow-y: auto;
+}
+.gradio-container .modal-header,
+.gradio-container [class*="modal"] [class*="header"] {
+  padding: 6px 12px !important;
+  font-size: 0.85rem !important;
+}

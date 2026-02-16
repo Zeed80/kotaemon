@@ -46,8 +46,10 @@ function run() {
     }
   };
 
-  // Загружаем сохранённый язык или используем дефолт
+  // Загружаем сохранённый язык и синхронизируем с cookie (для сервера при перезагрузке)
   const savedLang = localStorage.getItem("ui_lang") || "en";
+  document.cookie =
+    "ui_lang=" + encodeURIComponent(savedLang) + "; path=/; max-age=31536000";
   applyUiLang(savedLang);
 
   globalThis.applyUiLang = applyUiLang;

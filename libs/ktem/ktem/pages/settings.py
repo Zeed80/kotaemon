@@ -227,7 +227,7 @@ def save_chat_settings(
         Обновлённый словарь настроек (для settings_state).
     """
     if user_id is None:
-        gr.Warning("Необходима авторизация для сохранения настроек")
+        gr.Warning("Необходима авторизация для сохранения настроек", duration=2)
         return default_settings_dict
 
     defaults = default_settings_dict
@@ -273,10 +273,10 @@ def save_chat_settings(
             session.add(user_setting)
             session.commit()
 
-        gr.Info("Настройки чата сохранены")
+        gr.Info("Настройки чата сохранены", duration=2)
         return settings
     except Exception as e:
-        gr.Warning(f"Ошибка сохранения настроек чата: {e}")
+        gr.Warning(f"Ошибка сохранения настроек чата: {e}", duration=2)
         return get_user_settings(user_id, defaults)
 
 
@@ -534,7 +534,7 @@ class SettingsPage(BasePage):
         errors = validate_password(password, password_confirm)
         if errors:
             print(errors)
-            gr.Warning(errors)
+            gr.Warning(errors, duration=2)
             return password, password_confirm
 
         with Session(engine) as session:
@@ -546,9 +546,9 @@ class SettingsPage(BasePage):
                 user.password = hashed_password
                 session.add(user)
                 session.commit()
-                gr.Info("Password changed")
+                gr.Info("Password changed", duration=2)
             else:
-                gr.Warning("User not found")
+                gr.Warning("User not found", duration=2)
 
         return "", ""
 
@@ -556,7 +556,7 @@ class SettingsPage(BasePage):
         """Сохранить настройки и перезапустить приложение."""
         # Сначала сохраняем
         self.save_setting(user_id, *args)
-        gr.Info("Сохранено. Перезапуск через 2 секунды...")
+        gr.Info("Сохранено. Перезапуск через 2 секунды...", duration=2)
 
         def _do_restart():
             import time
@@ -695,7 +695,7 @@ class SettingsPage(BasePage):
                         settings.update(db_settings)
             process_dict_for_load(settings)
         except Exception as e:
-            gr.Warning(f"Failed to load settings: {e}")
+            gr.Warning(f"Failed to load settings: {e}", duration=2)
 
         output = [settings]
         # Безопасное получение настроек с дефолтными значениями
@@ -716,7 +716,7 @@ class SettingsPage(BasePage):
             key: value for key, value in zip(self.component_names(), args, strict=False)
         }
         if user_id is None:
-            gr.Warning("Need to login before saving settings")
+            gr.Warning("Need to login before saving settings", duration=2)
             return setting
 
         from ktem.utils.secret_storage import process_dict_for_save
@@ -738,9 +738,9 @@ class SettingsPage(BasePage):
             _sync_application_settings_to_ollama_reranker(setting)
             _persist_application_settings_file(setting)
 
-            gr.Info("Setting saved")
+            gr.Info("Setting saved", duration=2)
         except Exception as e:
-            gr.Warning(f"Failed to save settings: {e}")
+            gr.Warning(f"Failed to save settings: {e}", duration=2)
         return setting
 
     def components(self) -> list:

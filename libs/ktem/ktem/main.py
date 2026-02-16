@@ -280,7 +280,7 @@ class App(BaseApp):
                 fn=None,
                 inputs=[self.lang_dropdown],
                 outputs=[],
-                js="(lang) => { if (window.applyUiLang) window.applyUiLang(lang); if (window.setStorage) window.setStorage('ui_lang', lang); }",
+                js="(lang) => { if (window.applyUiLang) window.applyUiLang(lang); if (window.setStorage) window.setStorage('ui_lang', lang); document.cookie = 'ui_lang=' + encodeURIComponent(lang) + '; path=/; max-age=31536000'; }",
             )
 
     def _on_app_created(self):
@@ -300,37 +300,55 @@ class App(BaseApp):
                 outputs=[self.setup_page_wrapper, self.tabs],
             )
         
-        # Загрузить сохранённый язык интерфейса при старте приложения
-        def load_saved_lang():
-            """Загрузить сохранённый язык из localStorage."""
-            # Значение будет установлено через JavaScript; Python возвращает дефолт для обоих outputs
-            return "en", "en"
+        # Загрузить сохранённый язык при старте: читаем из cookie (сервер) и обновляем вкладки/версию
+        load_lang_keys = []
+        load_lang_outputs = []
+        if "login-tab" in self._tabs:
+            load_lang_outputs.append(self._tabs["login-tab"])
+            load_lang_keys.append("tab.welcome")
+        load_lang_outputs.append(self._tabs["chat-tab"])
+        load_lang_keys.append("tab.chat")
+        if "indices-tab" in self._tabs:
+            load_lang_outputs.append(self._tabs["indices-tab"])
+            load_lang_keys.append("tab.files")
+        if "resources-tab" in self._tabs:
+            load_lang_outputs.append(self._tabs["resources-tab"])
+            load_lang_keys.append("tab.resources")
+        load_lang_outputs.append(self._tabs["settings-tab"])
+        load_lang_keys.append("tab.settings")
+        load_lang_outputs.append(self._tabs["help-tab"])
+        load_lang_keys.append("tab.help")
+        load_lang_outputs.append(self.version_html)
 
-        self.app.load(
-            fn=load_saved_lang,
-            inputs=[],
-            outputs=[self.lang_dropdown, self.ui_lang],
-            js="""
-            () => {
-                const savedLang = localStorage.getItem('ui_lang') || 'en';
-                // Обновляем dropdown через небольшую задержку, чтобы элемент был готов
-                setTimeout(() => {
-                    const langDropdownContainer = document.querySelector('#lang-dropdown');
-                    if (langDropdownContainer) {
-                        const select = langDropdownContainer.querySelector('select');
-                        const input = langDropdownContainer.querySelector('input');
-                        if (select) {
-                            select.value = savedLang;
-                            select.dispatchEvent(new Event('change', { bubbles: true }));
-                        } else if (input) {
-                            input.value = savedLang;
-                            input.dispatchEvent(new Event('input', { bubbles: true }));
-                            input.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                    }
-                    if (window.applyUiLang) window.applyUiLang(savedLang);
-                }, 200);
-                return [savedLang, savedLang];
-            }
-            """,
-        )
+        def load_saved_lang(request: gr.Request):
+            """Загрузить язык из cookie (при перезагрузке страницы)."""
+            saved = "en"
+            if request and getattr(request, "cookies", None):
+                try:
+                    c = request.cookies
+                    saved = (
+                        c.get("ui_lang", "en")
+                        if isinstance(c, dict)
+                        else getattr(c, "get", lambda k, d="en": d)(
+                            "ui_lang", "en"
+                        )
+                    )
+                except Exception:
+                    pass
+            valid_codes = [code for _, code in SUPPORTED_UI_LANGS]
+            if saved not in valid_codes:
+                saved = "en"
+            tab_updates = [gr.update(label=get_text(saved, k)) for k in load_lang_keys]
+            version_update = gr.update(
+                value=f'<p id="version-display" class="version-text">'
+                f'{get_text(saved, "version")}: {self.app_version}</p>'
+            )
+            return [saved, saved] + tab_updates + [version_update]
+
+        if load_lang_outputs and hasattr(self, "lang_dropdown") and self.lang_dropdown is not None:
+            self.app.load(
+                fn=load_saved_lang,
+                inputs=[gr.Request()],
+                outputs=[self.lang_dropdown, self.ui_lang] + load_lang_outputs,
+                show_progress="hidden",
+            )
