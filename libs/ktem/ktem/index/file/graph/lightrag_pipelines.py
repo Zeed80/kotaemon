@@ -57,6 +57,13 @@ filestorage_path.mkdir(parents=True, exist_ok=True)
 
 INDEX_BATCHSIZE = 4
 
+# Инструкция для LightRAG: сохранять исходный язык (кириллицу для русских документов)
+LIGHTRAG_LANGUAGE_INSTRUCTION = (
+    "Important: Preserve the original language of the source text. "
+    "For Russian or mixed Russian/English documents, write entity names, type labels, "
+    "and all descriptions in the same language (use Cyrillic for Russian, do not transliterate to Latin).\n\n"
+)
+
 
 def get_llm_func(model):
     @retry(
@@ -331,6 +338,13 @@ class LightRAGIndexingPipeline(GraphRAGIndexingPipeline):
         for prompt_name, content in self.prompts.items():
             if prompt_name in PROMPTS:
                 PROMPTS[prompt_name] = content
+
+        # Единая инструкция: сохранять язык исходного текста (кириллицу не транслитерировать)
+        for prompt_name in PROMPTS:
+            content = PROMPTS[prompt_name]
+            if isinstance(content, str) and content.strip():
+                if not content.strip().startswith("Important: Preserve the original"):
+                    PROMPTS[prompt_name] = LIGHTRAG_LANGUAGE_INSTRUCTION + content
 
         _, input_path = prepare_graph_index_path(graph_id)
         input_path.mkdir(parents=True, exist_ok=True)

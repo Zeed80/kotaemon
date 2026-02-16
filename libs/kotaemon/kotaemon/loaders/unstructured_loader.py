@@ -22,7 +22,13 @@ class UnstructuredReader(BaseReader):
     """General unstructured text reader for a variety of files."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Init params."""
+        """Init params.
+
+        Args:
+            languages: список языков для OCR (Tesseract), например ["rus", "eng"].
+                По умолчанию русский и английский, чтобы не получать транслитерацию.
+            url, api, api_key: см. описание ниже.
+        """
         super().__init__(*args)  # not passing kwargs to parent bc it cannot accept it
 
         self.api = False  # we default to local
@@ -38,6 +44,9 @@ class UnstructuredReader(BaseReader):
         self.api_key = ""
         if "api_key" in kwargs:
             self.api_key = kwargs["api_key"]
+
+        # Языки для OCR: по умолчанию русский и английский (избегаем "defaulting to English")
+        self.languages = kwargs.get("languages") or ["rus", "eng"]
 
     """ Loads data using Unstructured.io
 
@@ -70,7 +79,10 @@ class UnstructuredReader(BaseReader):
             """Parse file locally"""
             from unstructured.partition.auto import partition
 
-            elements = partition(filename=file_path_str)
+            elements = partition(
+                filename=file_path_str,
+                languages=getattr(self, "languages", None) or ["rus", "eng"],
+            )
 
         """ Process elements """
         docs = []
