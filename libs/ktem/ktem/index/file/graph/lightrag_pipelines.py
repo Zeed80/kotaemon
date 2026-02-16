@@ -73,17 +73,17 @@ def get_llm_func(model):
     async def llm_func(
         prompt, system_prompt=None, history_messages=[], **kwargs
     ) -> str:
-        input_messages = [SystemMessage(text=system_prompt)] if system_prompt else []
+        input_messages = [SystemMessage(content=system_prompt)] if system_prompt else []
 
         hashing_kv = kwargs.pop("hashing_kv", None)
         if history_messages:
             for msg in history_messages:
                 if msg.get("role") == "user":
-                    input_messages.append(HumanMessage(text=msg["content"]))
+                    input_messages.append(HumanMessage(content=msg["content"]))
                 else:
-                    input_messages.append(AIMessage(text=msg["content"]))
+                    input_messages.append(AIMessage(content=msg["content"]))
 
-        input_messages.append(HumanMessage(text=prompt))
+        input_messages.append(HumanMessage(content=prompt))
 
         if hashing_kv is not None:
             args_hash = compute_args_hash("model", input_messages)

@@ -94,13 +94,29 @@ class CompositeVectorStore(BaseVectorStore):
         ids: list[str] | None = None,
     ) -> list[str]:
         result_ids: list[str] | None = None
+        successful_stores = []
+        failed_stores = []
         for store in self._stores:
             try:
                 out = store.add(embeddings, metadatas=metadatas, ids=ids)
                 if result_ids is None:
                     result_ids = out
+                successful_stores.append(type(store).__name__)
             except Exception as e:
-                logger.warning("CompositeVectorStore add to %s: %s", type(store).__name__, e)
+                failed_stores.append((type(store).__name__, str(e)))
+                logger.warning(
+                    "CompositeVectorStore add to %s failed: %s. "
+                    "Continuing with other stores.",
+                    type(store).__name__,
+                    e,
+                )
+        if failed_stores and successful_stores:
+            logger.info(
+                "CompositeVectorStore: successfully added to %s, "
+                "failed for %s",
+                successful_stores,
+                [name for name, _ in failed_stores],
+            )
         return result_ids or []
 
     def delete(self, ids: list[str], **kwargs) -> None:

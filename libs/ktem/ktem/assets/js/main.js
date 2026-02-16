@@ -46,7 +46,9 @@ function run() {
     }
   };
 
-  applyUiLang("en");
+  // Загружаем сохранённый язык или используем дефолт
+  const savedLang = localStorage.getItem("ui_lang") || "en";
+  applyUiLang(savedLang);
 
   globalThis.applyUiLang = applyUiLang;
 

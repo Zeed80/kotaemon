@@ -155,8 +155,8 @@ class PromptAdapter:
             )
 
             messages = [
-                SystemMessage(text=system_prompt),
-                HumanMessage(text=f"Запрос: {query}\n\nТип задачи:"),
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=f"Запрос: {query}\n\nТип задачи:"),
             ]
 
             response = self.llm(messages).text.strip().lower()

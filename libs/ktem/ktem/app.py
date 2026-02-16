@@ -82,7 +82,8 @@ class BaseApp:
         self.settings_state = gr.State(self.default_settings.flatten())
 
         self.user_id = gr.State("default" if not self.f_user_management else None)
-        self.ui_lang = gr.State("en")
+        # Загружаем сохранённый язык интерфейса из localStorage или используем дефолт
+        self.ui_lang = gr.State(self._load_ui_lang())
 
     def initialize_indices(self):
         """Create the index manager, start indices, and register to app settings"""
@@ -224,7 +225,7 @@ class BaseApp:
                 gr.HTML("<div style='flex:1'></div>")
                 self.lang_dropdown = gr.Dropdown(
                     choices=SUPPORTED_UI_LANGS,
-                    value="en",
+                    value="en",  # Дефолтное значение, будет обновлено через JavaScript при загрузке
                     label=None,
                     show_label=False,
                     container=False,

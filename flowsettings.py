@@ -142,6 +142,50 @@ _pg_vector_hnsw_m = int(config("PG_VECTOR_HNSW_M", default="16") or "16")
 _pg_vector_hnsw_ef_construction = int(config("PG_VECTOR_HNSW_EF_CONSTRUCTION", default="64") or "64")
 _pg_vector_hnsw_ef_search = int(config("PG_VECTOR_HNSW_EF_SEARCH", default="40") or "40")
 
+# Кэш для автоматически определённой размерности эмбеддингов
+_auto_embed_dim_cache: int | None = None
+
+
+def _get_default_embedding_dimension() -> int | None:
+    """Автоматически определить размерность модели эмбеддингов по умолчанию.
+    
+    Returns:
+        Размерность эмбеддингов или None, если не удалось определить.
+    """
+    global _auto_embed_dim_cache
+    if _auto_embed_dim_cache is not None:
+        return _auto_embed_dim_cache
+    
+    try:
+        # Пытаемся получить менеджер эмбеддингов (может быть не инициализирован на момент загрузки модуля)
+        from ktem.embeddings.manager import embedding_models_manager
+        
+        if not hasattr(embedding_models_manager, "get_default"):
+            return None
+        
+        default_embedding = embedding_models_manager.get_default()
+        if default_embedding is None:
+            return None
+        
+        # Определяем размерность через тестовый запрос
+        result = default_embedding(["test"])
+        if result and len(result) > 0 and hasattr(result[0], "embedding"):
+            _auto_embed_dim_cache = len(result[0].embedding)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(
+                "Автоматически определена размерность эмбеддингов: %d (из модели по умолчанию)",
+                _auto_embed_dim_cache
+            )
+            return _auto_embed_dim_cache
+    except Exception as e:
+        # Если менеджер ещё не инициализирован или произошла ошибка, возвращаем None
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug("Не удалось автоматически определить размерность эмбеддингов: %s", e)
+    
+    return None
+
 
 def _parse_bool(val: str | bool) -> bool:
     if isinstance(val, bool):
@@ -204,9 +248,16 @@ def _build_qdrant_config() -> dict:
 def _build_pgvector_config() -> dict:
     """Собрать конфиг только Pgvector (требуется _database_url) с оптимальными HNSW параметрами."""
     embed_dim = get_application_setting("pg_vector_embed_dim")
-    if embed_dim is None:
-        embed_dim = _pg_vector_embed_dim
+    if embed_dim is None or embed_dim == 0:
+        # Если размерность не задана явно (None или 0), пытаемся определить автоматически из модели эмбеддингов
+        auto_dim = _get_default_embedding_dimension()
+        if auto_dim is not None:
+            embed_dim = auto_dim
+        else:
+            # Если автоматическое определение не удалось, используем дефолт из .env
+            embed_dim = _pg_vector_embed_dim
     else:
+        # Используем явно заданное значение
         embed_dim = int(embed_dim) if embed_dim else _pg_vector_embed_dim
     # HNSW параметры из настроек или дефолты (оптимизированы для качества и скорости)
     hnsw_m = get_application_setting("pg_vector_hnsw_m")
@@ -571,7 +622,7 @@ SETTINGS_APP: dict[str, dict] = {
         "name": "pgvector: embedding dimension",
         "value": int(config("PG_VECTOR_EMBED_DIM", default="1536") or "1536"),
         "component": "number",
-        "info": "Размерность эмбеддингов для pgvector (должна совпадать с моделью).",
+        "info": "Размерность эмбеддингов для pgvector (должна совпадать с моделью). Если оставить значение по умолчанию (1536) или 0, размерность будет определена автоматически из модели эмбеддингов по умолчанию при создании конфигурации. Рекомендуется задать явно для вашей модели (например, 4096 для qwen3-embedding).",
     },
     "pg_vector_hnsw_m": {
         "name": "pgvector HNSW: m (connections per node)",
@@ -616,6 +667,12 @@ SETTINGS_APP: dict[str, dict] = {
         "name": "Qdrant sparse model (e.g. Qdrant/bm25)",
         "value": config("QDRANT_FASTEMBED_SPARSE_MODEL", default="") or "",
         "component": "text",
+    },
+    "qdrant_embed_dim": {
+        "name": "Qdrant: embedding dimension (informational)",
+        "value": int(config("QDRANT_EMBED_DIM", default="0") or "0"),
+        "component": "number",
+        "info": "Размерность эмбеддингов для Qdrant (информационная настройка). Qdrant определяет размерность автоматически при создании коллекции на основе первого добавленного вектора. Эта настройка используется только для информации и предварительного создания коллекций. Если оставить 0, размерность будет определена автоматически из модели эмбеддингов при первом добавлении векторов.",
     },
     # Флаги индексов: отображаются в UI и сохраняются; для применения нужна перезагрузка приложения.
     "use_lightrag": {

@@ -8,7 +8,7 @@ from theflow.settings import settings as flowsettings
 
 from flowsettings_config import config
 from ktem.app import BaseApp
-from ktem.i18n import get_text
+from ktem.i18n import SUPPORTED_UI_LANGS, get_text
 from ktem.pages.chat import ChatPage
 from ktem.pages.help import HelpPage
 from ktem.pages.resources import ResourcesTab
@@ -257,6 +257,13 @@ class App(BaseApp):
                 )
                 return tab_updates + [version_update]
 
+            def save_ui_lang(lang):
+                """Сохранить язык интерфейса в state и localStorage."""
+                if lang and lang in [code for _, code in SUPPORTED_UI_LANGS]:
+                    # Сохраняем в state для использования в сессии
+                    return lang
+                return "en"
+
             self.lang_dropdown.change(
                 fn=on_lang_change,
                 inputs=[self.lang_dropdown],
@@ -264,10 +271,16 @@ class App(BaseApp):
                 show_progress="hidden",
             )
             self.lang_dropdown.change(
+                fn=save_ui_lang,
+                inputs=[self.lang_dropdown],
+                outputs=[self.ui_lang],
+                show_progress="hidden",
+            )
+            self.lang_dropdown.change(
                 fn=None,
                 inputs=[self.lang_dropdown],
                 outputs=[],
-                js="(lang) => { if (window.applyUiLang) window.applyUiLang(lang); }",
+                js="(lang) => { if (window.applyUiLang) window.applyUiLang(lang); if (window.setStorage) window.setStorage('ui_lang', lang); }",
             )
 
     def _on_app_created(self):
@@ -286,3 +299,38 @@ class App(BaseApp):
                 inputs=[],
                 outputs=[self.setup_page_wrapper, self.tabs],
             )
+        
+        # Загрузить сохранённый язык интерфейса при старте приложения
+        def load_saved_lang():
+            """Загрузить сохранённый язык из localStorage."""
+            # Значение будет установлено через JavaScript
+            return "en"
+        
+        self.app.load(
+            fn=load_saved_lang,
+            inputs=[],
+            outputs=[self.lang_dropdown, self.ui_lang],
+            js="""
+            () => {
+                const savedLang = localStorage.getItem('ui_lang') || 'en';
+                // Обновляем dropdown через небольшую задержку, чтобы элемент был готов
+                setTimeout(() => {
+                    const langDropdownContainer = document.querySelector('#lang-dropdown');
+                    if (langDropdownContainer) {
+                        const select = langDropdownContainer.querySelector('select');
+                        const input = langDropdownContainer.querySelector('input');
+                        if (select) {
+                            select.value = savedLang;
+                            select.dispatchEvent(new Event('change', { bubbles: true }));
+                        } else if (input) {
+                            input.value = savedLang;
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            input.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+                    if (window.applyUiLang) window.applyUiLang(savedLang);
+                }, 200);
+                return [savedLang, savedLang];
+            }
+            """,
+        )
