@@ -14,10 +14,11 @@
 | ------------------------ | -------------------- | ------------------------- |
 | `kotaemon_ktem_app_data` | `/app/ktem_app_data` | Всё приложение            |
 | `kotaemon_qdrant_data`   | `/qdrant/storage`    | Векторный индекс (Qdrant) |
+| `kotaemon_postgres_data` | `/var/lib/postgresql/data` | PostgreSQL (если включён) |
 
 **ktem_app_data** содержит:
 
-- `user_data/sql.db` — SQLite: пользователи, индексы, настройки LLM/Embeddings/Rerankings
+- Все данные хранятся в **PostgreSQL** (пользователи, диалоги, индексы, настройки LLM/Embeddings/Rerankings).
 - `user_data/files/` — загруженные файлы
 - `user_data/docstore/` — LanceDB docstore
 - `application_settings.json` — General (Ollama URL, GraphRAG, и т.д.)
@@ -28,6 +29,84 @@
 
 - `./ktem_app_data/` — в корне проекта (рядом с flowsettings.py)
 - Qdrant: `localhost:6333` или `QDRANT_PATH` для file-режима
+
+---
+
+## База данных: PostgreSQL
+
+**PostgreSQL обязателен** для работы приложения. Используется для хранения пользователей, диалогов, индексов, настроек LLM/Embeddings/Rerankings.
+
+### Настройка PostgreSQL
+
+1. **Docker Compose** (рекомендуется):
+   - Сервис `postgres` уже настроен в `docker-compose.yml` с оптимальными параметрами
+   - `DATABASE_URL` задаётся автоматически или можно указать в `.env`
+   - Сервис `app` автоматически зависит от `postgres`
+
+2. **Локальный запуск** (без Docker):
+   - Установите PostgreSQL с расширением `pgvector`
+   - В `.env` задайте: `DATABASE_URL=postgresql://user:password@localhost:5432/kotaemon`
+
+3. **Переменная окружения**:
+   - Если `DATABASE_URL` не задан в `.env`, используется дефолт для Docker Compose: `postgresql://kotaemon:kotaemon@postgres:5432/kotaemon`
+
+Таблицы создаются автоматически при первом запуске (SQLModel `create_all`). Миграции Alembic отключены по умолчанию (`KH_ENABLE_ALEMBIC = False`).
+
+**Автоматическая инициализация:** При первом запуске автоматически создаётся расширение `pgvector` (если используется векторное хранилище на PostgreSQL). Оптимальные параметры PostgreSQL применяются автоматически через `docker-compose.yml` или настройки сервера.
+
+### Векторы в PostgreSQL (pgvector)
+
+В той же БД можно хранить и векторные эмбеддинги (расширение **pgvector**). Тогда и реляционные данные, и векторы — в одном PostgreSQL.
+
+1. Используйте образ с pgvector: в `docker-compose.yml` сервис `postgres` уже задан как `pgvector/pgvector:pg16`.
+2. В `.env`: `DATABASE_URL=postgresql://...` и **`KH_VECTORSTORE_TYPE=pgvector`**.
+3. Опционально: `PG_VECTOR_EMBED_DIM=1536` (или размерность вашей модели эмбеддингов).
+4. **HNSW параметры** (оптимизированы по умолчанию, применяются автоматически, можно настроить в **Settings → General**):
+   - **pgvector HNSW: m (connections per node)** = 16 — связи на узел (16-64, больше = точнее но медленнее)
+   - **pgvector HNSW: ef_construction** = 64 — параметр построения индекса (64-200)
+   - **pgvector HNSW: ef_search** = 40 — параметр поиска (40-200, больше = точнее но медленнее)
+   
+   Или через `.env`: `PG_VECTOR_HNSW_M=16`, `PG_VECTOR_HNSW_EF_CONSTRUCTION=64`, `PG_VECTOR_HNSW_EF_SEARCH=40`
+
+**Автоматическая инициализация:** При первом запуске приложения автоматически:
+- Создаётся расширение `pgvector` в PostgreSQL (если используется векторное хранилище на PostgreSQL)
+- Применяются оптимальные HNSW параметры при создании векторных индексов
+- Настраиваются оптимальные параметры PostgreSQL через `docker-compose.yml` (shared_buffers, work_mem и т.д.)
+
+Дополнительная настройка не требуется — все оптимальные параметры применяются автоматически при установке.
+
+Можно использовать **pgvector и Qdrant вместе**: в **Settings → General** выберите **Vector store** = **«Qdrant + pgvector (parallel, better quality)»**. Тогда при индексации данные пишутся в оба хранилища, а при поиске запрос идёт в оба параллельно и результаты объединяются по RRF (Reciprocal Rank Fusion) — приоритет на качество и скорость ответа.
+
+### Оптимизация параметров векторизации
+
+**HNSW для pgvector** (настройки в **Settings → General**, поля: **pgvector HNSW: m**, **pgvector HNSW: ef_construction**, **pgvector HNSW: ef_search**):
+- **m** (connections per node): 16 — оптимально для большинства случаев. Увеличьте до 32-64 для большей точности (но медленнее и больше памяти).
+- **ef_construction**: 64 — оптимально для баланса скорости построения и точности индекса.
+- **ef_search**: 40 — оптимально для баланса скорости запросов и качества результатов. Увеличьте до 80-100 для максимальной точности.
+
+Изменения применяются при следующей индексации документов (существующие индексы не перестраиваются автоматически).
+
+**PostgreSQL** (в `docker-compose.yml` уже настроены оптимальные параметры):
+- `shared_buffers=256MB` — кэш данных (25% RAM для небольших серверов)
+- `effective_cache_size=1GB` — для планировщика запросов
+- `maintenance_work_mem=64MB` — для построения индексов (включая HNSW)
+- `work_mem=16MB` — для сортировок и хеш-таблиц
+- `random_page_cost=1.1` — оптимизировано для SSD
+- `effective_io_concurrency=200` — для параллельного I/O
+
+**Connection pooling** (SQLAlchemy, автоматически для PostgreSQL):
+- `pool_size=10` — базовый пул соединений
+- `max_overflow=20` — дополнительные соединения при нагрузке
+- `pool_recycle=3600` — пересоздание соединений каждый час
+
+**Composite (Qdrant + pgvector)**:
+- Запрашивает `top_k * 4` кандидатов из каждого хранилища (до 100) для лучшего качества RRF объединения.
+- RRF использует `k=60` для сглаживания рангов (оптимально для 2-3 хранилищ).
+
+**Qdrant** (настройки в Settings → General):
+- **Hybrid search**: включите для лучшего качества (dense + sparse векторы). Требует `QDRANT_FASTEMBED_SPARSE_MODEL` (например, `Qdrant/bm25`).
+- Коллекции создаются автоматически с оптимальными параметрами (COSINE distance, HNSW индексы).
+- Для продакшена рекомендуется Qdrant Cloud или отдельный сервер с настройками производительности.
 
 ---
 
@@ -60,6 +139,10 @@ Qdrant используется по умолчанию для хранения 
 - Убедитесь, что Qdrant доступен: `curl http://localhost:6333/` (при URL-режиме)
 - При ошибках индексации проверьте логи и настройки в General
 
+### Предупреждение «Api key is used with an insecure connection»
+
+Если задан **Qdrant API key** и **Qdrant URL** начинается с `http://` (без TLS), LlamaIndex выводит это предупреждение. В текущей конфигурации при использовании `http://` API key не передаётся (для локального Qdrant ключ не нужен). Для Qdrant Cloud используйте **https://** и задайте API key в Settings → General.
+
 ### Ошибка «Vector dimension error: expected dim: X, got Y»
 
 Размерность эмбеддингов при индексации и при поиске должна совпадать. Ошибка означает, что:
@@ -73,11 +156,11 @@ Qdrant используется по умолчанию для хранения 
 
 ```bash
 docker compose down -v
-docker volume rm kotaemon_ktem_app_data kotaemon_qdrant_data 2>/dev/null || true
+docker volume rm kotaemon_ktem_app_data kotaemon_qdrant_data kotaemon_postgres_data 2>/dev/null || true
 docker compose up -d
 ```
 
-После этого заново загрузите и проиндексируйте документы.
+После этого заново загрузите и проиндексируйте документы. Если используете PostgreSQL, volume `kotaemon_postgres_data` удалит все данные БД.
 
 ---
 
@@ -119,7 +202,7 @@ docker compose up -d
 
 ```bash
 docker compose down -v
-docker volume rm kotaemon_ktem_app_data kotaemon_qdrant_data 2>/dev/null || true
+docker volume rm kotaemon_ktem_app_data kotaemon_qdrant_data kotaemon_postgres_data 2>/dev/null || true
 docker compose up -d
 ```
 
@@ -163,7 +246,7 @@ docker compose down -v
 
 # Удалить volumes вручную (если -v не сработало)
 docker volume ls | grep kotaemon
-docker volume rm kotaemon_ktem_app_data kotaemon_qdrant_data
+docker volume rm kotaemon_ktem_app_data kotaemon_qdrant_data kotaemon_postgres_data
 
 # Запустить заново
 docker compose up -d

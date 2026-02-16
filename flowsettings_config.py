@@ -69,6 +69,17 @@ class EnvSettings(BaseSettings):
     # SearXNG (self-hosted web search, no API key)
     SEARXNG_URL: str = "http://localhost:8080"
 
+    # Database (PostgreSQL обязателен)
+    DATABASE_URL: str = ""  # postgresql://user:password@host:5432/dbname; для Docker Compose дефолт: postgresql://kotaemon:kotaemon@postgres:5432/kotaemon
+
+    # Vector store: qdrant | pgvector (pgvector использует DATABASE_URL)
+    KH_VECTORSTORE_TYPE: str = "qdrant"
+    PG_VECTOR_EMBED_DIM: int = 1536  # размерность эмбеддингов для pgvector
+    # HNSW параметры для pgvector (оптимизированы для качества и скорости)
+    PG_VECTOR_HNSW_M: int = 16  # количество связей на узел (16-64, больше = точнее но медленнее)
+    PG_VECTOR_HNSW_EF_CONSTRUCTION: int = 64  # параметр построения индекса (64-200, больше = точнее но медленнее построение)
+    PG_VECTOR_HNSW_EF_SEARCH: int = 40  # параметр поиска (40-200, больше = точнее но медленнее запросы)
+
     # Qdrant
     QDRANT_URL: str = "http://localhost:6333"
     QDRANT_API_KEY: str = ""

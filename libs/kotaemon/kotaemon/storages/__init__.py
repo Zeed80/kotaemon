@@ -8,9 +8,11 @@ from .docstores import (
 from .vectorstores import (
     BaseVectorStore,
     ChromaVectorStore,
+    CompositeVectorStore,
     InMemoryVectorStore,
     LanceDBVectorStore,
     MilvusVectorStore,
+    PgvectorVectorStore,
     QdrantVectorStore,
     SimpleFileVectorStore,
 )
@@ -29,5 +31,7 @@ __all__ = [
     "SimpleFileVectorStore",
     "LanceDBVectorStore",
     "MilvusVectorStore",
+    "CompositeVectorStore",
+    "PgvectorVectorStore",
     "QdrantVectorStore",
 ]

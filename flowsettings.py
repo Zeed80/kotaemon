@@ -111,7 +111,16 @@ KH_FEATURE_USER_MANAGEMENT_PASSWORD = str(
     config("KH_FEATURE_USER_MANAGEMENT_PASSWORD", default="admin")
 )
 KH_ENABLE_ALEMBIC = False
-KH_DATABASE = f"sqlite:///{KH_USER_DATA_DIR / 'sql.db'}"
+# PostgreSQL: обязательный DATABASE_URL в .env (postgresql:// или postgresql+psycopg://).
+# Для Docker Compose используется дефолтное значение postgresql://kotaemon:password@postgres:5432/kotaemon
+_database_url = config("DATABASE_URL", default="").strip()
+if not _database_url:
+    # Дефолтное значение для Docker Compose (если не задано в .env)
+    _database_url = "postgresql://kotaemon:kotaemon@postgres:5432/kotaemon"
+if _database_url.startswith("postgresql://") and "+" not in _database_url.split(":")[0]:
+    # Явный драйвер psycopg (v3) для SQLAlchemy 2
+    _database_url = _database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+KH_DATABASE = _database_url
 KH_FILESTORAGE_PATH = str(KH_USER_DATA_DIR / "files")
 # Web search: Tavily (if key) -> SearXNG (self-hosted, no key) for locality/privacy
 KH_WEB_SEARCH_BACKEND = (
@@ -127,6 +136,11 @@ KH_DOCSTORE = {
     "path": str(KH_USER_DATA_DIR / "docstore"),
 }
 _qdrant_path = config("QDRANT_PATH", default="")
+_kh_vectorstore_type = (config("KH_VECTORSTORE_TYPE", default="qdrant") or "qdrant").strip().lower()
+_pg_vector_embed_dim = int(config("PG_VECTOR_EMBED_DIM", default="1536") or "1536")
+_pg_vector_hnsw_m = int(config("PG_VECTOR_HNSW_M", default="16") or "16")
+_pg_vector_hnsw_ef_construction = int(config("PG_VECTOR_HNSW_EF_CONSTRUCTION", default="64") or "64")
+_pg_vector_hnsw_ef_search = int(config("PG_VECTOR_HNSW_EF_SEARCH", default="40") or "40")
 
 
 def _parse_bool(val: str | bool) -> bool:
@@ -153,8 +167,8 @@ def _qdrant_api_key() -> str | None:
     return str(val).strip() or None
 
 
-def _build_vectorstore_config() -> dict:
-    """Собрать конфиг векторного хранилища: application_settings.json → .env."""
+def _build_qdrant_config() -> dict:
+    """Собрать конфиг только Qdrant (application_settings → .env)."""
     path_val = get_application_setting("qdrant_path") or _qdrant_path
     enable_hybrid = get_application_setting("qdrant_enable_hybrid")
     if enable_hybrid is None:
@@ -172,6 +186,8 @@ def _build_vectorstore_config() -> dict:
         api_key_val = _qdrant_api_key() or ""
     else:
         api_key_val = str(api_key_val or "").strip() or ""
+    if not path_val and url_val.strip().lower().startswith("http:"):
+        api_key_val = ""
     return {
         "__type__": "kotaemon.storages.QdrantVectorStore",
         "collection_name": "default",
@@ -180,9 +196,65 @@ def _build_vectorstore_config() -> dict:
         **(
             {"path": str(path_val)}
             if path_val
-            else {"url": url_val, "api_key": api_key_val}
+            else {"url": url_val, "api_key": api_key_val or ""}
         ),
     }
+
+
+def _build_pgvector_config() -> dict:
+    """Собрать конфиг только Pgvector (требуется _database_url) с оптимальными HNSW параметрами."""
+    embed_dim = get_application_setting("pg_vector_embed_dim")
+    if embed_dim is None:
+        embed_dim = _pg_vector_embed_dim
+    else:
+        embed_dim = int(embed_dim) if embed_dim else _pg_vector_embed_dim
+    # HNSW параметры из настроек или дефолты (оптимизированы для качества и скорости)
+    hnsw_m = get_application_setting("pg_vector_hnsw_m")
+    if hnsw_m is None:
+        hnsw_m = _pg_vector_hnsw_m
+    else:
+        hnsw_m = int(hnsw_m) if hnsw_m else _pg_vector_hnsw_m
+    hnsw_ef_construction = get_application_setting("pg_vector_hnsw_ef_construction")
+    if hnsw_ef_construction is None:
+        hnsw_ef_construction = _pg_vector_hnsw_ef_construction
+    else:
+        hnsw_ef_construction = int(hnsw_ef_construction) if hnsw_ef_construction else _pg_vector_hnsw_ef_construction
+    hnsw_ef_search = get_application_setting("pg_vector_hnsw_ef_search")
+    if hnsw_ef_search is None:
+        hnsw_ef_search = _pg_vector_hnsw_ef_search
+    else:
+        hnsw_ef_search = int(hnsw_ef_search) if hnsw_ef_search else _pg_vector_hnsw_ef_search
+    return {
+        "__type__": "kotaemon.storages.PgvectorVectorStore",
+        "collection_name": "default",
+        "connection_string": _database_url,
+        "embed_dim": embed_dim,
+        "schema_name": "public",
+        "perform_setup": True,
+        "hnsw_kwargs": {
+            "hnsw_m": hnsw_m,
+            "hnsw_ef_construction": hnsw_ef_construction,
+            "hnsw_ef_search": hnsw_ef_search,
+            "hnsw_dist_method": "vector_cosine_ops",  # косинусное расстояние (оптимально для эмбеддингов)
+        },
+    }
+
+
+def _build_vectorstore_config() -> dict:
+    """Собрать конфиг векторного хранилища: Qdrant, Pgvector или оба (application_settings → .env)."""
+    vs_type = get_application_setting("vectorstore_type") or _kh_vectorstore_type
+    if vs_type == "pgvector" and _database_url:
+        return _build_pgvector_config()
+    if vs_type == "qdrant_and_pgvector":
+        store_configs = [_build_qdrant_config()]
+        if _database_url:
+            store_configs.append(_build_pgvector_config())
+        return {
+            "__type__": "kotaemon.storages.CompositeVectorStore",
+            "collection_name": "default",
+            "store_configs": store_configs,
+        }
+    return _build_qdrant_config()
 
 
 KH_VECTORSTORE = _build_vectorstore_config()
@@ -483,7 +555,43 @@ SETTINGS_APP: dict[str, dict] = {
         "component": "text",
         "info": "Модель эмбеддингов по умолчанию (Ollama или FastEmbed).",
     },
-    # Qdrant / векторное хранилище — вступает в силу после перезапуска приложения.
+    # Векторное хранилище — вступает в силу после перезапуска приложения.
+    "vectorstore_type": {
+        "name": "Vector store",
+        "value": config("KH_VECTORSTORE_TYPE", default="qdrant"),
+        "component": "dropdown",
+        "choices": [
+            ("Qdrant only", "qdrant"),
+            ("PostgreSQL (pgvector) only", "pgvector"),
+            ("Qdrant + pgvector (parallel, better quality)", "qdrant_and_pgvector"),
+        ],
+        "info": "Один бэкенд или оба: при «Qdrant + pgvector» индексация пишет в оба, поиск объединяет результаты (качество и скорость).",
+    },
+    "pg_vector_embed_dim": {
+        "name": "pgvector: embedding dimension",
+        "value": int(config("PG_VECTOR_EMBED_DIM", default="1536") or "1536"),
+        "component": "number",
+        "info": "Размерность эмбеддингов для pgvector (должна совпадать с моделью).",
+    },
+    "pg_vector_hnsw_m": {
+        "name": "pgvector HNSW: m (connections per node)",
+        "value": int(config("PG_VECTOR_HNSW_M", default="16") or "16"),
+        "component": "number",
+        "info": "Количество связей на узел (16-64). Больше = точнее, но медленнее и больше памяти. 16 оптимально для большинства случаев.",
+    },
+    "pg_vector_hnsw_ef_construction": {
+        "name": "pgvector HNSW: ef_construction",
+        "value": int(config("PG_VECTOR_HNSW_EF_CONSTRUCTION", default="64") or "64"),
+        "component": "number",
+        "info": "Параметр построения индекса (64-200). Больше = точнее индекс, но медленнее построение. 64 оптимально.",
+    },
+    "pg_vector_hnsw_ef_search": {
+        "name": "pgvector HNSW: ef_search",
+        "value": int(config("PG_VECTOR_HNSW_EF_SEARCH", default="40") or "40"),
+        "component": "number",
+        "info": "Параметр поиска (40-200). Больше = точнее результаты, но медленнее запросы. 40 оптимально для баланса скорости и качества.",
+    },
+    # Qdrant (используется при qdrant или qdrant_and_pgvector)
     "qdrant_url": {
         "name": "Qdrant URL",
         "value": config("QDRANT_URL", default="http://localhost:6333"),

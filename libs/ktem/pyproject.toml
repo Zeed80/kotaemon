@@ -27,6 +27,7 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "SQLAlchemy>=2.0.29,<3",
     "sqlmodel>=0.0.16,<0.1",
+    "psycopg[binary]>=3.1.0",  # PostgreSQL драйвер при DATABASE_URL=postgresql://...
     "tiktoken>=0.6.0,<1",
     "gradio>=5.0.0,<6",
     "huggingface-hub<1.0",

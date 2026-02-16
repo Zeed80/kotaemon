@@ -24,6 +24,27 @@ def get_embedding_dimension(embedding: Any) -> int | None:
     return None
 
 
+def get_pgvector_collection_dimension(vector_store: Any) -> int | None:
+    """Получить размерность векторов в PgvectorVectorStore (из конфига)."""
+    if getattr(vector_store, "_embed_dim", None) is not None and getattr(
+        vector_store, "_connection_string", None
+    ):
+        return int(vector_store._embed_dim)
+    return None
+
+
+def get_composite_collection_dimension(vector_store: Any) -> int | None:
+    """Получить размерность из первого вложенного хранилища (CompositeVectorStore)."""
+    stores = getattr(vector_store, "_stores", None)
+    if not stores:
+        return None
+    for s in stores:
+        dim = get_pgvector_collection_dimension(s) or get_qdrant_collection_dimension(s)
+        if dim is not None:
+            return dim
+    return None
+
+
 def get_qdrant_collection_dimension(vector_store: Any) -> int | None:
     """Получить размерность плотных (dense) векторов в коллекции Qdrant.
 
@@ -89,7 +110,11 @@ def resolve_embedding_for_collection(
     Returns:
         (embedding, used_model_name): модель и имя используемой модели.
     """
-    col_dim = get_qdrant_collection_dimension(vector_store)
+    col_dim = (
+        get_pgvector_collection_dimension(vector_store)
+        or get_qdrant_collection_dimension(vector_store)
+        or get_composite_collection_dimension(vector_store)
+    )
     if col_dim is None:
         return embedding, embedding_name
 

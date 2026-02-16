@@ -14,6 +14,9 @@
 #
 # GPU: по умолчанию включён (cu121). Требуется NVIDIA Container Toolkit.
 # Для CPU-only: задайте TORCH_DEVICE=cpu в .env и закомментируйте deploy ниже.
+#
+# База данных: PostgreSQL обязателен. DATABASE_URL задаётся в .env или используется дефолт для Docker Compose.
+# Раскомментируйте depends_on: postgres и переменную DATABASE_URL ниже.
 
 x-common-env: &common-env
   GRADIO_SERVER_NAME: "0.0.0.0"
@@ -44,9 +47,12 @@ services:
       SEARXNG_URL: http://searxng:8080
       # Без логина: прямой доступ к Chat/Files (admin/admin при KH_FEATURE_USER_MANAGEMENT=true)
       KH_FEATURE_USER_MANAGEMENT: "false"
+      # PostgreSQL: обязателен, раскомментировать для использования сервиса postgres
+      DATABASE_URL: postgresql://kotaemon:${POSTGRES_PASSWORD:-kotaemon}@postgres:5432/kotaemon
     depends_on:
       - qdrant
       - searxng
+      - postgres  # PostgreSQL обязателен
     volumes: *common-volumes
     restart: unless-stopped
     # GPU: по умолчанию включён. Для CPU-only закомментируйте.
@@ -89,6 +95,43 @@ services:
       - qdrant_data:/qdrant/storage
     restart: unless-stopped
 
+  # PostgreSQL с pgvector (опционально): раскомментировать depends_on в app и DATABASE_URL в environment
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: kotaemon-postgres
+    environment:
+      POSTGRES_USER: kotaemon
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kotaemon}
+      POSTGRES_DB: kotaemon
+    # Оптимизация производительности: параметры через command (для продакшена)
+    # Для тонкой настройки создайте postgresql.conf и смонтируйте в /var/lib/postgresql/data/postgresql.conf
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - work_mem=16MB
+      - -c
+      - max_connections=100
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kotaemon"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   # Ollama для локальных моделей: docker compose --profile ollama up -d
   # В .env задать KH_OLLAMA_URL=http://ollama:11434/v1/
   ollama:
@@ -107,5 +150,7 @@ volumes:
     name: kotaemon_ktem_app_data
   qdrant_data:
     name: kotaemon_qdrant_data
+  postgres_data:
+    name: kotaemon_postgres_data
   ollama_models:
     name: kotaemon_ollama_models

@@ -15,7 +15,7 @@ ENV TARGETARCH=${TARGETARCH}
 ENV USE_LIGHTRAG=true
 ENV USE_NANO_GRAPHRAG=true
 
-# Install system dependencies
+# Install system dependencies (tesseract-ocr для режима OCR индекса в Unstructured)
 RUN apt-get update -qqy && \
     apt-get install -y --no-install-recommends \
         ssh \
@@ -30,7 +30,9 @@ RUN apt-get update -qqy && \
         libxext6 \
         libreoffice \
         ffmpeg \
-        libmagic-dev
+        libmagic-dev \
+        tesseract-ocr \
+        tesseract-ocr-rus
 
 # Install uv (быстрый резолвер и установщик вместо pip)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -77,9 +79,9 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --system "unstructured[all-docs]"
 
-# Install LightRAG
+# Install LightRAG (pipmaster требуется для lightrag kg/networkx_impl)
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system aioboto3 nano-vectordb ollama xxhash "lightrag-hku<=1.3.0"
+    uv pip install --system aioboto3 nano-vectordb ollama xxhash pipmaster "lightrag-hku<=1.3.0"
 
 # Install Docling
 RUN --mount=type=cache,target=/root/.cache/uv \

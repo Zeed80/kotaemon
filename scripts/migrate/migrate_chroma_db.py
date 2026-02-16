@@ -111,12 +111,12 @@ def update_metadata(metadata, file_id):
 
 
 def migrate_chroma_db(
-    chroma_db_dir: str, sqlite_path: str, is_private: bool = True, int_index: int = 1
+    chroma_db_dir: str, database_url: str, is_private: bool = True, int_index: int = 1
 ):
     chroma_collection_name = f"index_{int_index}"
 
     """Update chromadb with metadata.file_id"""
-    engine = create_engine(sqlite_path)
+    engine = create_engine(database_url)
     resource = _init_resource(private=is_private, id=int_index)
     print("Load sqlalchemy engine successfully!")
 
@@ -163,8 +163,8 @@ def migrate_chroma_db(
         print(f"doc-{doc_id} got updated")
 
 
-def main(chroma_db_dir: str, sqlite_path: str):
-    engine = create_engine(sqlite_path)
+def main(chroma_db_dir: str, database_url: str):
+    engine = create_engine(database_url)
 
     with Session(engine) as session:
         stmt = select(Index)
@@ -180,14 +180,22 @@ def main(chroma_db_dir: str, sqlite_path: str):
 
             migrate_chroma_db(
                 chroma_db_dir=chroma_db_dir,
-                sqlite_path=sqlite_path,
+                database_url=database_url,
                 is_private=_is_private,
                 int_index=_id,
             )
 
 
 if __name__ == "__main__":
-    chrome_db_dir: str = "./vectorstore/kan_db"
-    sqlite_path: str = "sqlite:///../ktem_app_data/user_data/sql.db"
+    import os
 
-    main(chrome_db_dir, sqlite_path)
+    chrome_db_dir: str = "./vectorstore/kan_db"
+    # Используем DATABASE_URL из окружения или дефолт для Docker Compose
+    database_url: str = os.getenv(
+        "DATABASE_URL", "postgresql://kotaemon:kotaemon@postgres:5432/kotaemon"
+    )
+    # Добавляем драйвер psycopg если его нет
+    if database_url.startswith("postgresql://") and "+" not in database_url.split(":")[0]:
+        database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+
+    main(chrome_db_dir, database_url)

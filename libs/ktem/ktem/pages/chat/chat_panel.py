@@ -25,8 +25,7 @@ class ChatPanel(BasePage):
         self.on_building_ui()
 
     def on_building_ui(self):
-        # TODO: type="messages" устраняет UserWarning, но требует миграции chat_history
-        # (pipeline, select_conv, persist) на формат [{"role","content"}]
+        # type="tuples" задаём явно, чтобы убрать deprecation warning (Gradio рекомендует type="messages" в будущем)
         # likeable/bubble_full_width — только в Gradio 5.x+
         chatbot_kwargs = {
             "label": self._app.app_name,
@@ -34,6 +33,7 @@ class ChatPanel(BasePage):
             "show_label": False,
             "elem_id": "main-chat-bot",
             "show_copy_button": True,
+            "type": "tuples",
         }
         try:
             self.chatbot = gr.Chatbot(
