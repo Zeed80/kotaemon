@@ -83,7 +83,8 @@ class BaseApp:
 
         self.user_id = gr.State("default" if not self.f_user_management else None)
         # Загружаем сохранённый язык интерфейса из localStorage или используем дефолт
-        self.ui_lang = gr.State(self._load_ui_lang())
+        # Значение будет загружено через JavaScript при загрузке страницы
+        self.ui_lang = gr.State("en")
 
     def initialize_indices(self):
         """Create the index manager, start indices, and register to app settings"""
