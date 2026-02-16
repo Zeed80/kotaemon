@@ -57,7 +57,7 @@ class CompositeVectorStore(BaseVectorStore):
 
     def __init__(
         self,
-        store_configs: list[dict[str, Any]],
+        store_configs: list[dict[str, Any] | BaseVectorStore],
         collection_name: str = "default",
         **kwargs: Any,
     ):
@@ -67,13 +67,22 @@ class CompositeVectorStore(BaseVectorStore):
         self._store_configs = store_configs
         self._stores: list[BaseVectorStore] = []
         for conf in store_configs:
-            c = dict(conf)
-            c["collection_name"] = collection_name
-            try:
-                store = deserialize(c, safe=False)
-                self._stores.append(store)
-            except Exception as e:
-                logger.warning("CompositeVectorStore: skip store %s: %s", c.get("__type__"), e)
+            # Если conf уже является объектом BaseVectorStore, используем его напрямую
+            if isinstance(conf, BaseVectorStore):
+                self._stores.append(conf)
+                continue
+            
+            # Если conf - словарь конфигурации, десериализуем его
+            if isinstance(conf, dict):
+                c = dict(conf)
+                c["collection_name"] = collection_name
+                try:
+                    store = deserialize(c, safe=False)
+                    self._stores.append(store)
+                except Exception as e:
+                    logger.warning("CompositeVectorStore: skip store %s: %s", c.get("__type__"), e)
+            else:
+                logger.warning("CompositeVectorStore: skip invalid config type %s", type(conf))
 
         if not self._stores:
             raise ValueError("CompositeVectorStore: no store could be initialized.")
