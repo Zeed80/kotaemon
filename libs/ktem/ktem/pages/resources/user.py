@@ -131,7 +131,7 @@ class UserManagement(BasePage):
 
             is_created = create_user(usn, pwd)
             if is_created:
-                gr.Info(f'User "{usn}" created successfully')
+                gr.Info(f'User "{usn}" created successfully', duration=1)
 
     def on_building_ui(self):
         with gr.Tab(label="User list"):
@@ -287,20 +287,20 @@ class UserManagement(BasePage):
     def create_user(self, usn, pwd, pwd_cnf):
         errors = validate_username(usn)
         if errors:
-            gr.Warning(errors)
+            gr.Warning(errors, duration=1)
             return usn, pwd, pwd_cnf
 
         errors = validate_password(pwd, pwd_cnf)
         print(errors)
         if errors:
-            gr.Warning(errors)
+            gr.Warning(errors, duration=1)
             return usn, pwd, pwd_cnf
 
         with Session(engine) as session:
             statement = select(User).where(User.username_lower == usn.lower())
             result = session.exec(statement).all()
             if result:
-                gr.Warning(f'Username "{usn}" already exists')
+                gr.Warning(f'Username "{usn}" already exists', duration=1)
                 return
 
             hashed_password = hashlib.sha256(pwd.encode()).hexdigest()
@@ -309,7 +309,7 @@ class UserManagement(BasePage):
             )
             session.add(user)
             session.commit()
-            gr.Info(f'User "{usn}" created successfully')
+            gr.Info(f'User "{usn}" created successfully', duration=1)
 
         return "", "", ""
 
@@ -343,7 +343,7 @@ class UserManagement(BasePage):
 
     def select_user(self, user_list, ev: gr.SelectData):
         if ev.value == "-" and ev.index[0] == 0:
-            gr.Info("No user is loaded. Please refresh the user list")
+            gr.Info("No user is loaded. Please refresh the user list", duration=1)
             return -1
 
         if not ev.selected:
@@ -392,7 +392,7 @@ class UserManagement(BasePage):
 
     def on_btn_delete_click(self, selected_user_id):
         if selected_user_id is None:
-            gr.Warning("No user is selected")
+            gr.Warning("No user is selected", duration=1)
             btn_delete = gr.update(visible=True)
             btn_delete_yes = gr.update(visible=False)
             btn_delete_no = gr.update(visible=False)
@@ -407,13 +407,13 @@ class UserManagement(BasePage):
     def save_user(self, selected_user_id, usn, pwd, pwd_cnf, admin):
         errors = validate_username(usn)
         if errors:
-            gr.Warning(errors)
+            gr.Warning(errors, duration=1)
             return pwd, pwd_cnf
 
         if pwd:
             errors = validate_password(pwd, pwd_cnf)
             if errors:
-                gr.Warning(errors)
+                gr.Warning(errors, duration=1)
                 return pwd, pwd_cnf
 
         with Session(engine) as session:
@@ -425,13 +425,13 @@ class UserManagement(BasePage):
             if pwd:
                 user.password = hashlib.sha256(pwd.encode()).hexdigest()
             session.commit()
-            gr.Info(f'User "{usn}" updated successfully')
+            gr.Info(f'User "{usn}" updated successfully', duration=1)
 
         return "", ""
 
     def delete_user(self, current_user, selected_user_id):
         if current_user == selected_user_id:
-            gr.Warning("You cannot delete yourself")
+            gr.Warning("You cannot delete yourself", duration=1)
             return selected_user_id
 
         with Session(engine) as session:
@@ -439,5 +439,5 @@ class UserManagement(BasePage):
             user = session.exec(statement).one()
             session.delete(user)
             session.commit()
-            gr.Info(f'User "{user.username}" deleted successfully')
+            gr.Info(f'User "{user.username}" deleted successfully', duration=1)
         return -1

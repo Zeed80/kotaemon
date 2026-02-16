@@ -494,7 +494,7 @@ class FileIndexPage(BasePage):
             self._index._vs.delete(vs_ids)
         self._index._docstore.delete(ds_ids)
 
-        gr.Info(f"File {file_name} has been deleted")
+        gr.Info(f"File {file_name} has been deleted", duration=1)
 
         return None, self.selected_panel_false
 
@@ -598,7 +598,7 @@ class FileIndexPage(BasePage):
         if len(file_list) == 0 or (
             len(file_list) == 1 and file_list.id.values[0] == "-"
         ):
-            gr.Info("No file to delete")
+            gr.Info("No file to delete", duration=1)
             return [
                 gr.update(visible=True),
                 gr.update(visible=False),
@@ -1144,7 +1144,7 @@ class FileIndexPage(BasePage):
             errors = self.validate_urls(files)
         else:
             if not files:
-                gr.Info("No uploaded file")
+                gr.Info("No uploaded file", duration=1)
                 yield "", ""
                 return
             files, unzip_errors = self._may_extract_zip(
@@ -1154,11 +1154,11 @@ class FileIndexPage(BasePage):
             errors.extend(unzip_errors)
 
         if errors:
-            gr.Warning(", ".join(errors))
+            gr.Warning(", ".join(errors), duration=1)
             yield "", ""
             return
 
-        gr.Info(f"Start indexing {len(files)} files...")
+        gr.Info(f"Start indexing {len(files)} files...", duration=1)
         ingestion_id = uuid.uuid4().hex
         runtime_settings = _read_index_runtime_settings(settings, self._index.id)
 
@@ -1232,10 +1232,10 @@ class FileIndexPage(BasePage):
 
         n_successes = len([_ for _ in results if _])
         if n_successes:
-            gr.Info(f"Successfully index {n_successes} files")
+            gr.Info(f"Successfully index {n_successes} files", duration=1)
         n_errors = len([_ for _ in errors if _])
         if n_errors:
-            gr.Warning(f"Have errors for {n_errors} files")
+            gr.Warning(f"Have errors for {n_errors} files", duration=1)
 
         return results
 
@@ -1602,7 +1602,7 @@ class FileIndexPage(BasePage):
 
             group_id = current_group.id
 
-        gr.Info(f"Group {group_name} has been saved")
+        gr.Info(f"Group {group_name} has been saved", duration=1)
         return group_id
 
     def delete_group(self, group_id):
@@ -1619,7 +1619,7 @@ class FileIndexPage(BasePage):
                 group_name = item.name
                 session.delete(item)
                 session.commit()
-                gr.Info(f"Group {group_name} has been deleted")
+                gr.Info(f"Group {group_name} has been deleted", duration=1)
             else:
                 raise gr.Error("No group found")
 
@@ -1627,7 +1627,7 @@ class FileIndexPage(BasePage):
 
     def interact_file_list(self, list_files, ev: gr.SelectData):
         if ev.value == "-" and ev.index[0] == 0:
-            gr.Info("No file is uploaded")
+            gr.Info("No file is uploaded", duration=1)
             return None, self.selected_panel_false
 
         if not ev.selected:

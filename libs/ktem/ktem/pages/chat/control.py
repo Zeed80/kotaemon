@@ -261,7 +261,7 @@ class ConversationControl(BasePage):
     def new_conv(self, user_id):
         """Create new chat"""
         if user_id is None:
-            gr.Warning("Please sign in first (Settings → User Settings)")
+            gr.Warning("Please sign in first (Settings → User Settings)", duration=1)
             return None, gr.update()
         with Session(engine) as session:
             new_conv = Conversation(user=user_id)
@@ -277,11 +277,11 @@ class ConversationControl(BasePage):
     def delete_conv(self, conversation_id, user_id):
         """Delete the selected conversation"""
         if not conversation_id:
-            gr.Warning("No conversation selected.")
+            gr.Warning("No conversation selected.", duration=1)
             return None, gr.update()
 
         if user_id is None:
-            gr.Warning("Please sign in first (Settings → User Settings)")
+            gr.Warning("Please sign in first (Settings → User Settings)", duration=1)
             return None, gr.update()
 
         with Session(engine) as session:
@@ -389,7 +389,7 @@ class ConversationControl(BasePage):
 
         errors = is_conv_name_valid(new_name)
         if errors:
-            gr.Warning(errors)
+            gr.Warning(errors, duration=1)
             return (
                 gr.update(),
                 conversation_id,
@@ -404,7 +404,7 @@ class ConversationControl(BasePage):
             session.commit()
 
         history = self.load_chat_history(user_id)
-        gr.Info("Conversation renamed.")
+        gr.Info("Conversation renamed.", duration=1)
         return (
             gr.update(choices=history),
             conversation_id,
@@ -419,11 +419,11 @@ class ConversationControl(BasePage):
             return
 
         if user_id is None:
-            gr.Warning("Please sign in first (Settings → User Settings)")
+            gr.Warning("Please sign in first (Settings → User Settings)", duration=1)
             return gr.update(), ""
 
         if not conversation_id:
-            gr.Warning("No conversation selected.")
+            gr.Warning("No conversation selected.", duration=1)
             return gr.update(), ""
 
         with Session(engine) as session:
@@ -439,7 +439,7 @@ class ConversationControl(BasePage):
             session.add(result)
             session.commit()
 
-        gr.Info("Chat suggestions updated.")
+        gr.Info("Chat suggestions updated.", duration=1)
 
     def toggle_demo_login_visibility(self, user_api_key, request: gr.Request):
         try:

@@ -82,4 +82,4 @@ class ReportIssue(BasePage):
             )
             session.add(issue)
             session.commit()
-        gr.Info("Thank you for your feedback")
+        gr.Info("Thank you for your feedback", duration=1)

@@ -1063,7 +1063,7 @@ class ChatPage(BasePage):
 
     def on_set_public_conversation(self, is_public, convo_id):
         if not convo_id:
-            gr.Warning("No conversation selected")
+            gr.Warning("No conversation selected", duration=1)
             return
 
         with Session(engine) as session:
@@ -1080,7 +1080,8 @@ class ChatPage(BasePage):
                 session.commit()
 
                 gr.Info(
-                    f"Conversation: {name} is {'public' if is_public else 'private'}."
+                    f"Conversation: {name} is {'public' if is_public else 'private'}.",
+                    duration=1,
                 )
 
     def on_subscribe_public_events(self):
@@ -1200,7 +1201,7 @@ class ChatPage(BasePage):
     ):
         """Update the data source"""
         if not convo_id:
-            gr.Warning("No conversation selected")
+            gr.Warning("No conversation selected", duration=1)
             return
 
         # if not regen, then append the new message
@@ -1250,7 +1251,7 @@ class ChatPage(BasePage):
     def reasoning_changed(self, reasoning_type):
         if reasoning_type != DEFAULT_SETTING:
             # override app settings state (temporary)
-            gr.Info(f"Reasoning type changed to `{reasoning_type}`")
+            gr.Info(f"Reasoning type changed to `{reasoning_type}`", duration=1)
         return reasoning_type
 
     def is_liked(self, convo_id, liked: gr.LikeData):
@@ -1471,9 +1472,9 @@ class ChatPage(BasePage):
                     chat_state,
                 )
         except ValueError as e:
-            gr.Warning(str(e))
+            gr.Warning(str(e), duration=1)
         except Exception as e:
-            gr.Warning(f"An error occurred: {e}")
+            gr.Warning(f"An error occurred: {e}", duration=1)
 
         if not text:
             empty_msg = (

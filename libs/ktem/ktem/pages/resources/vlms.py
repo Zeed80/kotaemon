@@ -610,7 +610,7 @@ class VLMsManagement(BasePage):
                 )
         try:
             vlms_manager.add(name=name, spec=spec)
-            gr.Info(f"VLM «{name}» добавлен")
+            gr.Info(f"VLM «{name}» добавлен", duration=1)
         except ValueError as e:
             raise gr.Error(str(e))
 
@@ -641,7 +641,7 @@ class VLMsManagement(BasePage):
             spec["model"] = "llava"
         try:
             vlms_manager.update(name=name, spec=spec)
-            gr.Info(f"VLM «{name}» сохранён")
+            gr.Info(f"VLM «{name}» сохранён", duration=1)
         except ValueError as e:
             raise gr.Error(str(e))
 
@@ -659,7 +659,7 @@ class VLMsManagement(BasePage):
                 return gr.update(choices=choices, value=choices[0] if choices else None)
             return gr.update(choices=[], value=None)
         except Exception as e:
-            gr.Warning(f"Не удалось получить список моделей Ollama: {e}")
+            gr.Warning(f"Не удалось получить список моделей Ollama: {e}", duration=1)
             return gr.update(choices=[], value=None)
 
     def on_add_ollama_server_selected(self, server_name):
@@ -677,7 +677,7 @@ class VLMsManagement(BasePage):
     def pull_ollama_model_ui(self, server_name: str, model_name: str):
         """Загрузить модель из Ollama с отображением прогресса."""
         if not model_name:
-            gr.Warning("Введите имя модели для загрузки")
+            gr.Warning("Введите имя модели для загрузки", duration=1)
             yield gr.update(visible=False, value=""), gr.update()
             return
 
@@ -722,7 +722,7 @@ class VLMsManagement(BasePage):
                         <p><strong>✓ Модель {model_name} успешно загружена!</strong></p>
                     </div>
                     """
-                    gr.Info(f"Модель {model_name} успешно загружена")
+                    gr.Info(f"Модель {model_name} успешно загружена", duration=1)
                     # Обновить список моделей
                     models = get_ollama_models(base_url)
                     choices = [m["name"] for m in models] if models else []
@@ -747,7 +747,7 @@ class VLMsManagement(BasePage):
                 <p>{str(e)}</p>
             </div>
             """
-            gr.Error(f"Ошибка при загрузке модели: {e}")
+            gr.Error(f"Ошибка при загрузке модели: {e}", duration=1)
             yield gr.update(visible=True, value=error_html), gr.update()
 
     def delete_vlm(self, name):
@@ -756,7 +756,7 @@ class VLMsManagement(BasePage):
             return ""
         try:
             vlms_manager.delete(name)
-            gr.Info(f"VLM «{name}» удалён")
+            gr.Info(f"VLM «{name}» удалён", duration=1)
         except Exception as e:
-            gr.Warning(str(e))
+            gr.Warning(str(e), duration=1)
         return ""

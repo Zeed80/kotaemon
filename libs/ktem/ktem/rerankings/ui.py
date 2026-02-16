@@ -233,7 +233,7 @@ class RerankingManagement(BasePage):
             choices = [m["name"] for m in models] if models else []
             return gr.update(choices=choices, value=choices[0] if choices else None)
         except Exception as e:
-            gr.Warning(f"Не удалось получить модели Ollama: {e}")
+            gr.Warning(f"Не удалось получить модели Ollama: {e}", duration=1)
             return gr.update(choices=[], value=None)
 
     def on_ollama_server_change(self, server_name, current_spec):
@@ -270,7 +270,7 @@ class RerankingManagement(BasePage):
     def pull_ollama_rerank_ui(self, server_name, model_name):
         """Pull Ollama reranker model."""
         if not model_name:
-            gr.Warning("Введите имя модели")
+            gr.Warning("Введите имя модели", duration=1)
             yield gr.update(visible=False), gr.update()
             return
         base_url = None
@@ -285,13 +285,13 @@ class RerankingManagement(BasePage):
                 yield gr.update(visible=True, value=progress), gr.update()
             models = get_ollama_models(base_url)
             choices = [m["name"] for m in models] if models else []
-            gr.Info(f"Модель {model_name} загружена")
+            gr.Info(f"Модель {model_name} загружена", duration=1)
             yield (
                 gr.update(visible=True, value=f"<p>Готово: {model_name}</p>"),
                 gr.update(choices=choices, value=model_name),
             )
         except Exception as e:
-            gr.Error(str(e))
+            gr.Error(str(e), duration=1)
             yield gr.update(visible=True, value=f"<p>Ошибка: {e}</p>"), gr.update()
 
     def on_rerank_vendor_change(self, vendor):
@@ -604,7 +604,7 @@ class RerankingManagement(BasePage):
                 spec["__type__"] = type_str
 
             reranking_models_manager.add(name, spec=spec, default=default)
-            gr.Info(f'Create Reranking model "{name}" successfully')
+            gr.Info(f'Create Reranking model "{name}" successfully', duration=1)
         except gr.Error:
             raise
         except Exception as e:
@@ -631,7 +631,7 @@ class RerankingManagement(BasePage):
 
     def select_rerank(self, rerank_list, ev: gr.SelectData):
         if ev.value == "-" and ev.index[0] == 0:
-            gr.Info("No reranking model is loaded. Please add first")
+            gr.Info("No reranking model is loaded. Please add first", duration=1)
             return ""
 
         if not ev.selected:
@@ -713,7 +713,7 @@ class RerankingManagement(BasePage):
             )
             yield log_content
 
-            gr.Info(f"Embedding {selected_rerank_name} connect successfully")
+            gr.Info(f"Embedding {selected_rerank_name} connect successfully", duration=1)
         except Exception as e:
             print(e)
             log_content += (
@@ -733,15 +733,15 @@ class RerankingManagement(BasePage):
             reranking_models_manager.update(
                 selected_rerank_name, spec=spec, default=default
             )
-            gr.Info(f'Save Reranking model "{selected_rerank_name}" successfully')
+            gr.Info(f'Save Reranking model "{selected_rerank_name}" successfully', duration=1)
         except Exception as e:
-            gr.Error(f'Failed to save Embedding model "{selected_rerank_name}": {e}')
+            gr.Error(f'Failed to save Embedding model "{selected_rerank_name}": {e}', duration=1)
 
     def delete_rerank(self, selected_rerank_name):
         try:
             reranking_models_manager.delete(selected_rerank_name)
         except Exception as e:
-            gr.Error(f'Failed to delete Reranking model "{selected_rerank_name}": {e}')
+            gr.Error(f'Failed to delete Reranking model "{selected_rerank_name}": {e}', duration=1)
             return selected_rerank_name
 
         return ""

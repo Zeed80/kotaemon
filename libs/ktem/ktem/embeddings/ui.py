@@ -260,7 +260,7 @@ class EmbeddingManagement(BasePage):
             choices = [m["name"] for m in models] if models else []
             return gr.update(choices=choices, value=choices[0] if choices else None)
         except Exception as e:
-            gr.Warning(f"Не удалось получить модели Ollama: {e}")
+            gr.Warning(f"Не удалось получить модели Ollama: {e}", duration=1)
             return gr.update(choices=[], value=None)
 
     def on_register_events(self):
@@ -499,7 +499,7 @@ class EmbeddingManagement(BasePage):
                 spec["__type__"] = type_str
 
             embedding_models_manager.add(name, spec=spec, default=default)
-            gr.Info(f'Create Embedding model "{name}" successfully')
+            gr.Info(f'Create Embedding model "{name}" successfully', duration=1)
         except gr.Error:
             raise
         except Exception as e:
@@ -526,7 +526,7 @@ class EmbeddingManagement(BasePage):
 
     def select_emb(self, emb_list, ev: gr.SelectData):
         if ev.value == "-" and ev.index[0] == 0:
-            gr.Info("No embedding model is loaded. Please add first")
+            gr.Info("No embedding model is loaded. Please add first", duration=1)
             return ""
 
         if not ev.selected:
@@ -683,7 +683,7 @@ class EmbeddingManagement(BasePage):
             )
             yield log_content
 
-            gr.Info(f"Embedding {selected_emb_name} connect successfully")
+            gr.Info(f"Embedding {selected_emb_name} connect successfully", duration=1)
         except Exception as e:
             print(e)
             log_content += (
@@ -703,15 +703,15 @@ class EmbeddingManagement(BasePage):
             embedding_models_manager.update(
                 selected_emb_name, spec=spec, default=default
             )
-            gr.Info(f'Save Embedding model "{selected_emb_name}" successfully')
+            gr.Info(f'Save Embedding model "{selected_emb_name}" successfully', duration=1)
         except Exception as e:
-            gr.Error(f'Failed to save Embedding model "{selected_emb_name}": {e}')
+            gr.Error(f'Failed to save Embedding model "{selected_emb_name}": {e}', duration=1)
 
     def delete_emb(self, selected_emb_name):
         try:
             embedding_models_manager.delete(selected_emb_name)
         except Exception as e:
-            gr.Error(f'Failed to delete Embedding model "{selected_emb_name}": {e}')
+            gr.Error(f'Failed to delete Embedding model "{selected_emb_name}": {e}', duration=1)
             return selected_emb_name
 
         return ""
@@ -726,7 +726,7 @@ class EmbeddingManagement(BasePage):
             else:
                 return gr.update(choices=[], value=None)
         except Exception as e:
-            gr.Warning(f"Не удалось получить список моделей Ollama: {e}")
+            gr.Warning(f"Не удалось получить список моделей Ollama: {e}", duration=1)
             return gr.update(choices=[], value=None)
 
     def on_ollama_model_selected(self, model_name: str, current_spec: str):
@@ -756,7 +756,7 @@ class EmbeddingManagement(BasePage):
         """Загрузить модель из Ollama с отображением прогресса. Модель берётся из выпадающего списка или поля ввода."""
         model_name = (input_model or "").strip() or (dropdown_model or "").strip()
         if not model_name:
-            gr.Warning("Выберите модель из списка или введите имя вручную")
+            gr.Warning("Выберите модель из списка или введите имя вручную", duration=1)
             yield gr.update(visible=False, value=""), gr.update()
             return
 
@@ -803,7 +803,7 @@ class EmbeddingManagement(BasePage):
                         <p><strong>✓ Модель {model_name} успешно загружена!</strong></p>
                     </div>
                     """
-                    gr.Info(f"Модель {model_name} успешно загружена")
+                    gr.Info(f"Модель {model_name} успешно загружена", duration=1)
                     # Обновить список моделей для выбранного сервера
                     models = get_ollama_models(base_url=base_url)
                     choices = [m["name"] for m in models]
@@ -828,5 +828,5 @@ class EmbeddingManagement(BasePage):
                 <p>{str(e)}</p>
             </div>
             """
-            gr.Error(f"Ошибка при загрузке модели: {e}")
+            gr.Error(f"Ошибка при загрузке модели: {e}", duration=1)
             yield gr.update(visible=True, value=error_html), gr.update()

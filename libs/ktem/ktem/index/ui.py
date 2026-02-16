@@ -254,7 +254,7 @@ class IndexManagement(BasePage):
                 config=yaml.load(config, Loader=YAMLNoDateSafeLoader),
                 index_type=index_type,
             )
-            gr.Info(f'Create index "{name}" successfully. Please restart the app!')
+            gr.Info(f'Create index "{name}" successfully. Please restart the app!', duration=1)
         except Exception as e:
             raise gr.Error(f"Failed to create Embedding model {name}: {e}")
 
@@ -280,7 +280,7 @@ class IndexManagement(BasePage):
     def select_index(self, index_list, ev: gr.SelectData) -> int:
         """Return the index id"""
         if ev.value == "-" and ev.index[0] == 0:
-            gr.Info("No index is constructed. Please create one first!")
+            gr.Info("No index is constructed. Please create one first!", duration=1)
             return -1
 
         if not ev.selected:
@@ -317,16 +317,16 @@ class IndexManagement(BasePage):
         try:
             spec = yaml.load(config, Loader=YAMLNoDateSafeLoader)
             self.manager.update_index(selected_index_id, name, spec)
-            gr.Info(f'Update index "{name}" successfully. Please restart the app!')
+            gr.Info(f'Update index "{name}" successfully. Please restart the app!', duration=1)
         except Exception as e:
             raise gr.Error(f'Failed to save index "{name}": {e}')
 
     def delete_index(self, selected_index_id):
         try:
             self.manager.delete_index(selected_index_id)
-            gr.Info("Delete index successfully. Please restart the app!")
+            gr.Info("Delete index successfully. Please restart the app!", duration=1)
         except Exception as e:
-            gr.Warning(f"Fail to delete index: {e}")
+            gr.Warning(f"Fail to delete index: {e}", duration=1)
             return selected_index_id
 
         return -1

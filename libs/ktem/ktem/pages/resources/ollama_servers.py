@@ -171,10 +171,11 @@ class OllamaServersManagement(BasePage):
         """Сканировать типичные адреса, добавить найденные Ollama."""
         count, names = auto_add_discovered_ollama()
         if count > 0:
-            gr.Info(f"Добавлено серверов Ollama: {', '.join(names)}")
+            gr.Info(f"Добавлено серверов Ollama: {', '.join(names)}", duration=1)
         elif count == 0:
             gr.Info(
-                "Ollama не обнаружен. Добавьте сервер вручную (в т.ч. IP хоста в Docker)."
+                "Ollama не обнаружен. Добавьте сервер вручную (в т.ч. IP хоста в Docker).",
+                duration=1,
             )
         return self.list_servers(with_status=True)
 
@@ -389,7 +390,7 @@ class OllamaServersManagement(BasePage):
         num_ctx = int(num_ctx) if num_ctx is not None else 8192
         try:
             ollama_servers_manager.add(name=name, base_url=base_url, num_ctx=num_ctx)
-            gr.Info(f"Сервер «{name}» добавлен")
+            gr.Info(f"Сервер «{name}» добавлен", duration=1)
         except ValueError as e:
             raise gr.Error(str(e))
 
@@ -401,7 +402,7 @@ class OllamaServersManagement(BasePage):
         num_ctx = int(num_ctx) if num_ctx is not None else 8192
         try:
             ollama_servers_manager.update(name=name, base_url=base_url, num_ctx=num_ctx)
-            gr.Info(f"Сервер «{name}» сохранён")
+            gr.Info(f"Сервер «{name}» сохранён", duration=1)
         except ValueError as e:
             raise gr.Error(str(e))
 
@@ -411,7 +412,7 @@ class OllamaServersManagement(BasePage):
             return ""
         try:
             ollama_servers_manager.delete(name)
-            gr.Info(f"Сервер «{name}» удалён")
+            gr.Info(f"Сервер «{name}» удалён", duration=1)
         except Exception as e:
-            gr.Warning(str(e))
+            gr.Warning(str(e), duration=1)
         return ""

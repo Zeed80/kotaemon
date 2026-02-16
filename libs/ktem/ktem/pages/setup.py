@@ -250,7 +250,7 @@ class SetupPage(BasePage):
         log_content = ""
         emb_output = None
         if not radio_model_value:
-            gr.Info("Skip setup models.")
+            gr.Info("Skip setup models.", duration=1)
             yield gr.value(visible=False)
             return
 
@@ -480,7 +480,7 @@ class SetupPage(BasePage):
                 emb_output = True  # No embedding (e.g. Anthropic), consider OK
 
         if llm_output and emb_output:
-            gr.Info("Setup models completed successfully!")
+            gr.Info("Setup models completed successfully!", duration=1)
         else:
             raise gr.Error(
                 "Setup models failed. Please verify your connection and API key."

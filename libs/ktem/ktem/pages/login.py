@@ -129,5 +129,5 @@ class LoginPage(BasePage):
                 if result:
                     return result[0].id, "", ""
 
-                gr.Warning("Invalid username or password")
+                gr.Warning("Invalid username or password", duration=1)
                 return None, usn, pwd
