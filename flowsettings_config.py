@@ -98,6 +98,16 @@ class EnvSettings(BaseSettings):
     PRIORITIZE_TABLE_DEFAULT: bool = True
     ENABLE_PRE_AGGREGATION: bool = True  # Извлечение агрегатов из таблиц при индексации
 
+    # Unified upload and background indexing
+    ENABLE_UNIFIED_UPLOAD: bool = True
+    ENABLE_BACKGROUND_INDEXING: bool = True
+
+    # API for external agents (OpenClaw, etc.)
+    API_SECRET_KEY: str = ""
+
+    # Document classification and routing
+    ENABLE_DOCUMENT_CLASSIFICATION: bool = False
+
     # Secret storage (optional): ключ для шифрования API-ключей в БД и application_settings.json
     KH_ENCRYPTION_KEY: str = ""
 

@@ -14,6 +14,7 @@ from ktem.pages.help import HelpPage
 from ktem.pages.resources import ResourcesTab
 from ktem.pages.settings import SettingsPage
 from ktem.pages.setup import SetupPage
+from ktem.pages.upload import UnifiedUploadPage
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
@@ -100,6 +101,16 @@ class App(BaseApp):
                         ) as self._tabs[f"{index.id}-tab"]:
                             page = index.get_index_page_ui()
                             setattr(self, f"_index_{index.id}", page)
+
+            if not KH_DEMO_MODE and config("ENABLE_UNIFIED_UPLOAD", default=True, cast=bool):
+                with gr.Tab(
+                    "Upload",
+                    elem_id="upload-tab",
+                    elem_classes=["fill-main-area-height", "scrollable"],
+                    id="upload-tab",
+                    visible=not self.f_user_management,
+                ) as self._tabs["upload-tab"]:
+                    self.upload_page = UnifiedUploadPage(self)
 
             if not KH_DEMO_MODE:
                 if not KH_SSO_ENABLED:
@@ -261,6 +272,13 @@ class App(BaseApp):
 
     def _on_app_created(self):
         """Called when the app is created"""
+        if config("ENABLE_BACKGROUND_INDEXING", default=True, cast=bool):
+            try:
+                from ktem.orchestration.queue import get_indexing_queue
+
+                get_indexing_queue(self)
+            except Exception:
+                pass
 
         if KH_ENABLE_FIRST_SETUP:
             self.app.load(

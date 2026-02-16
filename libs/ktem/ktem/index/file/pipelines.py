@@ -407,6 +407,7 @@ class IndexPipeline(BaseComponent):
     splitter: BaseSplitter | None
     chunk_batch_size: int = 200
     enable_pre_aggregation: bool = True
+    doc_type: str | None = None  # invoice|letter|drawing|tech_spec|unknown, from classifier
 
     Source = Param(help="The SQLAlchemy Source table")
     Index = Param(help="The SQLAlchemy Index table")
@@ -474,6 +475,8 @@ class IndexPipeline(BaseComponent):
             page_label = chunk.metadata.get("page_label", None)
             if page_label and page_label in page_label_to_thumbnail:
                 chunk.metadata["thumbnail_doc_id"] = page_label_to_thumbnail[page_label]
+            if self.doc_type:
+                chunk.metadata["doc_type"] = self.doc_type
 
         to_index_chunks = all_chunks + non_text_docs + thumbnail_docs
 
@@ -928,7 +931,29 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         """Decide the pipeline based on the file type
 
         Can subclass this method for a more elaborate pipeline routing strategy.
+        Optionally uses document classifier for routing when ENABLE_DOCUMENT_CLASSIFICATION.
         """
+
+        doc_type: str | None = None
+        enable_pre_aggregation = getattr(self, "enable_pre_aggregation", True)
+        if config("ENABLE_DOCUMENT_CLASSIFICATION", default=False, cast=bool):
+            try:
+                from ktem.orchestration.classifier import classify_by_path
+
+                classification = classify_by_path(file_path)
+                doc_type = classification.doc_type
+                if doc_type == "invoice":
+                    enable_pre_aggregation = True
+                elif doc_type in ("letter", "drawing"):
+                    enable_pre_aggregation = False
+                logger.info(
+                    "Document classifier: file=%s doc_type=%s confidence=%.2f",
+                    Path(file_path).name,
+                    doc_type,
+                    classification.confidence,
+                )
+            except Exception as e:
+                logger.warning("Document classifier failed: %s", e)
 
         _, dev_chunk_size, dev_chunk_overlap = dev_settings()
 
@@ -975,9 +1000,8 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
             loader=reader,
             splitter=splitter,
             run_embedding_in_thread=self.run_embedding_in_thread,
-            enable_pre_aggregation=getattr(
-                self, "enable_pre_aggregation", True
-            ),
+            enable_pre_aggregation=enable_pre_aggregation,
+            doc_type=doc_type,
             Source=self.Source,
             Index=self.Index,
             VS=self.VS,
