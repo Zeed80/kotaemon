@@ -9,17 +9,16 @@ from .db import RerankingTable, engine
 
 
 def _apply_app_defaults_to_ollama_reranker(reranker) -> None:
-    """Подставить в реранкер Ollama URL и модель из настроек приложения (как у эмбеддингов/LLM)."""
+    """Подставить в реранкер Ollama URL и модель из настроек (серверы → .env)."""
     from kotaemon.rerankings import OllamaReranking
 
     if not isinstance(reranker, OllamaReranking):
         return
     try:
         from flowsettings import get_application_setting
+        from ktem.utils.ollama import get_ollama_base_url
 
-        url = get_application_setting("kh_ollama_url") or getattr(
-            flowsettings, "KH_OLLAMA_URL", ""
-        )
+        url = get_ollama_base_url()
         if url:
             base = (
                 (str(url))

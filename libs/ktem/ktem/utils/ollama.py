@@ -21,10 +21,21 @@ logger = logging.getLogger(__name__)
 def get_ollama_base_url() -> str:
     """Получить базовый URL Ollama из настроек.
 
+    Приоритет: 1) настроенные серверы (Resources → Ollama servers),
+    2) application.kh_ollama_url / .env KH_OLLAMA_URL.
+
     Returns:
         str: Базовый URL для Ollama API (без /v1/, с /api)
     """
-    url = get_application_setting("kh_ollama_url")
+    url = None
+    try:
+        from ktem.ollama_servers import ollama_servers_manager
+
+        url = ollama_servers_manager.get_primary_base_url()
+    except Exception:
+        pass
+    if not url:
+        url = get_application_setting("kh_ollama_url")
     if not url:
         url = getattr(flowsettings, "KH_OLLAMA_URL", "http://localhost:11434/v1/")
     # Конвертируем /v1/ в /api для native API
@@ -53,13 +64,24 @@ def server_url_to_langchain_base(url: str) -> str:
 def get_ollama_base_url_for_langchain() -> str:
     """Получить базовый URL Ollama для использования с langchain_ollama.
 
+    Приоритет: 1) настроенные серверы (Resources → Ollama servers),
+    2) application.kh_ollama_url / .env KH_OLLAMA_URL.
+
     langchain_ollama.ChatOllama ожидает базовый URL без /api и без /v1/,
     например: http://localhost:11434/
 
     Returns:
         str: Базовый URL для langchain_ollama (без /v1/ и без /api)
     """
-    url = get_application_setting("kh_ollama_url")
+    url = None
+    try:
+        from ktem.ollama_servers import ollama_servers_manager
+
+        url = ollama_servers_manager.get_primary_base_url()
+    except Exception:
+        pass
+    if not url:
+        url = get_application_setting("kh_ollama_url")
     if not url:
         url = getattr(flowsettings, "KH_OLLAMA_URL", "http://localhost:11434/v1/")
     # Убираем /v1/ и /api, оставляем только базовый URL

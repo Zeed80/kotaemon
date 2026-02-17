@@ -64,6 +64,9 @@ class OllamaServerManager:
                     "base_url": row.base_url,
                     "num_ctx": row.num_ctx,
                 }
+        url = self.get_primary_base_url()
+        if url:
+            _persist_primary_ollama_url(self, url)
 
     def list(self) -> list[dict]:
         """Список серверов (name, base_url, num_ctx)."""
@@ -95,7 +98,7 @@ class OllamaServerManager:
         except IntegrityError:
             raise ValueError(f"Сервер с именем «{name}» уже существует")
         self.load()
-        # При добавлении первого сервера — записать URL в .env
+        # При добавлении/обновлении — записать URL в .env (единственный или local/default)
         if len(self._servers) == 1 or name in ("local", "default"):
             _persist_primary_ollama_url(self, base_url)
 
@@ -135,6 +138,22 @@ class OllamaServerManager:
     def options_for_dropdown(self) -> list[tuple[str, str]]:
         """Список (display, value) для выпадающего списка (имя как value)."""
         return [(s["name"], s["name"]) for s in self.list()]
+
+    def get_primary_base_url(self) -> str | None:
+        """URL первого настроенного сервера в формате .../v1/ (для kh_ollama_url).
+        None, если серверов нет.
+        """
+        servers = self.list()
+        if not servers:
+            return None
+        url = (servers[0].get("base_url") or "").strip().rstrip("/")
+        if not url:
+            return None
+        if "/v1" not in url:
+            url = f"{url}/v1/"
+        elif not url.endswith("/"):
+            url = f"{url}/"
+        return url
 
 
 ollama_servers_manager = OllamaServerManager()
