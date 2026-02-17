@@ -113,8 +113,9 @@ async def api_upload(
 
     queue = get_indexing_queue(app)
     queue.set_app(app)
+    paths: list[str | Path] = [Path(p) for p in file_paths]
     job_id = queue.enqueue(
-        file_paths=file_paths,
+        file_paths=paths,
         target_indices=target_ids,
         user_id="default",
         settings=settings_merged,

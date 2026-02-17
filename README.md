@@ -80,6 +80,8 @@ documents and developers who want to build their own RAG pipeline.
 
 - **Configurable settings UI**: You can adjust most important aspects of retrieval & generation on the UI (incl. prompts). Many application-level settings (Ollama URL, index toggles, chat placeholders) are editable in **Settings → General** and persist across restarts via `application_settings.json`.
 
+- **Document types**: Classify documents (invoice, letter, etc.), extract structured data, and build cross-document links. Custom types in **Resources → Document Types**; links integrated with LightRAG.
+
 - **Extensible**: Being built on Gradio, you are free to customize or add any UI elements as you like. Also, we aim to support multiple strategies for document indexing & retrieval. `GraphRAG` indexing pipeline is provided as an example.
 
 ![Preview](https://raw.githubusercontent.com/Zeed80/kotaemon/main/docs/images/preview.png)

@@ -216,22 +216,36 @@ class DocumentTypesManagement(BasePage):
                     "",
                 )
             try:
-                idx = getattr(evt, "index", None)
-                if idx is None:
-                    return (
-                        gr.update(visible=False),
-                        None,
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                    )
-                row_idx = idx[0] if isinstance(idx, (list, tuple)) else idx
                 import pandas as pd
 
                 df = pd.DataFrame(data) if not hasattr(data, "iloc") else data
-                row = df.iloc[row_idx]
+                # Gradio SelectData: row_value (весь ряд) или index для iloc
+                row_value = getattr(evt, "row_value", None)
+                if row_value is not None and isinstance(row_value, (list, tuple)):
+                    headers = ["id", "name", "display_name", "is_builtin"]
+                    row = (
+                        dict(zip(headers, row_value, strict=False))
+                        if len(row_value) >= 4
+                        else {}
+                    )
+                else:
+                    idx = getattr(evt, "index", None)
+                    if idx is None:
+                        return (
+                            gr.update(visible=False),
+                            None,
+                            "",
+                            "",
+                            "",
+                            "",
+                            "",
+                        )
+                    row_idx = idx[0] if isinstance(idx, (list, tuple)) else idx
+                    row = (
+                        df.iloc[row_idx].to_dict()
+                        if hasattr(df.iloc[row_idx], "to_dict")
+                        else dict(df.iloc[row_idx])
+                    )
                 tid = row.get("id", "")
                 name = row.get("name", "")
                 is_builtin = row.get("is_builtin", True)

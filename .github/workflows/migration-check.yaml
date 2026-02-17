@@ -1,0 +1,72 @@
+name: migration-check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "libs/ktem/migrations/**"
+      - "libs/ktem/ktem/db/**"
+  push:
+    branches: [main]
+    paths:
+      - "libs/ktem/migrations/**"
+      - "libs/ktem/ktem/db/**"
+
+env:
+  THEFLOW_TEMP_PATH: ./tmp
+  DATABASE_URL: postgresql+psycopg://kotaemon:kotaemon@localhost:5432/kotaemon
+  KH_ENABLE_ALEMBIC: "true"
+
+jobs:
+  alembic-migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: kotaemon
+          POSTGRES_PASSWORD: kotaemon
+          POSTGRES_DB: kotaemon
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Clone the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: x64
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "libs/kotaemon[all]"
+          pip install -e "libs/ktem"
+
+      - name: Run Alembic migrations
+        run: |
+          cd libs/ktem
+          alembic -c alembic.ini upgrade head
+
+      - name: Verify document_type table
+        run: |
+          cd libs/ktem
+          python -c "
+          from sqlalchemy import create_engine, text
+          from theflow.settings import settings
+          engine = create_engine(settings.KH_DATABASE)
+          with engine.connect() as conn:
+              r = conn.execute(text(\"SELECT column_name FROM information_schema.columns WHERE table_name='document_type'\"))
+              cols = [row[0] for row in r]
+          assert 'id' in cols and 'name' in cols and 'schema_def' in cols, f'Expected columns, got: {cols}'
+          print('document_type table OK')
+          "

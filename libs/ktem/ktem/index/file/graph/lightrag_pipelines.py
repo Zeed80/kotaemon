@@ -331,7 +331,12 @@ class LightRAGIndexingPipeline(GraphRAGIndexingPipeline):
             print(e)
             return {}
 
-    def call_graphrag_index(self, graph_id: str, docs: list[Document]):
+    def call_graphrag_index(
+        self,
+        graph_id: str,
+        docs: list[Document],
+        file_ids: list[str | None] | None = None,
+    ):
         from lightrag.prompt import PROMPTS
 
         # modify the prompt if it is set in the settings
@@ -423,6 +428,77 @@ class LightRAGIndexingPipeline(GraphRAGIndexingPipeline):
             channel="debug",
             text=f"[GraphRAG] {'Update' if is_incremental else 'Indexing'} finished.",
         )
+
+        # document_links: добавить рёбра из Source.note в граф LightRAG
+        self._inject_document_links_into_graph(graphrag_func, file_ids or [])
+
+    def _inject_document_links_into_graph(
+        self, graphrag_func, file_ids: list[str | None]
+    ) -> None:
+        """Добавить связи document_links из Source.note в граф LightRAG."""
+        from sqlalchemy import select
+        from sqlalchemy.orm import Session
+
+        from ktem.db.models import engine
+
+        for file_id in file_ids:
+            if not file_id:
+                continue
+            with Session(engine) as session:
+                src = (
+                    session.execute(
+                        select(self.Source).where(self.Source.id == file_id)
+                    )
+                    .scalars()
+                    .first()
+                )
+            if not src or not getattr(src, "note", None):
+                continue
+            links = (src.note or {}).get("document_links")
+            if not links or not isinstance(links, list):
+                continue
+            doc_label = getattr(src, "name", str(file_id)) or str(file_id)
+            source_entity = f"doc:{file_id}"
+            try:
+                for lnk in links:
+                    target_ref = (lnk.get("target_ref") or "").strip()
+                    link_type = lnk.get("link_type") or "reference"
+                    if not target_ref:
+                        continue
+                    try:
+                        graphrag_func.create_entity(
+                            source_entity,
+                            {
+                                "description": f"Document: {doc_label}",
+                                "entity_type": "document",
+                            },
+                        )
+                    except Exception:
+                        pass  # уже существует
+                    try:
+                        graphrag_func.create_entity(
+                            target_ref,
+                            {
+                                "description": f"Reference: {target_ref}",
+                                "entity_type": "reference",
+                            },
+                        )
+                    except Exception:
+                        pass
+                    try:
+                        graphrag_func.create_relation(
+                            source_entity,
+                            target_ref,
+                            {
+                                "description": f"references {link_type} {target_ref}",
+                                "keywords": f"{link_type} {target_ref}",
+                                "weight": 1.0,
+                            },
+                        )
+                    except Exception as e:
+                        logger.debug("Could not add document_link to LightRAG: %s", e)
+            except Exception as e:
+                logger.warning("document_links injection failed for %s: %s", file_id, e)
 
     def stream(
         self, file_paths: str | Path | list[str | Path], reindex: bool = False, **kwargs

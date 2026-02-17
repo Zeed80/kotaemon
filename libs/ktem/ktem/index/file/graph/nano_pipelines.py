@@ -312,7 +312,12 @@ class NanoGraphRAGIndexingPipeline(GraphRAGIndexingPipeline):
             print(e)
             return {}
 
-    def call_graphrag_index(self, graph_id: str, docs: list[Document]):
+    def call_graphrag_index(
+        self,
+        graph_id: str,
+        docs: list[Document],
+        file_ids: list[str | None] | None = None,
+    ):
         from nano_graphrag.prompt import PROMPTS
 
         # modify the prompt if it is set in the settings

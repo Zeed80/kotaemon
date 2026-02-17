@@ -2,6 +2,12 @@
 
 Извлекает ссылки из structured_data, создаёт chunks-связи для векторного поиска.
 Используется при индексации или по кнопке «Построить граф».
+
+document_links сохраняются в Source.note при IndexDocumentPipeline.finish().
+
+Интеграция с LightRAG/GraphRAG (TODO): передавать document_links в граф-пайплайн
+для добавления явных рёбер между документами (например, invoice A -> contract B по
+номеру). Требует API LightRAG для добавления кастомных рёбер.
 """
 
 from __future__ import annotations

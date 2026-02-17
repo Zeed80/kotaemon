@@ -24,9 +24,11 @@ def upgrade() -> None:
         sa.Column("id", sa.String(32), primary_key=True),
         sa.Column("name", sa.String(128), nullable=False, index=True, unique=True),
         sa.Column("display_name", sa.String(256), nullable=False),
-        sa.Column("schema_def", sa.JSON(), server_default="[]"),
-        sa.Column("extraction_prompt_template", sa.Text(), server_default=""),
-        sa.Column("classifier_keywords", sa.JSON(), server_default="{}"),
+        sa.Column("schema_def", sa.JSON(), server_default=sa.text("'[]'")),
+        sa.Column(
+            "extraction_prompt_template", sa.Text(), server_default=sa.text("''")
+        ),
+        sa.Column("classifier_keywords", sa.JSON(), server_default=sa.text("'{}'")),
         sa.Column("enable_pre_aggregation", sa.Boolean(), server_default=sa.true()),
         sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
         sa.Column("user", sa.String(256), server_default=""),

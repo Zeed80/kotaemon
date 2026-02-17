@@ -121,7 +121,12 @@ class GraphRAGIndexingPipeline(IndexDocumentPipeline):
 
         return root_path
 
-    def call_graphrag_index(self, graph_id: str, all_docs: list[Document]):
+    def call_graphrag_index(
+        self,
+        graph_id: str,
+        all_docs: list[Document],
+        file_ids: list[str | None] | None = None,
+    ):
         if not check_graphrag_api_key():
             raise ValueError(GRAPHRAG_KEY_MISSING_MESSAGE)
 
@@ -178,7 +183,7 @@ class GraphRAGIndexingPipeline(IndexDocumentPipeline):
         # assign graph_id to file_ids
         graph_id = self.store_file_id_with_graph_id(file_ids)
         # call GraphRAG index with docs and graph_id
-        yield from self.call_graphrag_index(graph_id, all_docs)
+        yield from self.call_graphrag_index(graph_id, all_docs, file_ids)
 
         return file_ids, errors, all_docs
 

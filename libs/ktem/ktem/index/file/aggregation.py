@@ -56,7 +56,9 @@ def _parse_table_to_rows(table_content: str) -> list[list[str]]:
     if not table_content or not table_content.strip():
         return []
 
-    lines = [l.strip() for l in table_content.strip().splitlines() if l.strip()]
+    lines = [
+        line.strip() for line in table_content.strip().splitlines() if line.strip()
+    ]
     if not lines:
         return []
 
@@ -150,9 +152,21 @@ def extract_aggregates_from_table(
         if not item_name:
             continue
 
-        qty = _parse_number(row[qty_idx]) if qty_idx is not None and qty_idx < len(row) else None
-        amt = _parse_number(row[amount_idx]) if amount_idx is not None and amount_idx < len(row) else None
-        prc = _parse_number(row[price_idx]) if price_idx is not None and price_idx < len(row) else None
+        qty = (
+            _parse_number(row[qty_idx])
+            if qty_idx is not None and qty_idx < len(row)
+            else None
+        )
+        amt = (
+            _parse_number(row[amount_idx])
+            if amount_idx is not None and amount_idx < len(row)
+            else None
+        )
+        prc = (
+            _parse_number(row[price_idx])
+            if price_idx is not None and price_idx < len(row)
+            else None
+        )
 
         if qty is not None and qty > 0:
             items_with_qty.append((item_name, qty))
@@ -178,11 +192,13 @@ def extract_aggregates_from_table(
         for name, q in top_qty:
             name_short = name[:80] + "…" if len(name) > 80 else name
             lines.append(f"| {name_short} | {q} |")
-        results.append({
-            "summary_text": "\n".join(lines),
-            "type": "aggregate_top_quantity",
-            "metadata": {"file_name": file_name, "page_label": page_label},
-        })
+        results.append(
+            {
+                "summary_text": "\n".join(lines),
+                "type": "aggregate_top_quantity",
+                "metadata": {"file_name": file_name, "page_label": page_label},
+            }
+        )
 
     # Сводка: топ по сумме
     if items_with_amount:
@@ -199,11 +215,13 @@ def extract_aggregates_from_table(
         if total_sum > 0:
             lines.append("")
             lines.append(f"ИТОГО: {total_sum:.2f}")
-        results.append({
-            "summary_text": "\n".join(lines),
-            "type": "aggregate_top_amount",
-            "metadata": {"file_name": file_name, "page_label": page_label},
-        })
+        results.append(
+            {
+                "summary_text": "\n".join(lines),
+                "type": "aggregate_top_amount",
+                "metadata": {"file_name": file_name, "page_label": page_label},
+            }
+        )
 
     return results
 
@@ -261,8 +279,6 @@ def create_aggregate_documents(
                 meta["page_label"] = page_label
             meta.update(agg.get("metadata", {}))
 
-            aggregate_docs.append(
-                Document(text=text, metadata=meta)
-            )
+            aggregate_docs.append(Document(text=text, metadata=meta))
 
     return aggregate_docs

@@ -1,4 +1,7 @@
-The file index stores files in a local folder and index them for retrieval.
+The file index stores files in a local folder and indexes them for retrieval.
+
+See also: [Document Types](document-types.md) — document classification and structured extraction.
+
 This file index provides the following infrastructure to support the indexing:
 
 - SQL table Source: store the list of files that are indexed by the system

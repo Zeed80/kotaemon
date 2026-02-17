@@ -128,7 +128,9 @@ class BaseDocumentExtractor:
 
                 llm = llms.get_default()
                 if llm:
-                    full_prompt = f"{prompt}\n\nDocument text:\n{(raw_text or '')[:8000]}"
+                    full_prompt = (
+                        f"{prompt}\n\nDocument text:\n{(raw_text or '')[:8000]}"
+                    )
                     resp = llm(full_prompt)
                     text = resp.text if hasattr(resp, "text") else str(resp)
                 else:

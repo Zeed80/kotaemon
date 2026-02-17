@@ -574,17 +574,29 @@ class EmbeddingManagement(BasePage):
                 )
             )
             if is_ollama and spec:
-                server_choices = [
-                    c[1] for c in (ollama_servers_manager.options_for_dropdown() or [])
-                ]
-                current_base = (spec.get("base_url") or "").rstrip("/").replace("/v1", "").replace("/api", "")
+                opts = cast(
+                    list[tuple[str, str]],
+                    ollama_servers_manager.options_for_dropdown() or [],
+                )
+                server_choices = [c[1] for c in opts]
+                current_base = (
+                    (spec.get("base_url") or "")
+                    .rstrip("/")
+                    .replace("/v1", "")
+                    .replace("/api", "")
+                )
                 current_model = spec.get("model") or ""
                 # Подобрать текущий сервер по base_url
                 server_value = None
                 for sid in server_choices:
                     s = ollama_servers_manager.get(sid)
                     if s:
-                        b = (s.get("base_url") or "").rstrip("/").replace("/v1", "").replace("/api", "")
+                        b = (
+                            (s.get("base_url") or "")
+                            .rstrip("/")
+                            .replace("/v1", "")
+                            .replace("/api", "")
+                        )
                         if b == current_base or current_base in b or b in current_base:
                             server_value = sid
                             break
@@ -601,9 +613,13 @@ class EmbeddingManagement(BasePage):
                 if current_model and current_model not in model_choices:
                     model_choices = [current_model] + model_choices
                 edit_ollama_row = gr.update(visible=True)
-                edit_ollama_server = gr.update(choices=server_choices, value=server_value)
+                edit_ollama_server = gr.update(
+                    choices=server_choices, value=server_value
+                )
                 edit_ollama_model = gr.update(
-                    choices=model_choices, value=current_model or (model_choices[0] if model_choices else None)
+                    choices=model_choices,
+                    value=current_model
+                    or (model_choices[0] if model_choices else None),
                 )
             else:
                 edit_ollama_row = gr.update(visible=False)
@@ -703,15 +719,22 @@ class EmbeddingManagement(BasePage):
             embedding_models_manager.update(
                 selected_emb_name, spec=spec, default=default
             )
-            gr.Info(f'Save Embedding model "{selected_emb_name}" successfully', duration=1)
+            gr.Info(
+                f'Save Embedding model "{selected_emb_name}" successfully', duration=1
+            )
         except Exception as e:
-            gr.Error(f'Failed to save Embedding model "{selected_emb_name}": {e}', duration=1)
+            gr.Error(
+                f'Failed to save Embedding model "{selected_emb_name}": {e}', duration=1
+            )
 
     def delete_emb(self, selected_emb_name):
         try:
             embedding_models_manager.delete(selected_emb_name)
         except Exception as e:
-            gr.Error(f'Failed to delete Embedding model "{selected_emb_name}": {e}', duration=1)
+            gr.Error(
+                f'Failed to delete Embedding model "{selected_emb_name}": {e}',
+                duration=1,
+            )
             return selected_emb_name
 
         return ""
@@ -771,9 +794,7 @@ class EmbeddingManagement(BasePage):
         yield gr.update(visible=True, value=progress_html), gr.update()
 
         try:
-            for response in pull_ollama_model(
-                base_url=base_url, model_name=model_name
-            ):
+            for response in pull_ollama_model(base_url=base_url, model_name=model_name):
                 status = response.get("status", "")
                 completed = response.get("completed", 0)
                 total = response.get("total", 0)
