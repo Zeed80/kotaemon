@@ -106,7 +106,7 @@ class BaseDocumentExtractor:
 
         # Нужно изображение для VLM
         if not image_data_url and not raw_text:
-            image_data_url = self._get_first_page_image(file_path)
+            image_data_url = self._get_first_page_image(Path(file_path))
         if not image_data_url and not raw_text:
             logger.warning("No image or text for extraction: %s", file_path)
             return None
@@ -128,7 +128,7 @@ class BaseDocumentExtractor:
 
                 llm = llms.get_default()
                 if llm:
-                    full_prompt = f"{prompt}\n\nDocument text:\n{raw_text[:8000]}"
+                    full_prompt = f"{prompt}\n\nDocument text:\n{(raw_text or '')[:8000]}"
                     resp = llm(full_prompt)
                     text = resp.text if hasattr(resp, "text") else str(resp)
                 else:
