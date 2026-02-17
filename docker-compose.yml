@@ -55,7 +55,7 @@ services:
       searxng:
         condition: service_started
       postgres:
-        condition: service_healthy
+        condition: service_started
       db_init:
         condition: service_completed_successfully
     volumes: *common-volumes
@@ -151,7 +151,7 @@ services:
     entrypoint: ["/bin/sh", "/init-ensure-db.sh"]
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
     restart: "no"
 
   # Ollama для локальных моделей: docker compose --profile ollama up -d
