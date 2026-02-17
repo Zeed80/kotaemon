@@ -7,10 +7,15 @@ import yaml
 from theflow.utils.modules import deserialize
 
 from kotaemon.base import Document
+from kotaemon.rerankings import OllamaReranking
 from ktem.app import BasePage
 from ktem.ollama_servers import ollama_servers_manager
 from ktem.utils.file import YAMLNoDateSafeLoader
-from ktem.utils.ollama import get_ollama_models, pull_ollama_model
+from ktem.utils.ollama import (
+    check_ollama_embed_model,
+    get_ollama_models,
+    pull_ollama_model,
+)
 
 from .manager import reranking_models_manager
 
@@ -702,6 +707,24 @@ class RerankingManagement(BasePage):
 
             if rerank is None:
                 raise Exception(f"Can not found model: {selected_rerank_name}")
+
+            if isinstance(rerank, OllamaReranking):
+                log_content += "- Ollama reranker: проверка наличия модели и /api/embed<br>"
+                yield log_content
+                check_ollama_embed_model(
+                    base_url=(rerank.base_url or "").strip() or None,
+                    model_name=rerank.model_name,
+                )
+                log_content += (
+                    "<mark style='background: green; color: white'>- Connection success. "
+                    "Модель найдена и поддерживает embed.</mark><br>"
+                )
+                yield log_content
+                gr.Info(
+                    f"Reranker {selected_rerank_name} connect successfully",
+                    duration=1,
+                )
+                return log_content
 
             log_content += "- Sending a message ([`Hello`], `Hi`)<br>"
             yield log_content

@@ -170,6 +170,124 @@ def get_ollama_models(base_url: str | None = None) -> list[dict[str, str | int]]
         return []
 
 
+def check_ollama_embed_model(
+    base_url: str | None = None,
+    model_name: str = "",
+    timeout: int = 30,
+) -> None:
+    """Проверить, что модель в Ollama доступна и поддерживает /api/embed.
+
+    Выполняет GET /api/tags (наличие модели в списке) и POST /api/embed
+    (тестовый запрос). При ошибке выбрасывает Exception с понятным текстом.
+
+    Args:
+        base_url: Базовый URL Ollama (с /v1/ или /api или без). Если пусто — из настроек.
+        model_name: Имя модели (например qwen3-reranker).
+        timeout: Таймаут запросов в секундах.
+
+    Raises:
+        ValueError: Пустое имя модели или URL.
+        requests.HTTPError: Модель не найдена (404) или не поддерживает embed (500).
+        Exception: Сеть, таймаут или пустой ответ embeddings.
+    """
+    if not (model_name or "").strip():
+        raise ValueError("Имя модели для проверки не задано")
+
+    if base_url is None or not (base_url or "").strip():
+        base_url = get_application_setting("kh_ollama_url")
+        if not base_url:
+            base_url = getattr(
+                flowsettings, "KH_OLLAMA_URL", "http://localhost:11434/v1/"
+            )
+    api_url = _normalize_url_to_api(base_url)
+    if not api_url:
+        raise ValueError("URL Ollama не задан и не найден в настройках")
+
+    # 1) Проверить, что модель есть в списке (GET /api/tags)
+    try:
+        resp = requests.get(f"{api_url}/tags", timeout=min(timeout, 10))
+        resp.raise_for_status()
+        data = resp.json()
+    except requests.exceptions.Timeout as e:
+        raise ConnectionError(
+            "Таймаут при обращении к Ollama (GET /api/tags). Проверьте доступность сервера."
+        ) from e
+    except requests.exceptions.ConnectionError as e:
+        raise ConnectionError(
+            "Не удалось подключиться к Ollama. Проверьте URL и что сервер запущен."
+        ) from e
+    except requests.exceptions.HTTPError as e:
+        raise RuntimeError(
+            f"Ollama вернул ошибку при запросе списка моделей: {e}"
+        ) from e
+
+    models = data.get("models") or []
+    name_stripped = model_name.strip()
+    found = any(
+        (m.get("name") or "").strip() == name_stripped
+        or (m.get("name") or "").strip().startswith(name_stripped + ":")
+        for m in models
+    )
+    if not found:
+        available = ", ".join((m.get("name") or "") for m in models[:10])
+        if len(models) > 10:
+            available += ", ..."
+        raise ValueError(
+            f"Модель «{model_name}» не найдена в Ollama. "
+            f"Доступные модели: {available or 'нет'}. "
+            "Загрузите модель: ollama pull " + model_name
+        )
+
+    # 2) Проверить поддержку /api/embed тестовым запросом
+    embed_url = f"{api_url}/embed"
+    payload = {"model": model_name, "input": "check [SEP] connection"}
+    try:
+        resp = requests.post(
+            embed_url,
+            json=payload,
+            timeout=timeout,
+            headers={"Content-Type": "application/json"},
+        )
+    except requests.exceptions.Timeout as e:
+        raise ConnectionError(
+            "Таймаут при вызове /api/embed. Модель может быть слишком тяжёлой или сервер перегружен."
+        ) from e
+    except requests.exceptions.ConnectionError as e:
+        raise ConnectionError(
+            "Не удалось подключиться к Ollama при проверке /api/embed."
+        ) from e
+
+    if resp.status_code == 404:
+        raise ValueError(
+            f"Модель «{model_name}» не найдена (404). Загрузите: ollama pull {model_name}"
+        )
+    if resp.status_code == 500:
+        try:
+            err_msg = (resp.json() or {}).get("error", resp.text or "Internal Server Error")
+        except Exception:
+            err_msg = resp.text or "Internal Server Error"
+        raise RuntimeError(
+            f"Модель «{model_name}» не поддерживает /api/embed или произошла ошибка сервера (500): {err_msg}"
+        )
+    resp.raise_for_status()
+
+    try:
+        data = resp.json()
+    except Exception as e:
+        raise RuntimeError("Ответ Ollama /api/embed не является JSON") from e
+
+    embeddings = data.get("embeddings")
+    if not embeddings or not isinstance(embeddings, list):
+        raise RuntimeError(
+            "Ответ /api/embed не содержит поля embeddings или оно пустое. "
+            "Убедитесь, что модель предназначена для embeddings/rerank."
+        )
+    if len(embeddings) < 1 or not isinstance(embeddings[0], (list, tuple)):
+        raise RuntimeError(
+            "Ответ /api/embed: неверный формат embeddings (ожидается массив векторов)."
+        )
+
+
 def pull_ollama_model(
     base_url: str | None = None, model_name: str = "", stream: bool = True
 ) -> Iterator[dict]:

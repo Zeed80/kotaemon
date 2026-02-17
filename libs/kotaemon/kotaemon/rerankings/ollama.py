@@ -57,8 +57,8 @@ class OllamaReranking(BaseReranking):
         if not documents:
             return []
 
-        raw = self.base_url or config("KH_OLLAMA_URL", default="http://localhost:11434")
-        base = raw.rstrip("/").replace("/v1", "")
+        raw = (self.base_url or "").strip() or config("KH_OLLAMA_URL", default="http://localhost:11434")
+        base = raw.rstrip("/").replace("/v1/", "").replace("/v1", "").replace("/api", "").rstrip("/")
         if not base:
             logger.warning("Ollama base URL не задан. Пропуск reranking.")
             return documents

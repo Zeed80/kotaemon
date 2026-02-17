@@ -427,9 +427,17 @@ class FileIndexPage(BasePage):
                 )
                 doc_ids = [doc.target_id for (doc,) in matches]
                 docs = self._index._docstore.get(doc_ids)
-                docs = sorted(
-                    docs, key=lambda x: x.metadata.get("page_label", float("inf"))
-                )
+
+                def _page_sort_key(doc):
+                    pl = doc.metadata.get("page_label", None)
+                    if pl is None:
+                        return float("inf")
+                    try:
+                        return float(pl)
+                    except (TypeError, ValueError):
+                        return float("inf")
+
+                docs = sorted(docs, key=_page_sort_key)
 
                 for idx, doc in enumerate(docs):
                     title = html.escape(

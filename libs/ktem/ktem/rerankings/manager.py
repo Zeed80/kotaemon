@@ -8,6 +8,29 @@ from kotaemon.rerankings.base import BaseReranking
 from .db import RerankingTable, engine
 
 
+def _apply_app_defaults_to_ollama_reranker(reranker) -> None:
+    """Подставить в реранкер Ollama URL и модель из настроек приложения (как у эмбеддингов/LLM)."""
+    from kotaemon.rerankings import OllamaReranking
+
+    if not isinstance(reranker, OllamaReranking):
+        return
+    try:
+        from flowsettings import get_application_setting
+
+        url = get_application_setting("kh_ollama_url") or getattr(
+            flowsettings, "KH_OLLAMA_URL", ""
+        )
+        if url:
+            base = (str(url)).strip().rstrip("/").replace("/v1/", "").replace("/v1", "").replace("/api", "").rstrip("/")
+            if base:
+                reranker.base_url = base
+        model = get_application_setting("ollama_reranker_model")
+        if model and isinstance(model, str) and model.strip():
+            reranker.model_name = model.strip()
+    except Exception:
+        pass
+
+
 class RerankingManager:
     """Represent a pool of rerankings models"""
 
@@ -45,7 +68,9 @@ class RerankingManager:
                 try:
                     spec = dict(item.spec or {})
                     process_dict_for_load(spec)
-                    self._models[item.name] = deserialize(spec, safe=False)
+                    model = deserialize(spec, safe=False)
+                    _apply_app_defaults_to_ollama_reranker(model)
+                    self._models[item.name] = model
                     self._info[item.name] = {
                         "name": item.name,
                         "spec": spec,
@@ -76,7 +101,9 @@ class RerankingManager:
             try:
                 spec = dict(item.spec or {})
                 process_dict_for_load(spec)
-                self._models[name] = deserialize(spec, safe=False)
+                model = deserialize(spec, safe=False)
+                _apply_app_defaults_to_ollama_reranker(model)
+                self._models[name] = model
                 self._info[name] = {
                     "name": item.name,
                     "spec": spec,
