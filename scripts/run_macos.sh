@@ -218,11 +218,11 @@ install_dependencies
 print_highlight "Downloading and unzipping PDF.js"
 download_and_unzip $pdf_js_dist_url $target_pdf_js_dir
 
-# Создать .env из .env.example при отсутствии (PostgreSQL, Document Types)
+# Создать .env из .env.example при отсутствии
 if [ ! -f "$(pwd)/.env" ] && [ -f "$(pwd)/.env.example" ]; then
     print_highlight "Creating .env from .env.example"
     cp "$(pwd)/.env.example" "$(pwd)/.env"
-    echo "Создан .env. Задайте DATABASE_URL для PostgreSQL перед запуском."
+    echo "Создан .env. Настройки — в веб-интерфейсе Settings → General."
 fi
 
 print_highlight "Setting up a local model"

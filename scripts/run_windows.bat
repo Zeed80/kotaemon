@@ -59,11 +59,11 @@ CALL :print_highlight "Downloading and extracting PDF.js"
 CALL :download_and_extract_pdf_js
 IF ERRORLEVEL 1 GOTO :end
 
-REM Создать .env из .env.example при отсутствии (PostgreSQL, Document Types)
+REM Создать .env из .env.example при отсутствии
 IF NOT EXIST "%CD%\.env" IF EXIST "%CD%\.env.example" (
     CALL :print_highlight "Creating .env from .env.example"
     copy "%CD%\.env.example" "%CD%\.env" >nul
-    ECHO Created .env. Set DATABASE_URL for PostgreSQL before launch.
+    ECHO Created .env. All settings in Web UI: Settings -^> General.
 )
 
 CALL :print_highlight "Launching Kotaemon in your browser, please wait..."

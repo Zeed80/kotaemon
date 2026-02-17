@@ -204,19 +204,50 @@ install_local_deps() {
     fi
 }
 
+# --- Запуск инфраструктуры (postgres, qdrant, searxng) для локального режима ---
+start_infra_for_local() {
+    if ! command -v docker &>/dev/null; then
+        print_warn "Docker не найден. Для полностью автоматической установки используйте: $0 --docker"
+        return
+    fi
+    if docker compose version &>/dev/null || docker-compose version &>/dev/null; then
+        print_step "Запуск PostgreSQL, Qdrant, SearXNG (Docker Compose)"
+        cd "${REPO_ROOT}"
+        docker compose up -d postgres qdrant searxng 2>/dev/null || docker-compose up -d postgres qdrant searxng 2>/dev/null || true
+        if docker ps 2>/dev/null | grep -q kotaemon-postgres; then
+            print_ok "Инфраструктура запущена (postgres:5432, qdrant:6333, searxng:8080)"
+        else
+            print_warn "Не удалось запустить инфраструктуру. Используйте: $0 --docker"
+        fi
+    fi
+}
+
 # --- Настройка .env ---
 setup_env_file() {
+    local use_local_urls="${1:-false}"
     if [[ -f "${ENV_FILE}" ]]; then
         print_ok "Файл .env уже существует"
         return
     fi
     if [[ ! -f "${ENV_EXAMPLE}" ]]; then
-        print_warn "Файл .env.example не найден. Создайте .env вручную с переменными окружения."
+        print_warn "Файл .env.example не найден. Создайте .env (Settings → General после запуска)."
         return
     fi
     print_step "Создание .env из .env.example"
     cp "${ENV_EXAMPLE}" "${ENV_FILE}"
-    print_ok "Создан ${ENV_FILE}. Заполните API-ключи и при необходимости измените настройки."
+    if [[ "${use_local_urls}" == "true" ]]; then
+        # Для локального запуска: localhost (инфраструктура в Docker)
+        python3 -c "
+import re
+p='${REPO_ROOT}/.env'
+with open(p) as f: t=f.read()
+t=re.sub(r'DATABASE_URL=.*', 'DATABASE_URL=postgresql://kotaemon:kotaemon@localhost:5432/kotaemon', t, count=1)
+t=re.sub(r'QDRANT_URL=.*', 'QDRANT_URL=http://localhost:6333', t, count=1)
+t=re.sub(r'SEARXNG_URL=.*', 'SEARXNG_URL=http://localhost:8080', t, count=1)
+with open(p,'w') as f: f.write(t)
+" 2>/dev/null || true
+    fi
+    print_ok "Создан ${ENV_FILE}. Все настройки — в веб-интерфейсе Settings → General после запуска."
 }
 
 # --- Загрузка PDF.js ---
@@ -269,19 +300,15 @@ run_local_install() {
 
     setup_venv "$py_cmd"
     install_local_deps "$py_cmd"
-    setup_env_file
+    start_infra_for_local
+    setup_env_file "true"
     setup_pdfjs
 
     print_step "Локальная установка завершена"
     echo "  Виртуальное окружение: ${VENV_DIR}"
     echo "  Активация: $(venv_activate_cmd)"
-    echo "  Запуск:    python app.py (из корня репозитория после активации venv)"
-    echo "  Настройки: большинство параметров можно изменить в веб-интерфейсе: Settings → General."
-    echo ""
-    echo "  Важно для локального запуска (без Docker):"
-    echo "  - PostgreSQL обязателен. Установите PostgreSQL с pgvector и задайте в .env:"
-    echo "    DATABASE_URL=postgresql://user:password@localhost:5432/kotaemon"
-    echo "  - Document Types (Resources → Document Types) — таблица создаётся автоматически."
+    echo "  Запуск:    python app.py"
+    echo "  Настройки: все параметры (API-ключи, модели и т.д.) — в веб-интерфейсе Settings → General."
     echo ""
 
     launch_local
@@ -308,7 +335,7 @@ run_docker_install() {
     if [[ ! -f "${ENV_FILE}" ]] && [[ -f "${ENV_EXAMPLE}" ]]; then
         print_step "Создание .env из .env.example"
         cp "${ENV_EXAMPLE}" "${ENV_FILE}"
-        print_ok "Создан ${ENV_FILE}. При необходимости отредактируйте API-ключи."
+        print_ok "Создан ${ENV_FILE}. Все настройки — в веб-интерфейсе Settings → General."
     fi
 
     print_step "Сборка и запуск контейнера (Docker Compose)"

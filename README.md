@@ -162,10 +162,10 @@ chmod +x install.sh
 
    ```bash
    cp .env.example .env
-   # отредактируйте .env (API-ключи, при необходимости KOTAEMON_PORT, TORCH_DEVICE)
    docker compose build
    docker compose up -d
    ```
+   API-ключи, модели и остальные параметры — в веб-интерфейсе Settings → General.
 
    **Обновление без полной пересборки** (исходники монтируются):
 
@@ -188,18 +188,15 @@ cd kotaemon
 # или: ./install.sh --no-launch (только установка, без запуска)
 ```
 
-Скрипт создаёт виртуальное окружение `.venv`, ставит зависимости, при отсутствии копирует `.env` из `.env.example`, при необходимости загружает PDF.js и запускает приложение. Для локального запуска задайте в `.env` переменную `DATABASE_URL=postgresql://user:password@localhost:5432/kotaemon` (PostgreSQL обязателен). Document Types и LightRAG document_links работают без дополнительной настройки.
+Скрипт создаёт `.venv`, ставит зависимости, запускает PostgreSQL/Qdrant/SearXNG в Docker (при наличии Docker), создаёт `.env` с подключением к localhost, загружает PDF.js и запускает приложение. Настройки (API-ключи, модели) — в веб-интерфейсе Settings → General. Document Types и LightRAG document_links работают без дополнительной настройки.
 
-**Вариант 2 — вручную:**
+**Вариант 2 — вручную (без install.sh):**
 
-1. Clone and install required packages on a fresh python environment.
+1. Clone and install required packages:
 
    ```shell
-   # optional (setup env)
    conda create -n kotaemon python=3.10
    conda activate kotaemon
-
-   # clone this repo
    git clone https://github.com/Zeed80/kotaemon
    cd kotaemon
 
@@ -207,9 +204,9 @@ cd kotaemon
    pip install -e "libs/ktem"
    ```
 
-2. Create a `.env` file in the root of this project. Use `.env.example` as a template.
+2. Запустите PostgreSQL (локально или через Docker: `docker compose up -d postgres qdrant searxng`). Создайте `.env` из `.env.example` и задайте `DATABASE_URL=postgresql://kotaemon:kotaemon@localhost:5432/kotaemon`, `QDRANT_URL=http://localhost:6333`.
 
-   The `.env` file is used for API keys and optional pre-config of models; many other settings can be changed later in the web UI (**Settings → General**). The file is read at startup; saved UI settings are stored in the database and in `ktem_app_data/application_settings.json` for persistence across restarts.
+   Большинство настроек (API-ключи, модели) редактируются в веб-интерфейсе **Settings → General** после запуска.
 
 3. (Optional) To enable in-browser `PDF_JS` viewer, download [PDF_JS_DIST](https://github.com/mozilla/pdf.js/releases/download/v4.0.379/pdfjs-4.0.379-dist.zip) then extract it to `libs/ktem/ktem/assets/prebuilt`
 
