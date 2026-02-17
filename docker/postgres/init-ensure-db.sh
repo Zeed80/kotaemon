@@ -1,7 +1,7 @@
 #!/bin/sh
 # Создаёт БД kotaemon при отсутствии (для старых volumes и гонок запуска)
 set -e
-until pg_isready -h postgres -U kotaemon; do
+until pg_isready -h postgres -U kotaemon -d postgres; do
   echo "Waiting for postgres..."
   sleep 2
 done

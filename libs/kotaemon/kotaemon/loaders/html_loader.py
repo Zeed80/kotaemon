@@ -48,8 +48,15 @@ class HtmlReader(BaseReader):
 
         file_path = Path(file_path).resolve()
 
-        with file_path.open("r", encoding="utf-8") as f:
-            html_text = "".join([line[:-1] for line in f.readlines()])
+        # Поддержка русской cp1251 и др.: utf-8 → cp1251 → koi8-r → latin-1
+        for enc in ("utf-8", "utf-8-sig", "cp1251", "windows-1251", "koi8-r", "latin-1"):
+            try:
+                html_text = file_path.read_text(encoding=enc)
+                break
+            except (UnicodeDecodeError, LookupError):
+                continue
+        else:
+            raise RuntimeError(f"Could not decode HTML file: {file_path}")
 
         # read HTML
         all_text = html2text.html2text(html_text)
