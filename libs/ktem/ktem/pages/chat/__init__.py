@@ -1501,17 +1501,26 @@ class ChatPage(BasePage):
             )
 
     def check_and_suggest_name_conv(self, chat_history):
+        import logging
+
+        logger = logging.getLogger(__name__)
         suggest_pipeline = SuggestConvNamePipeline()
         new_name = gr.update()
         renamed = False
 
         # check if this is a newly created conversation
         if len(chat_history) == 1:
-            suggested_name = suggest_pipeline(chat_history).text
-            suggested_name = strip_think_tag(suggested_name)
-            suggested_name = suggested_name.replace('"', "").replace("'", "")[:40]
-            new_name = gr.update(value=suggested_name)
-            renamed = True
+            try:
+                suggested_name = suggest_pipeline(chat_history).text
+                suggested_name = strip_think_tag(suggested_name)
+                suggested_name = suggested_name.replace('"', "").replace("'", "")[:40]
+                if suggested_name and suggested_name.strip():
+                    new_name = gr.update(value=suggested_name)
+                    renamed = True
+            except Exception as e:
+                logger.warning(
+                    "Failed to suggest conversation name (LLM unavailable?): %s", e
+                )
 
         return new_name, renamed
 
@@ -1535,16 +1544,23 @@ class ChatPage(BasePage):
             suggested_questions = [[each] for each in ChatSuggestion.CHAT_SAMPLES]
 
             if len(chat_history) >= 1:
-                suggested_resp = suggest_pipeline(chat_history).text
-                if ques_res := re.search(
-                    r"\[(.*?)\]", re.sub("\n", "", suggested_resp)
-                ):
-                    ques_res_str = ques_res.group()
-                    try:
-                        suggested_questions = json.loads(ques_res_str)
-                        suggested_questions = [[x] for x in suggested_questions]
-                    except Exception:
-                        pass
+                try:
+                    suggested_resp = suggest_pipeline(chat_history).text
+                    if ques_res := re.search(
+                        r"\[(.*?)\]", re.sub("\n", "", suggested_resp)
+                    ):
+                        ques_res_str = ques_res.group()
+                        try:
+                            suggested_questions = json.loads(ques_res_str)
+                            suggested_questions = [[x] for x in suggested_questions]
+                        except Exception:
+                            pass
+                except Exception as e:
+                    import logging
+
+                    logging.getLogger(__name__).warning(
+                        "Failed to suggest follow-up questions (LLM unavailable?): %s", e
+                    )
 
             return gr.update(visible=True), suggested_questions
 
