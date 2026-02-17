@@ -24,18 +24,22 @@ print_header() {
   echo ""
 }
 
+BACKUP_BASE="${HOME:-/tmp}"
+
 show_status() {
   local migrate_opt="нет"; [[ "${opt_migrate}" == "1" ]] && migrate_opt="да"
   local docker_opt="нет";  [[ "${opt_docker}" == "1" ]]  && docker_opt="да"
   local deps_opt="нет";    [[ "${opt_deps}" == "1" ]]   && deps_opt="да"
   local local_opt="нет";   [[ "${opt_local}" == "1" ]]  && local_opt="да"
   local env_opt="сохранить"; [[ "${opt_env}" == "1" ]]  && env_opt="удалить"
+  local folder_opt="нет";  [[ "${opt_folder}" == "1" ]] && folder_opt="да"
 
-  echo "  [1] Резервная копия (миграция)              : ${migrate_opt}"
+  echo "  [1] Резервная копия (миграция) в ${BACKUP_BASE} : ${migrate_opt}"
   echo "  [2] Docker (контейнеры, volumes)            : ${docker_opt}"
   echo "  [3] Образы зависимостей (searxng, pgvector, qdrant) : ${deps_opt}"
   echo "  [4] Локальные папки (.venv, install_dir, ktem_app_data) : ${local_opt}"
   echo "  [5] .env                                   : ${env_opt}"
+  echo "  [6] Удалить папку проекта                  : ${folder_opt}"
   echo ""
   echo "  [0] Выполнить удаление"
   echo "  [q] Выход"
@@ -54,7 +58,7 @@ toggle() {
 do_migrate() {
   local stamp
   stamp=$(date +%Y%m%d_%H%M%S)
-  local backup_dir="${REPO_ROOT}/backup_kotaemon_${stamp}"
+  local backup_dir="${BACKUP_BASE}/backup_kotaemon_${stamp}"
   mkdir -p "${backup_dir}"
   echo ""
   echo "  Миграция в ${backup_dir}"
@@ -107,12 +111,34 @@ do_local_remove() {
   fi
 }
 
+do_delete_folder() {
+  local parent
+  parent="$(dirname "${REPO_ROOT}")"
+  local name
+  name="$(basename "${REPO_ROOT}")"
+  echo ""
+  echo "  Удаление папки проекта ${REPO_ROOT} ..."
+  cd "${parent}" || return 1
+  rm -rf "${name}"
+  echo "  [OK] Папка удалена"
+}
+
 run_uninstall() {
   [[ "${opt_migrate}" == "1" ]] && do_migrate
   [[ "${opt_docker}" == "1" ]] && do_docker_remove
   [[ "${opt_local}" == "1" ]] && do_local_remove
-  echo ""
-  echo "  Готово."
+  if [[ "${opt_folder}" == "1" ]]; then
+    if [[ "${opt_migrate}" == "0" ]]; then
+      echo ""
+      echo "  [!] При удалении папки рекомендуется включить резервную копию [1]"
+      read -r -p "Продолжить без бэкапа? [y/N] " ans
+      [[ "${ans,,}" != "y" && "${ans,,}" != "yes" ]] && { echo "Отменено."; exit 1; }
+    fi
+    do_delete_folder
+  else
+    echo ""
+    echo "  Готово."
+  fi
   echo ""
 }
 
@@ -122,12 +148,13 @@ opt_docker=1
 opt_deps=0
 opt_local=1
 opt_env=0
+opt_folder=0
 
 while true; do
   clear_screen
   print_header
   show_status
-  read -r -p "Выбор [0-5, q]: " choice
+  read -r -p "Выбор [0-6, q]: " choice
 
   case "${choice}" in
   1) toggle opt_migrate ;;
@@ -135,9 +162,10 @@ while true; do
   3) toggle opt_deps ;;
   4) toggle opt_local ;;
   5) toggle opt_env ;;
+  6) toggle opt_folder ;;
   0)
-    if [[ "${opt_docker}" == "0" ]] && [[ "${opt_local}" == "0" ]]; then
-      echo "Выберите хотя бы Docker или локальные папки."
+    if [[ "${opt_docker}" == "0" ]] && [[ "${opt_local}" == "0" ]] && [[ "${opt_folder}" == "0" ]]; then
+      echo "Выберите хотя бы Docker, локальные папки или удаление папки проекта."
       read -r -p "Нажмите Enter..."
       continue
     fi
@@ -152,3 +180,4 @@ while true; do
   *) ;;
   esac
 done
+
