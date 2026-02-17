@@ -1,0 +1,11 @@
+Extract structured data from this SKETCH (эскиз) document image.
+
+Output valid JSON conforming to this schema:
+{schema}
+
+Requirements:
+- Provide overall description
+- List main elements
+- Extract dimensions if visible
+- Use null for missing fields
+- Output ONLY valid JSON, no markdown or extra text

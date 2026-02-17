@@ -7,6 +7,7 @@ from ktem.embeddings.ui import EmbeddingManagement
 from ktem.i18n import get_text
 from ktem.index.ui import IndexManagement
 from ktem.llms.ui import LLMManagement
+from ktem.pages.resources.document_types import DocumentTypesManagement
 from ktem.pages.resources.vlms import VLMsManagement
 from ktem.rerankings.ui import RerankingManagement
 
@@ -36,6 +37,11 @@ class ResourcesTab(BasePage):
         with gr.Tab(get_text("en", "tab.rerankings")) as self.rerank_management_tab:
             self.rerank_management = RerankingManagement(self._app)
 
+        with gr.Tab(
+            get_text("en", "tab.document_types", default="Document Types")
+        ) as self.document_types_tab:
+            self.document_types_management = DocumentTypesManagement(self._app)
+
         if self._app.f_user_management:
             with gr.Tab(
                 get_text("en", "tab.users"), visible=False
@@ -50,6 +56,7 @@ class ResourcesTab(BasePage):
                 self.vlms_tab,
                 self.emb_management_tab,
                 self.rerank_management_tab,
+                self.document_types_tab,
             ]
             keys = [
                 "tab.index_collections",
@@ -57,6 +64,7 @@ class ResourcesTab(BasePage):
                 "tab.vlms",
                 "tab.embeddings",
                 "tab.rerankings",
+                "tab.document_types",
             ]
             if self._app.f_user_management:
                 outputs.append(self.user_management_tab)

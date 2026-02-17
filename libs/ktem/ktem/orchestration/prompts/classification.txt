@@ -1,0 +1,13 @@
+Classify this document image. Choose exactly ONE type from:
+- invoice: bill, receipt, счёт, invoice with line items and totals
+- letter: correspondence, email, official letter, письмо
+- drawing: technical drawing, чертёж, blueprint, CAD output (dwg, dxf)
+- tech_spec: technical specification, техкарта, manual, instruction
+- sketch: эскиз, draft, rough drawing
+- contract: договор, agreement, contract
+- specification: specification document, спецификация
+- price_list: прайс-лист, price list, catalog with prices
+- unknown: if unclear
+
+Respond ONLY with valid JSON: {"doc_type": "<type>", "confidence": <0.0-1.0>}
+Example: {"doc_type": "invoice", "confidence": 0.95}

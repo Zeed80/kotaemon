@@ -117,7 +117,9 @@ class EnvSettings(BaseSettings):
     API_SECRET_KEY: str = ""
 
     # Document classification and routing
-    ENABLE_DOCUMENT_CLASSIFICATION: bool = False
+    ENABLE_DOCUMENT_CLASSIFICATION: bool = True
+    ENABLE_VLM_DOCUMENT_CLASSIFICATION: bool = False  # VLM-based (when True) vs path heuristic
+    ENABLE_STRUCTURED_EXTRACTION: bool = False  # Type-specific VLM extraction into structured_data
 
     # Secret storage (optional): ключ для шифрования API-ключей в БД и application_settings.json
     KH_ENCRYPTION_KEY: str = ""

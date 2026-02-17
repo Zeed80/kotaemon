@@ -1,0 +1,12 @@
+Extract structured data from this INVOICE/BILL document image.
+
+Output valid JSON conforming to this schema:
+{schema}
+
+Requirements:
+- Extract all line items (name, quantity, unit, price, amount)
+- Extract seller and buyer requisites (INN, KPP, company name, address)
+- Extract invoice number, date, total amount, currency
+- Use null for missing fields
+- Preserve numbers exactly as shown
+- Output ONLY valid JSON, no markdown or extra text

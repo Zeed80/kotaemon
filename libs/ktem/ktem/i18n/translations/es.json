@@ -10,6 +10,7 @@
   "tab.vlms": "VLMs",
   "tab.embeddings": "Embeddings",
   "tab.rerankings": "Rerankers",
+  "tab.document_types": "Tipos de documento",
   "tab.users": "Usuarios",
   "tab.ollama_servers": "Servidores Ollama",
   "tab.reasoning_settings": "Configuración de razonamiento",

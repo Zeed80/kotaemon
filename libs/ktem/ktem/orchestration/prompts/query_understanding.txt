@@ -1,0 +1,12 @@
+Analyze the user query to determine retrieval intent.
+
+Respond with valid JSON:
+{"intent": "sql_only" | "vector_only" | "hybrid", "sql_filters": {...}}
+
+- sql_only: query asks for specific structured data (invoices by amount, drawings by element type, etc.)
+- vector_only: semantic/question-answering, no structured filters
+- hybrid: both structured filters and semantic search needed
+
+sql_filters may include: doc_type, date_from, date_to, amount_min, amount_max, element_type, etc.
+
+Output ONLY valid JSON, no markdown.

@@ -10,6 +10,7 @@
   "tab.vlms": "VLM",
   "tab.embeddings": "Ембеддинги",
   "tab.rerankings": "Реранкери",
+  "tab.document_types": "Типи документів",
   "tab.users": "Користувачі",
   "tab.ollama_servers": "Сервери Ollama",
   "tab.reasoning_settings": "Налаштування reasoning",

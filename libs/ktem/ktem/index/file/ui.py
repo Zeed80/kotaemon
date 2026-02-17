@@ -196,12 +196,13 @@ class FileIndexPage(BasePage):
             headers=[
                 "id",
                 "name",
+                "type",
                 "size",
                 "tokens",
                 "loader",
                 "date_created",
             ],
-            column_widths=["0%", "50%", "8%", "7%", "15%", "20%"],
+            column_widths=["0%", "40%", "12%", "7%", "6%", "12%", "23%"],
             interactive=False,
             wrap=False,
             elem_id="file_list_view",
@@ -231,6 +232,19 @@ class FileIndexPage(BasePage):
             self.selected_file_id = gr.State(value=None)
             with gr.Column(scale=2):
                 self.selected_panel = gr.Markdown(self.selected_panel_false)
+
+        with gr.Row(visible=False) as self.change_type_row:
+            self.change_type_dropdown = gr.Dropdown(
+                choices=[("Счёт", "invoice"), ("Письмо", "letter")],
+                value="invoice",
+                label="Тип документа",
+                scale=2,
+            )
+            self.reindex_with_type_btn = gr.Button(
+                "Переиндексировать с новым типом",
+                variant="secondary",
+                scale=0,
+            )
 
         self.chunks = gr.HTML(visible=False)
 
@@ -332,6 +346,23 @@ class FileIndexPage(BasePage):
                             self.reindex = gr.Checkbox(
                                 value=False, label="Force reindex file", container=False
                             )
+                        self.doc_type_mode = gr.Radio(
+                            choices=[
+                                ("Автоматический", "auto"),
+                                ("Указать тип", "manual"),
+                            ],
+                            value="auto",
+                            label="Тип документа",
+                        )
+                        from ktem.orchestration.doc_types import get_doc_type_choices
+
+                        doc_choices = get_doc_type_choices()
+                        self.doc_type_select = gr.Dropdown(
+                            choices=doc_choices,
+                            value=doc_choices[0][1] if doc_choices else "invoice",
+                            label="Выберите тип",
+                            visible=False,
+                        )
 
                     self.upload_button = gr.Button(
                         "Upload and Index", variant="primary"
@@ -413,12 +444,21 @@ class FileIndexPage(BasePage):
             )
 
     def file_selected(self, file_id):
+        from ktem.orchestration.doc_types import get_doc_type_choices
+
         chunks = []
+        current_doc_type = "unknown"
         if file_id is not None:
             # get the chunks
 
+            Source = self._index._resources["Source"]
             Index = self._index._resources["Index"]
             with Session(engine) as session:
+                src = session.execute(
+                    select(Source).where(Source.id == file_id)
+                ).first()
+                if src:
+                    current_doc_type = src[0].note.get("doc_type") or "unknown"
                 matches = session.execute(
                     select(Index).where(
                         Index.source_id == file_id,
@@ -464,13 +504,60 @@ class FileIndexPage(BasePage):
                             content=content,
                         )
                     )
+        doc_choices = get_doc_type_choices()
         return (
             gr.update(value="".join(chunks), visible=file_id is not None),
             gr.update(visible=file_id is not None),
             gr.update(visible=file_id is not None),
             gr.update(visible=file_id is not None),
             gr.update(visible=file_id is not None),
+            gr.update(visible=file_id is not None),
+            gr.update(
+                visible=file_id is not None,
+                choices=doc_choices,
+                value=current_doc_type
+                if current_doc_type in [c[1] for c in doc_choices]
+                else (doc_choices[0][1] if doc_choices else "unknown"),
+            ),
         )
+
+    def reindex_file_with_type(
+        self, file_id, new_type, settings, user_id, progress=None
+    ) -> tuple:
+        """Переиндексировать файл с указанным типом документа."""
+        if not file_id or not new_type:
+            gr.Warning("Выберите файл и тип", duration=1)
+            return self.file_selected(file_id)
+
+        Source = self._index._resources["Source"]
+        with Session(engine) as session:
+            src = session.execute(select(Source).where(Source.id == file_id)).first()
+            if not src:
+                gr.Warning("Файл не найден", duration=1)
+                return self.file_selected(file_id)
+            path_hash = src[0].path
+            original_name = src[0].name
+        stored_path = Path(self._index._fs_path) / path_hash
+        if not stored_path.exists():
+            gr.Warning("Файл в хранилище не найден", duration=2)
+            return self.file_selected(file_id)
+
+        # Временно копируем с оригинальным именем для корректной переиндексации
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_file = Path(tmpdir) / original_name
+            shutil.copy(stored_path, tmp_file)
+            settings = deepcopy(settings)
+            settings[f"index.options.{self._index.id}.doc_type_override"] = new_type
+            pipeline = self._index.get_indexing_pipeline(settings, user_id or "default")
+            pipeline.delete_file(file_id)
+            try:
+                _iter = pipeline.stream([str(tmp_file)], reindex=True, ingestion_id="")
+                list(_iter)
+                gr.Info("Переиндексация завершена", duration=1)
+            except Exception as e:
+                gr.Warning(f"Ошибка переиндексации: {e}", duration=3)
+
+        return self.file_selected(file_id)
 
     def delete_event(self, file_id):
         file_name = ""
@@ -789,6 +876,8 @@ class FileIndexPage(BasePage):
                     self.delete_button,
                     self.download_single_button,
                     self.chat_button,
+                    self.change_type_row,
+                    self.change_type_dropdown,
                 ],
                 show_progress="hidden",
             )
@@ -813,6 +902,32 @@ class FileIndexPage(BasePage):
             ],
             show_progress="hidden",
         )
+
+        onReindex = self.reindex_with_type_btn.click(
+            fn=self.reindex_file_with_type,
+            inputs=[
+                self.selected_file_id,
+                self.change_type_dropdown,
+                self._app.settings_state,
+                self._app.user_id,
+            ],
+            outputs=[
+                self.chunks,
+                self.deselect_button,
+                self.delete_button,
+                self.download_single_button,
+                self.chat_button,
+                self.change_type_row,
+                self.change_type_dropdown,
+            ],
+            show_progress="hidden",
+        ).then(
+            fn=self.list_file,
+            inputs=[self._app.user_id, self.filter],
+            outputs=[self.file_list_state, self.file_list],
+        )
+        for event in self._app.get_event(f"onFileIndex{self._index.id}Changed"):
+            onReindex = onReindex.then(**event)
 
         self.chat_button.click(
             fn=self.set_file_id_selector,
@@ -893,6 +1008,12 @@ class FileIndexPage(BasePage):
                 show_progress="hidden",
             )
 
+        self.doc_type_mode.change(
+            fn=lambda m: gr.update(visible=(m == "manual")),
+            inputs=[self.doc_type_mode],
+            outputs=[self.doc_type_select],
+        )
+
         onUploaded = (
             self.upload_button.click(
                 fn=lambda: gr.update(visible=True),
@@ -906,6 +1027,8 @@ class FileIndexPage(BasePage):
                     self.reindex,
                     self._app.settings_state,
                     self._app.user_id,
+                    self.doc_type_mode,
+                    self.doc_type_select,
                 ],
                 outputs=[self.upload_result, self.upload_info],
                 concurrency_limit=20,
@@ -1129,6 +1252,8 @@ class FileIndexPage(BasePage):
         reindex: bool,
         settings,
         user_id,
+        doc_type_mode: str = "auto",
+        doc_type_select: str = "invoice",
         progress=None,
     ) -> Generator[tuple[str, str], None, None]:
         """Upload and index the files
@@ -1137,8 +1262,10 @@ class FileIndexPage(BasePage):
             files: the list of files to be uploaded
             urls: list of web URLs to be indexed
             reindex: whether to reindex the files
-            selected_files: the list of files already selected
             settings: the settings of the app
+            user_id: user id
+            doc_type_mode: "auto" or "manual"
+            doc_type_select: selected doc type when mode is manual
             progress: Gradio progress tracker (no-op if None)
         """
         if progress is None:
@@ -1169,6 +1296,13 @@ class FileIndexPage(BasePage):
         gr.Info(f"Start indexing {len(files)} files...", duration=1)
         ingestion_id = uuid.uuid4().hex
         runtime_settings = _read_index_runtime_settings(settings, self._index.id)
+
+        # merge doc_type_override into settings
+        settings = deepcopy(settings)
+        doc_type_override = doc_type_select if doc_type_mode == "manual" else "auto"
+        settings[f"index.options.{self._index.id}.doc_type_override"] = (
+            doc_type_override
+        )
 
         # get the pipeline
         indexing_pipeline = self._index.get_indexing_pipeline(settings, user_id)
@@ -1435,6 +1569,8 @@ class FileIndexPage(BasePage):
         return f"{num:.0f}Yi{suffix}"
 
     def list_file(self, user_id, name_pattern=""):
+        from ktem.orchestration.doc_types.registry import get_display_name
+
         if user_id is None:
             # not signed in
             return [], pd.DataFrame.from_records(
@@ -1442,6 +1578,7 @@ class FileIndexPage(BasePage):
                     {
                         "id": "-",
                         "name": "-",
+                        "type": "-",
                         "size": "-",
                         "tokens": "-",
                         "loader": "-",
@@ -1461,6 +1598,7 @@ class FileIndexPage(BasePage):
                 {
                     "id": each[0].id,
                     "name": each[0].name,
+                    "type": get_display_name(each[0].note.get("doc_type") or "unknown"),
                     "size": self.format_size_human_readable(each[0].size),
                     "tokens": self.format_size_human_readable(
                         each[0].note.get("tokens", "-"), suffix=""
@@ -1479,6 +1617,7 @@ class FileIndexPage(BasePage):
                     {
                         "id": "-",
                         "name": "-",
+                        "type": "-",
                         "size": "-",
                         "tokens": "-",
                         "loader": "-",

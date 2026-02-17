@@ -10,6 +10,7 @@
   "tab.vlms": "视觉模型",
   "tab.embeddings": "嵌入",
   "tab.rerankings": "重排序",
+  "tab.document_types": "文档类型",
   "tab.users": "用户",
   "tab.ollama_servers": "Ollama 服务器",
   "tab.reasoning_settings": "推理设置",

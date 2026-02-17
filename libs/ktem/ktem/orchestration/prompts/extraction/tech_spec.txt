@@ -1,0 +1,12 @@
+Extract structured data from this TECHNICAL SPECIFICATION / TECH CARD document image.
+
+Output valid JSON conforming to this schema:
+{schema}
+
+Requirements:
+- Extract document title
+- Extract sections with name and content
+- For tables, output as markdown format
+- Extract key parameters (material, dimensions, etc.) as key-value pairs
+- Use null for missing fields
+- Output ONLY valid JSON, no markdown or extra text

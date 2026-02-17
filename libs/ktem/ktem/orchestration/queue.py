@@ -83,7 +83,10 @@ class IndexingJobQueue:
         ingestion_id = ingestion_id or uuid.uuid4().hex
         job = JobInfo(
             job_id=job_id,
-            file_paths=[Path(p) if isinstance(p, str) and not p.startswith("http") else p for p in file_paths],
+            file_paths=[
+                Path(p) if isinstance(p, str) and not p.startswith("http") else p
+                for p in file_paths
+            ],
             target_indices=target_indices,
             user_id=user_id,
             settings=dict(settings),
@@ -95,7 +98,12 @@ class IndexingJobQueue:
         with self._lock:
             self._jobs[job_id] = job
         self._queue.put(job)
-        logger.info("Enqueued job %s: %d files, indices %s", job_id, len(file_paths), target_indices)
+        logger.info(
+            "Enqueued job %s: %d files, indices %s",
+            job_id,
+            len(file_paths),
+            target_indices,
+        )
         return job_id
 
     def get_status(self, job_id: str) -> JobInfo | None:
@@ -151,16 +159,27 @@ class IndexingJobQueue:
                     if doc is None:
                         continue
                     if getattr(doc, "channel", None) == "debug":
-                        line = getattr(doc, "text", None) or str(getattr(doc, "content", ""))
+                        line = getattr(doc, "text", None) or str(
+                            getattr(doc, "content", "")
+                        )
                         if line:
                             job.debug_logs.append(line)
                             if len(job.debug_logs) > JOB_DEBUG_LOG_MAX_LINES:
-                                job.debug_logs = job.debug_logs[-JOB_DEBUG_LOG_MAX_LINES:]
-                            job.message = line[:200] + ("..." if len(line) > 200 else "")
+                                job.debug_logs = job.debug_logs[
+                                    -JOB_DEBUG_LOG_MAX_LINES:
+                                ]
+                            job.message = line[:200] + (
+                                "..." if len(line) > 200 else ""
+                            )
                 index_results[index_id] = results
                 job.progress = (idx + 1) / total_indices
                 job.message = f"Indexed {index_obj.name}"
-                logger.info("Job %s: finished index %s (%s)", job.job_id, index_id, index_obj.name)
+                logger.info(
+                    "Job %s: finished index %s (%s)",
+                    job.job_id,
+                    index_id,
+                    index_obj.name,
+                )
             except Exception as e:
                 logger.exception("Indexing failed for index %s: %s", index_id, e)
                 job.error = str(e)

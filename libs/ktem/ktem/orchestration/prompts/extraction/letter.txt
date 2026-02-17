@@ -1,0 +1,10 @@
+Extract structured data from this LETTER document image.
+
+Output valid JSON conforming to this schema:
+{schema}
+
+Requirements:
+- Extract sender, recipient, date, subject
+- Provide a brief body summary (2-3 sentences)
+- Use null for missing fields
+- Output ONLY valid JSON, no markdown or extra text

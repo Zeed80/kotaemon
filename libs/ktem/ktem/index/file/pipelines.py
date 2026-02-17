@@ -142,7 +142,8 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
 
         Args:
             text: the text to retrieve similar documents
-            doc_ids: list of document ids to constraint the retrieval
+            doc_ids: list of document ids to constraint the retrieval.
+                If empty, use all files in the index (search entire index).
         """
         # flatten doc_ids in case of group of doc_ids are passed
         if doc_ids:
@@ -157,10 +158,49 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
                     flatten_doc_ids.append(doc_id)
             doc_ids = flatten_doc_ids
 
-        print("searching in doc_ids", doc_ids)
+        # When doc_ids empty — use all files in index (search entire index)
         if not doc_ids:
-            logger.info(f"Skip retrieval because of no selected files: {self}")
-            return []
+            with Session(engine) as session:
+                stmt = select(self.Source.id)
+                if (
+                    getattr(self, "private", False)
+                    and getattr(self, "user_id", None) is not None
+                ):
+                    stmt = stmt.where(self.Source.user == str(self.user_id))
+                results = session.execute(stmt)
+                doc_ids = [r[0] for r in results.all()]
+            if not doc_ids:
+                logger.info("Skip retrieval: no files in index")
+                return []
+
+        # SQL filters (doc_type, etc.) from note
+        sql_filters = kwargs.get("sql_filters") or {}
+        if sql_filters and doc_ids:
+            with Session(engine) as session:
+                stmt = select(self.Source.id).where(self.Source.id.in_(doc_ids))
+                if (
+                    getattr(self, "private", False)
+                    and getattr(self, "user_id", None) is not None
+                ):
+                    stmt = stmt.where(self.Source.user == str(self.user_id))
+                if sql_filters.get("doc_type"):
+                    from sqlalchemy import cast
+                    from sqlalchemy.types import String
+
+                    stmt = stmt.where(
+                        cast(
+                            self.Source.note["doc_type"],
+                            String,
+                        )
+                        == str(sql_filters["doc_type"])
+                    )
+                results = session.execute(stmt)
+                doc_ids = [r[0] for r in results.all()]
+            if not doc_ids:
+                logger.info("No documents match sql_filters: %s", sql_filters)
+                return []
+
+        print("searching in doc_ids", doc_ids)
 
         retrieval_kwargs: dict = {}
         with Session(engine) as session:
@@ -383,6 +423,7 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
         )
         if not user_settings["use_reranking"]:
             retriever.rerankers = []  # type: ignore
+        retriever.private = index_settings.get("private", False)
 
         for reranker in retriever.rerankers:
             if isinstance(reranker, LLMReranking):
@@ -407,7 +448,11 @@ class IndexPipeline(BaseComponent):
     splitter: BaseSplitter | None
     chunk_batch_size: int = 200
     enable_pre_aggregation: bool = True
-    doc_type: str | None = None  # invoice|letter|drawing|tech_spec|unknown, from classifier
+    doc_type: str | None = (
+        None  # invoice|letter|drawing|tech_spec|unknown, from classifier
+    )
+    doc_classification_confidence: float | None = None
+    structured_data: dict | None = None  # VLM-extracted structured data
 
     Source = Param(help="The SQLAlchemy Source table")
     Index = Param(help="The SQLAlchemy Index table")
@@ -471,14 +516,22 @@ class IndexPipeline(BaseComponent):
             all_chunks = text_docs
 
         # add the thumbnails doc_id to the chunks
+        structured_snippet = self._make_structured_snippet()
         for chunk in all_chunks:
             page_label = chunk.metadata.get("page_label", None)
             if page_label and page_label in page_label_to_thumbnail:
                 chunk.metadata["thumbnail_doc_id"] = page_label_to_thumbnail[page_label]
             if self.doc_type:
                 chunk.metadata["doc_type"] = self.doc_type
+            if structured_snippet:
+                chunk.metadata["structured_snippet"] = structured_snippet
 
         to_index_chunks = all_chunks + non_text_docs + thumbnail_docs
+        for ch in non_text_docs + thumbnail_docs:
+            if self.doc_type:
+                ch.metadata["doc_type"] = self.doc_type
+            if structured_snippet:
+                ch.metadata["structured_snippet"] = structured_snippet
 
         if self.enable_pre_aggregation and non_text_docs:
             try:
@@ -533,6 +586,37 @@ class IndexPipeline(BaseComponent):
 
         print("indexing step took", time.time() - s_time)
         return n_chunks
+
+    def _make_structured_snippet(self) -> str:
+        """Краткое описание для семантического поиска из structured_data."""
+        sd = getattr(self, "structured_data", None) or {}
+        if not sd:
+            return ""
+        doc_type = getattr(self, "doc_type", None) or "unknown"
+        parts: list[str] = []
+        if doc_type == "invoice":
+            num = sd.get("invoice_number")
+            date = sd.get("date")
+            total = sd.get("total")
+            if num:
+                parts.append(f"Счёт №{num}")
+            if date:
+                parts.append(f"от {date}")
+            if total is not None:
+                parts.append(f"итого {total}")
+        elif doc_type == "drawing":
+            tb = sd.get("title_block") or {}
+            name = tb.get("name") or tb.get("document_number")
+            if name:
+                parts.append(str(name))
+            elems = sd.get("elements") or []
+            if elems:
+                parts.append(f"{len(elems)} элементов")
+        elif doc_type == "letter":
+            subj = sd.get("subject")
+            if subj:
+                parts.append(str(subj))
+        return " | ".join(parts) if parts else ""
 
     def handle_chunks_docstore(self, chunks, file_id):
         """Run chunks"""
@@ -672,6 +756,20 @@ class IndexPipeline(BaseComponent):
 
             # populate the note
             item.note["loader"] = self.get_from_path("loader").__class__.__name__
+            if getattr(self, "doc_type", None):
+                item.note["doc_type"] = self.doc_type
+            if getattr(self, "doc_classification_confidence", None) is not None:
+                item.note["doc_classification_confidence"] = (
+                    self.doc_classification_confidence
+                )
+            if getattr(self, "structured_data", None):
+                item.note["structured_data"] = self.structured_data
+                doc_type = getattr(self, "doc_type", None) or "unknown"
+                from ktem.orchestration.graph_builder import build_document_links
+
+                links = build_document_links(file_id, self.structured_data, doc_type)
+                if links:
+                    item.note["document_links"] = links
 
             session.add(item)
             session.commit()
@@ -798,6 +896,10 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
     llm_model: str = Param(
         "", help="LLM model (for indexing/captioning; empty = default)"
     )
+    doc_type_override: str = Param(
+        "auto",
+        help="Override document type: 'auto' (classify) or concrete type (invoice, letter, etc.)",
+    )
     embedding: BaseEmbeddings
     run_embedding_in_thread: bool = False
 
@@ -862,7 +964,20 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         except Exception:
             pass
 
+        from ktem.orchestration.doc_types import get_doc_type_choices
+
+        doc_type_choices = [("Автоматический", "auto")] + get_doc_type_choices()
         return {
+            "doc_type_override": {
+                "name": "Тип документа",
+                "value": "auto",
+                "choices": doc_type_choices,
+                "component": "dropdown",
+                "info": (
+                    "При значении «Автоматический» тип определяется классификатором. "
+                    "Иначе используется выбранный тип для всех загруженных файлов."
+                ),
+            },
             "enable_pre_aggregation": {
                 "name": "Pre-aggregation (сводки из таблиц)",
                 "value": config("ENABLE_PRE_AGGREGATION", default=True, cast=bool),
@@ -908,6 +1023,9 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         if doc_mode is None:
             im = user_settings.get("image_reader_mode", "unstructured")
             doc_mode = "vlm" if im == "vlm" else "ocr"
+        doc_type_override = user_settings.get("doc_type_override", "auto")
+        if doc_type_override is None:
+            doc_type_override = "auto"
         obj = cls(
             embedding=embedding_models_manager[
                 index_settings.get(
@@ -919,6 +1037,7 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
             document_recognition_mode=doc_mode,
             vlm_model=user_settings.get("vlm_model", "default"),
             llm_model=user_settings.get("llm_model", ""),
+            doc_type_override=doc_type_override,
         )
         return obj
 
@@ -932,17 +1051,70 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
 
         Can subclass this method for a more elaborate pipeline routing strategy.
         Optionally uses document classifier for routing when ENABLE_DOCUMENT_CLASSIFICATION.
+        Optionally uses VLM classification and structured extraction when enabled.
         """
 
         doc_type: str | None = None
+        doc_classification_confidence: float | None = None
+        structured_data: dict | None = None
         enable_pre_aggregation = getattr(self, "enable_pre_aggregation", True)
-        if config("ENABLE_DOCUMENT_CLASSIFICATION", default=False, cast=bool):
-            try:
-                from ktem.orchestration.classifier import classify_by_path
+        doc_type_override = getattr(self, "doc_type_override", "auto")
 
-                classification = classify_by_path(file_path)
+        # Если пользователь явно указал тип — используем его, пропускаем классификацию
+        if doc_type_override and str(doc_type_override).strip().lower() != "auto":
+            doc_type = str(doc_type_override).strip().lower()
+            doc_classification_confidence = 1.0
+            if doc_type in ("invoice", "price_list"):
+                enable_pre_aggregation = True
+            elif doc_type in ("letter", "drawing"):
+                enable_pre_aggregation = False
+            logger.info(
+                "Document type override: file=%s doc_type=%s",
+                Path(file_path).name,
+                doc_type,
+            )
+        elif config("ENABLE_DOCUMENT_CLASSIFICATION", default=True, cast=bool):
+            try:
+                use_vlm = config(
+                    "ENABLE_VLM_DOCUMENT_CLASSIFICATION", default=False, cast=bool
+                )
+                if use_vlm:
+                    from ktem.orchestration.classifier import classify_by_image
+
+                    vlm_endpoint = ""
+                    vlm_model = getattr(self, "vlm_model", "default")
+                    try:
+                        from theflow.settings import settings as flowsettings
+
+                        from ktem.vlms import vlms_manager
+
+                        vlm_endpoint, vlm_model = vlms_manager.get_endpoint_and_model(
+                            vlm_model
+                        )
+                        if not vlm_endpoint:
+                            vlm_endpoint = (
+                                getattr(
+                                    flowsettings,
+                                    "get_vlm_endpoint",
+                                    lambda _: getattr(
+                                        flowsettings, "KH_VLM_ENDPOINT", ""
+                                    ),
+                                )("default")
+                                or ""
+                            )
+                    except Exception:
+                        pass
+                    classification = classify_by_image(
+                        file_path, vlm_endpoint=vlm_endpoint, vlm_model=vlm_model
+                    )
+                else:
+                    from ktem.orchestration.classifier import classify_by_path
+
+                    uid = getattr(self, "user_id", "") or ""
+                    classification = classify_by_path(file_path, user_id=uid)
                 doc_type = classification.doc_type
-                if doc_type == "invoice":
+                doc_classification_confidence = classification.confidence
+                if doc_type == "invoice" or doc_type == "price_list":
                     enable_pre_aggregation = True
                 elif doc_type in ("letter", "drawing"):
                     enable_pre_aggregation = False
@@ -954,6 +1126,48 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                 )
             except Exception as e:
                 logger.warning("Document classifier failed: %s", e)
+
+        # Structured extraction (VLM)
+        if (
+            config("ENABLE_STRUCTURED_EXTRACTION", default=False, cast=bool)
+            and doc_type
+            and isinstance(file_path, Path)
+        ):
+            try:
+                from ktem.orchestration.extractors import DOC_TYPES_WITH_SCHEMAS
+                from ktem.orchestration.extractors.base import BaseDocumentExtractor
+
+                if doc_type in DOC_TYPES_WITH_SCHEMAS:
+                    vlm_endpoint = ""
+                    vlm_model = getattr(self, "vlm_model", "default")
+                    try:
+                        from theflow.settings import settings as flowsettings
+
+                        from ktem.vlms import vlms_manager
+
+                        vlm_endpoint, vlm_model = vlms_manager.get_endpoint_and_model(
+                            vlm_model
+                        )
+                        if not vlm_endpoint:
+                            vlm_endpoint = (
+                                getattr(
+                                    flowsettings,
+                                    "get_vlm_endpoint",
+                                    lambda _: getattr(
+                                        flowsettings, "KH_VLM_ENDPOINT", ""
+                                    ),
+                                )("default")
+                                or ""
+                            )
+                    except Exception:
+                        pass
+                    extractor = BaseDocumentExtractor(
+                        vlm_endpoint=vlm_endpoint,
+                        vlm_model=vlm_model,
+                    )
+                    structured_data = extractor.extract(file_path, doc_type)
+            except Exception as e:
+                logger.warning("Structured extraction failed: %s", e)
 
         _, dev_chunk_size, dev_chunk_overlap = dev_settings()
 
@@ -1002,6 +1216,8 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
             run_embedding_in_thread=self.run_embedding_in_thread,
             enable_pre_aggregation=enable_pre_aggregation,
             doc_type=doc_type,
+            doc_classification_confidence=doc_classification_confidence,
+            structured_data=structured_data,
             Source=self.Source,
             Index=self.Index,
             VS=self.VS,

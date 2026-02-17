@@ -1,0 +1,12 @@
+Extract structured data from this TECHNICAL DRAWING (чертёж) document image.
+
+Output valid JSON conforming to this schema:
+{schema}
+
+Requirements:
+- Extract title block: name, scale, document number, material
+- Extract ALL drawing elements: holes, grooves, surfaces, edges, etc.
+- For each element: type, description, dimensions (e.g. Ø5mm), tolerance, coordinates, view
+- Be thorough: list every hole (diameter, position), every dimension
+- Use null for missing fields
+- Output ONLY valid JSON, no markdown or extra text

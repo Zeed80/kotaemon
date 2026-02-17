@@ -5,14 +5,13 @@ from __future__ import annotations
 import logging
 import uuid
 from pathlib import Path
+from typing import cast
 
 import gradio as gr
 from theflow.settings import settings as flowsettings
 
-from flowsettings_config import config
 from ktem.app import BasePage
-from ktem.i18n import get_text
-from ktem.orchestration.queue import JobStatus, get_indexing_queue
+from ktem.orchestration.queue import get_indexing_queue
 
 from .settings import get_user_settings
 
@@ -52,6 +51,23 @@ class UnifiedUploadPage(BasePage):
                 value=False,
                 label="Force reindex",
             )
+            self.doc_type_mode = gr.Radio(
+                choices=[
+                    ("Автоматический", "auto"),
+                    ("Указать тип", "manual"),
+                ],
+                value="auto",
+                label="Тип документа",
+            )
+            from ktem.orchestration.doc_types import get_doc_type_choices
+
+            doc_choices = get_doc_type_choices()
+            self.doc_type_select = gr.Dropdown(
+                choices=doc_choices,
+                value=doc_choices[0][1] if doc_choices else "invoice",
+                label="Выберите тип",
+                visible=False,
+            )
             self.upload_btn = gr.Button("Upload and Index", variant="primary")
 
             with gr.Accordion("Job status", open=True) as self.status_accordion:
@@ -80,7 +96,21 @@ class UnifiedUploadPage(BasePage):
             outputs=[self.index_checkboxes],
         )
 
-        def do_upload(files, selected_indices, reindex, settings, user_id):
+        self.doc_type_mode.change(
+            fn=lambda m: gr.update(visible=(m == "manual")),
+            inputs=[self.doc_type_mode],
+            outputs=[self.doc_type_select],
+        )
+
+        def do_upload(
+            files,
+            selected_indices,
+            reindex,
+            settings,
+            user_id,
+            doc_type_mode="auto",
+            doc_type_select="invoice",
+        ):
             if not files:
                 return "No files selected.", None
             if not selected_indices:
@@ -102,19 +132,30 @@ class UnifiedUploadPage(BasePage):
 
             queue = get_indexing_queue(self._app)
             queue.set_app(self._app)
-            settings_dict = dict(settings) if settings else self._app.default_settings.flatten()
+            settings_dict = (
+                dict(settings) if settings else self._app.default_settings.flatten()
+            )
             user_id_val = user_id or "default"
             settings_merged = get_user_settings(user_id_val, settings_dict)
 
+            doc_type_override = doc_type_select if doc_type_mode == "manual" else "auto"
+            for index_id in selected_indices:
+                settings_merged[f"index.options.{index_id}.doc_type_override"] = (
+                    doc_type_override
+                )
+
             job_id = queue.enqueue(
-                file_paths=file_paths,
+                file_paths=cast(list[str | Path], file_paths),
                 target_indices=selected_indices,
                 user_id=user_id_val,
                 settings=settings_merged,
                 reindex=reindex,
                 ingestion_id=uuid.uuid4().hex,
             )
-            return f"Job {job_id} queued. {len(file_paths)} file(s), {len(selected_indices)} index(es).", job_id
+            return (
+                f"Job {job_id} queued. {len(file_paths)} file(s), {len(selected_indices)} index(es).",
+                job_id,
+            )
 
         def refresh_status(job_id):
             if not job_id:
@@ -158,23 +199,22 @@ class UnifiedUploadPage(BasePage):
                     chain = chain.then(**event_def)
             return chain
 
-        upload_chain = (
-            self.upload_btn.click(
-                fn=do_upload,
-                inputs=[
-                    self.files_input,
-                    self.index_checkboxes,
-                    self.reindex_check,
-                    self._app.settings_state,
-                    self._app.user_id,
-                ],
-                outputs=[self.status_text, self._job_id_state],
-            )
-            .then(
-                fn=refresh_status,
-                inputs=[self._job_id_state],
-                outputs=[self.status_text],
-            )
+        upload_chain = self.upload_btn.click(
+            fn=do_upload,
+            inputs=[
+                self.files_input,
+                self.index_checkboxes,
+                self.reindex_check,
+                self._app.settings_state,
+                self._app.user_id,
+                self.doc_type_mode,
+                self.doc_type_select,
+            ],
+            outputs=[self.status_text, self._job_id_state],
+        ).then(
+            fn=refresh_status,
+            inputs=[self._job_id_state],
+            outputs=[self.status_text],
         )
         _chain_refresh_file_indices(upload_chain)
 

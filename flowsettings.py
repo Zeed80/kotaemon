@@ -699,6 +699,24 @@ SETTINGS_APP: dict[str, dict] = {
         "value": config("USE_GLOBAL_GRAPHRAG", default=True, cast=bool),
         "component": "checkbox",
     },
+    "enable_document_classification": {
+        "name": "Document classification (по типу при индексации)",
+        "value": config("ENABLE_DOCUMENT_CLASSIFICATION", default=True, cast=bool),
+        "component": "checkbox",
+        "info": "Определять тип документа (счёт, письмо, чертёж и т.д.) по имени/пути при индексации.",
+    },
+    "enable_vlm_document_classification": {
+        "name": "VLM document classification",
+        "value": config("ENABLE_VLM_DOCUMENT_CLASSIFICATION", default=False, cast=bool),
+        "component": "checkbox",
+        "info": "Использовать VLM для классификации (точнее, но нужен KH_VLM_ENDPOINT).",
+    },
+    "enable_structured_extraction": {
+        "name": "Structured extraction (VLM)",
+        "value": config("ENABLE_STRUCTURED_EXTRACTION", default=False, cast=bool),
+        "component": "checkbox",
+        "info": "Извлекать структурированные данные (реквизиты, элементы чертежа) через VLM в Source.note.",
+    },
     "kh_chat_msg_placeholder": {
         "name": "Chat thinking placeholder",
         "value": config("KH_CHAT_MSG_PLACEHOLDER", default="Thinking ..."),
