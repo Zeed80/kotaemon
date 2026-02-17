@@ -10,10 +10,10 @@
 
 ### 1. Docker (volumes — переживают удаление проекта)
 
-| Volume                   | Путь в контейнере    | Содержимое                |
-| ------------------------ | -------------------- | ------------------------- |
-| `kotaemon_ktem_app_data` | `/app/ktem_app_data` | Всё приложение            |
-| `kotaemon_qdrant_data`   | `/qdrant/storage`    | Векторный индекс (Qdrant) |
+| Volume                   | Путь в контейнере          | Содержимое                |
+| ------------------------ | -------------------------- | ------------------------- |
+| `kotaemon_ktem_app_data` | `/app/ktem_app_data`       | Всё приложение            |
+| `kotaemon_qdrant_data`   | `/qdrant/storage`          | Векторный индекс (Qdrant) |
 | `kotaemon_postgres_data` | `/var/lib/postgresql/data` | PostgreSQL (если включён) |
 
 **ktem_app_data** содержит:
@@ -39,11 +39,13 @@
 ### Настройка PostgreSQL
 
 1. **Docker Compose** (рекомендуется):
+
    - Сервис `postgres` уже настроен в `docker-compose.yml` с оптимальными параметрами
    - `DATABASE_URL` задаётся автоматически или можно указать в `.env`
    - Сервис `app` автоматически зависит от `postgres`
 
 2. **Локальный запуск** (без Docker):
+
    - Установите PostgreSQL с расширением `pgvector`
    - В `.env` задайте: `DATABASE_URL=postgresql://user:password@localhost:5432/kotaemon`
 
@@ -62,13 +64,15 @@
 2. В `.env`: `DATABASE_URL=postgresql://...` и **`KH_VECTORSTORE_TYPE=pgvector`**.
 3. Опционально: `PG_VECTOR_EMBED_DIM=1536` (или размерность вашей модели эмбеддингов).
 4. **HNSW параметры** (оптимизированы по умолчанию, применяются автоматически, можно настроить в **Settings → General**):
+
    - **pgvector HNSW: m (connections per node)** = 16 — связи на узел (16-64, больше = точнее но медленнее)
    - **pgvector HNSW: ef_construction** = 64 — параметр построения индекса (64-200)
    - **pgvector HNSW: ef_search** = 40 — параметр поиска (40-200, больше = точнее но медленнее)
-   
+
    Или через `.env`: `PG_VECTOR_HNSW_M=16`, `PG_VECTOR_HNSW_EF_CONSTRUCTION=64`, `PG_VECTOR_HNSW_EF_SEARCH=40`
 
 **Автоматическая инициализация:** При первом запуске приложения автоматически:
+
 - Создаётся расширение `pgvector` в PostgreSQL (если используется векторное хранилище на PostgreSQL)
 - Применяются оптимальные HNSW параметры при создании векторных индексов
 - Настраиваются оптимальные параметры PostgreSQL через `docker-compose.yml` (shared_buffers, work_mem и т.д.)
@@ -80,6 +84,7 @@
 ### Оптимизация параметров векторизации
 
 **HNSW для pgvector** (настройки в **Settings → General**, поля: **pgvector HNSW: m**, **pgvector HNSW: ef_construction**, **pgvector HNSW: ef_search**):
+
 - **m** (connections per node): 16 — оптимально для большинства случаев. Увеличьте до 32-64 для большей точности (но медленнее и больше памяти).
 - **ef_construction**: 64 — оптимально для баланса скорости построения и точности индекса.
 - **ef_search**: 40 — оптимально для баланса скорости запросов и качества результатов. Увеличьте до 80-100 для максимальной точности.
@@ -87,6 +92,7 @@
 Изменения применяются при следующей индексации документов (существующие индексы не перестраиваются автоматически).
 
 **PostgreSQL** (в `docker-compose.yml` уже настроены оптимальные параметры):
+
 - `shared_buffers=256MB` — кэш данных (25% RAM для небольших серверов)
 - `effective_cache_size=1GB` — для планировщика запросов
 - `maintenance_work_mem=64MB` — для построения индексов (включая HNSW)
@@ -95,15 +101,18 @@
 - `effective_io_concurrency=200` — для параллельного I/O
 
 **Connection pooling** (SQLAlchemy, автоматически для PostgreSQL):
+
 - `pool_size=10` — базовый пул соединений
 - `max_overflow=20` — дополнительные соединения при нагрузке
 - `pool_recycle=3600` — пересоздание соединений каждый час
 
 **Composite (Qdrant + pgvector)**:
+
 - Запрашивает `top_k * 4` кандидатов из каждого хранилища (до 100) для лучшего качества RRF объединения.
 - RRF использует `k=60` для сглаживания рангов (оптимально для 2-3 хранилищ).
 
 **Qdrant** (настройки в Settings → General):
+
 - **Hybrid search**: включите для лучшего качества (dense + sparse векторы). Требует `QDRANT_FASTEMBED_SPARSE_MODEL` (например, `Qdrant/bm25`).
 - Коллекции создаются автоматически с оптимальными параметрами (COSINE distance, HNSW индексы).
 - Для продакшена рекомендуется Qdrant Cloud или отдельный сервер с настройками производительности.

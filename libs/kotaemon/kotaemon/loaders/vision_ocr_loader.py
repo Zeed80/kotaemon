@@ -350,7 +350,11 @@ class VisionOCRReader(BaseReader):
             )
 
             # Если Ollama вернул пустой ответ — пробуем полный промпт как fallback
-            if is_ollama and (not text or not text.strip()) and prompt == EXTRACT_TEXT_PROMPT_LLAMA:
+            if (
+                is_ollama
+                and (not text or not text.strip())
+                and prompt == EXTRACT_TEXT_PROMPT_LLAMA
+            ):
                 logger.info(
                     f"Ollama returned empty with simple prompt, retrying with full prompt: file={file_path.name}"
                 )

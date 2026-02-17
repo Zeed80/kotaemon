@@ -195,7 +195,10 @@ if __name__ == "__main__":
         "DATABASE_URL", "postgresql://kotaemon:kotaemon@postgres:5432/kotaemon"
     )
     # Добавляем драйвер psycopg если его нет
-    if database_url.startswith("postgresql://") and "+" not in database_url.split(":")[0]:
+    if (
+        database_url.startswith("postgresql://")
+        and "+" not in database_url.split(":")[0]
+    ):
         database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
     main(chrome_db_dir, database_url)

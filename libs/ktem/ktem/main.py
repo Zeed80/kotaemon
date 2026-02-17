@@ -102,7 +102,9 @@ class App(BaseApp):
                             page = index.get_index_page_ui()
                             setattr(self, f"_index_{index.id}", page)
 
-            if not KH_DEMO_MODE and config("ENABLE_UNIFIED_UPLOAD", default=True, cast=bool):
+            if not KH_DEMO_MODE and config(
+                "ENABLE_UNIFIED_UPLOAD", default=True, cast=bool
+            ):
                 with gr.Tab(
                     "Upload",
                     elem_id="upload-tab",
@@ -299,7 +301,7 @@ class App(BaseApp):
                 inputs=[],
                 outputs=[self.setup_page_wrapper, self.tabs],
             )
-        
+
         # Загрузить сохранённый язык при старте: читаем из cookie (сервер) и обновляем вкладки/версию
         load_lang_keys = []
         load_lang_outputs = []
@@ -333,7 +335,11 @@ class App(BaseApp):
             )
             return [saved, saved] + tab_updates + [version_update]
 
-        if load_lang_outputs and hasattr(self, "lang_dropdown") and self.lang_dropdown is not None:
+        if (
+            load_lang_outputs
+            and hasattr(self, "lang_dropdown")
+            and self.lang_dropdown is not None
+        ):
             self.app.load(
                 fn=load_saved_lang,
                 inputs=[],

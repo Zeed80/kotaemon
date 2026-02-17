@@ -709,7 +709,9 @@ class RerankingManagement(BasePage):
                 raise Exception(f"Can not found model: {selected_rerank_name}")
 
             if isinstance(rerank, OllamaReranking):
-                log_content += "- Ollama reranker: проверка наличия модели и /api/embed<br>"
+                log_content += (
+                    "- Ollama reranker: проверка наличия модели и /api/embed<br>"
+                )
                 yield log_content
                 check_ollama_embed_model(
                     base_url=(rerank.base_url or "").strip() or None,
@@ -736,7 +738,9 @@ class RerankingManagement(BasePage):
             )
             yield log_content
 
-            gr.Info(f"Embedding {selected_rerank_name} connect successfully", duration=1)
+            gr.Info(
+                f"Embedding {selected_rerank_name} connect successfully", duration=1
+            )
         except Exception as e:
             print(e)
             log_content += (
@@ -756,15 +760,24 @@ class RerankingManagement(BasePage):
             reranking_models_manager.update(
                 selected_rerank_name, spec=spec, default=default
             )
-            gr.Info(f'Save Reranking model "{selected_rerank_name}" successfully', duration=1)
+            gr.Info(
+                f'Save Reranking model "{selected_rerank_name}" successfully',
+                duration=1,
+            )
         except Exception as e:
-            gr.Error(f'Failed to save Embedding model "{selected_rerank_name}": {e}', duration=1)
+            gr.Error(
+                f'Failed to save Embedding model "{selected_rerank_name}": {e}',
+                duration=1,
+            )
 
     def delete_rerank(self, selected_rerank_name):
         try:
             reranking_models_manager.delete(selected_rerank_name)
         except Exception as e:
-            gr.Error(f'Failed to delete Reranking model "{selected_rerank_name}": {e}', duration=1)
+            gr.Error(
+                f'Failed to delete Reranking model "{selected_rerank_name}": {e}',
+                duration=1,
+            )
             return selected_rerank_name
 
         return ""

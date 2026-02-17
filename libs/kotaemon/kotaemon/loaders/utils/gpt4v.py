@@ -261,7 +261,9 @@ def generate_gpt4v(
     if is_ollama:
         # Ollama возвращает {"message": {"role": "assistant", "content": "...", "thinking": "..."}}
         if "message" not in output:
-            logger.error(f"Ollama response missing 'message': keys={list(output.keys())}")
+            logger.error(
+                f"Ollama response missing 'message': keys={list(output.keys())}"
+            )
             raise ValueError("Unexpected Ollama response format: missing 'message'")
         msg = output["message"]
         content = msg.get("content") if isinstance(msg, dict) else None

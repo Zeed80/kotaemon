@@ -61,9 +61,9 @@ def get_qdrant_collection_dimension(vector_store: Any) -> int | None:
         qdrant_client = getattr(li_store, "client", li_store)
         if qdrant_client is None:
             return None
-        collection_name = getattr(
-            vector_store, "_collection_name", None
-        ) or getattr(li_store, "collection_name", None)
+        collection_name = getattr(vector_store, "_collection_name", None) or getattr(
+            li_store, "collection_name", None
+        )
         if not collection_name:
             return None
         if not qdrant_client.collection_exists(collection_name):

@@ -21,7 +21,15 @@ def _apply_app_defaults_to_ollama_reranker(reranker) -> None:
             flowsettings, "KH_OLLAMA_URL", ""
         )
         if url:
-            base = (str(url)).strip().rstrip("/").replace("/v1/", "").replace("/v1", "").replace("/api", "").rstrip("/")
+            base = (
+                (str(url))
+                .strip()
+                .rstrip("/")
+                .replace("/v1/", "")
+                .replace("/v1", "")
+                .replace("/api", "")
+                .rstrip("/")
+            )
             if base:
                 reranker.base_url = base
         model = get_application_setting("ollama_reranker_model")

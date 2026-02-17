@@ -36,7 +36,9 @@ def ensure_pgvector_extension(session: Session) -> None:
         logger.info("Расширение pgvector успешно создано")
     except Exception as e:
         # Если это не PostgreSQL или другая ошибка, просто логируем
-        logger.debug("Не удалось создать расширение pgvector (возможно, не PostgreSQL): %s", e)
+        logger.debug(
+            "Не удалось создать расширение pgvector (возможно, не PostgreSQL): %s", e
+        )
         session.rollback()
 
 
@@ -60,9 +62,7 @@ def apply_optimal_postgresql_settings(session: Session) -> None:
         ]
         for setting_name in settings_to_check:
             try:
-                result = session.execute(
-                    text(f"SHOW {setting_name}")
-                ).scalar()
+                result = session.execute(text(f"SHOW {setting_name}")).scalar()
                 logger.debug("PostgreSQL %s = %s", setting_name, result)
             except Exception:
                 pass  # Игнорируем ошибки для отдельных настроек

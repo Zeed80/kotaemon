@@ -263,7 +263,9 @@ def check_ollama_embed_model(
         )
     if resp.status_code == 500:
         try:
-            err_msg = (resp.json() or {}).get("error", resp.text or "Internal Server Error")
+            err_msg = (resp.json() or {}).get(
+                "error", resp.text or "Internal Server Error"
+            )
         except Exception:
             err_msg = resp.text or "Internal Server Error"
         raise RuntimeError(

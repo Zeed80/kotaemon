@@ -76,9 +76,13 @@ class EnvSettings(BaseSettings):
     KH_VECTORSTORE_TYPE: str = "qdrant"
     PG_VECTOR_EMBED_DIM: int = 1536  # размерность эмбеддингов для pgvector
     # HNSW параметры для pgvector (оптимизированы для качества и скорости)
-    PG_VECTOR_HNSW_M: int = 16  # количество связей на узел (16-64, больше = точнее но медленнее)
+    PG_VECTOR_HNSW_M: int = (
+        16  # количество связей на узел (16-64, больше = точнее но медленнее)
+    )
     PG_VECTOR_HNSW_EF_CONSTRUCTION: int = 64  # параметр построения индекса (64-200, больше = точнее но медленнее построение)
-    PG_VECTOR_HNSW_EF_SEARCH: int = 40  # параметр поиска (40-200, больше = точнее но медленнее запросы)
+    PG_VECTOR_HNSW_EF_SEARCH: int = (
+        40  # параметр поиска (40-200, больше = точнее но медленнее запросы)
+    )
 
     # Qdrant
     QDRANT_URL: str = "http://localhost:6333"
@@ -100,7 +104,9 @@ class EnvSettings(BaseSettings):
     USE_GLOBAL_GRAPHRAG: bool = True
     USE_CUSTOMIZED_GRAPHRAG_SETTING: str = "value"
     USE_MULTIMODAL: bool = False
-    USE_LOW_LLM_REQUESTS: bool = True  # Выкл LLM relevant scoring по умолчанию — скорость без потери качества
+    USE_LOW_LLM_REQUESTS: bool = (
+        True  # Выкл LLM relevant scoring по умолчанию — скорость без потери качества
+    )
 
     # RAG quality defaults (оптимизация точности и скорости чата)
     MAX_CONTEXT_LENGTH: int = 64000
@@ -118,8 +124,12 @@ class EnvSettings(BaseSettings):
 
     # Document classification and routing
     ENABLE_DOCUMENT_CLASSIFICATION: bool = True
-    ENABLE_VLM_DOCUMENT_CLASSIFICATION: bool = False  # VLM-based (when True) vs path heuristic
-    ENABLE_STRUCTURED_EXTRACTION: bool = False  # Type-specific VLM extraction into structured_data
+    ENABLE_VLM_DOCUMENT_CLASSIFICATION: bool = (
+        False  # VLM-based (when True) vs path heuristic
+    )
+    ENABLE_STRUCTURED_EXTRACTION: bool = (
+        False  # Type-specific VLM extraction into structured_data
+    )
 
     # Secret storage (optional): ключ для шифрования API-ключей в БД и application_settings.json
     KH_ENCRYPTION_KEY: str = ""

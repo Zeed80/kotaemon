@@ -52,7 +52,7 @@ services:
     depends_on:
       - qdrant
       - searxng
-      - postgres  # PostgreSQL обязателен
+      - postgres # PostgreSQL обязателен
     volumes: *common-volumes
     restart: unless-stopped
     # GPU: по умолчанию включён. Для CPU-only закомментируйте.

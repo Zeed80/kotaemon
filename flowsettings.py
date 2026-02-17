@@ -136,11 +136,17 @@ KH_DOCSTORE = {
     "path": str(KH_USER_DATA_DIR / "docstore"),
 }
 _qdrant_path = config("QDRANT_PATH", default="")
-_kh_vectorstore_type = (config("KH_VECTORSTORE_TYPE", default="qdrant") or "qdrant").strip().lower()
+_kh_vectorstore_type = (
+    (config("KH_VECTORSTORE_TYPE", default="qdrant") or "qdrant").strip().lower()
+)
 _pg_vector_embed_dim = int(config("PG_VECTOR_EMBED_DIM", default="1536") or "1536")
 _pg_vector_hnsw_m = int(config("PG_VECTOR_HNSW_M", default="16") or "16")
-_pg_vector_hnsw_ef_construction = int(config("PG_VECTOR_HNSW_EF_CONSTRUCTION", default="64") or "64")
-_pg_vector_hnsw_ef_search = int(config("PG_VECTOR_HNSW_EF_SEARCH", default="40") or "40")
+_pg_vector_hnsw_ef_construction = int(
+    config("PG_VECTOR_HNSW_EF_CONSTRUCTION", default="64") or "64"
+)
+_pg_vector_hnsw_ef_search = int(
+    config("PG_VECTOR_HNSW_EF_SEARCH", default="40") or "40"
+)
 
 # Кэш для автоматически определённой размерности эмбеддингов
 _auto_embed_dim_cache: int | None = None
@@ -148,42 +154,46 @@ _auto_embed_dim_cache: int | None = None
 
 def _get_default_embedding_dimension() -> int | None:
     """Автоматически определить размерность модели эмбеддингов по умолчанию.
-    
+
     Returns:
         Размерность эмбеддингов или None, если не удалось определить.
     """
     global _auto_embed_dim_cache
     if _auto_embed_dim_cache is not None:
         return _auto_embed_dim_cache
-    
+
     try:
         # Пытаемся получить менеджер эмбеддингов (может быть не инициализирован на момент загрузки модуля)
         from ktem.embeddings.manager import embedding_models_manager
-        
+
         if not hasattr(embedding_models_manager, "get_default"):
             return None
-        
+
         default_embedding = embedding_models_manager.get_default()
         if default_embedding is None:
             return None
-        
+
         # Определяем размерность через тестовый запрос
         result = default_embedding(["test"])
         if result and len(result) > 0 and hasattr(result[0], "embedding"):
             _auto_embed_dim_cache = len(result[0].embedding)
             import logging
+
             logger = logging.getLogger(__name__)
             logger.info(
                 "Автоматически определена размерность эмбеддингов: %d (из модели по умолчанию)",
-                _auto_embed_dim_cache
+                _auto_embed_dim_cache,
             )
             return _auto_embed_dim_cache
     except Exception as e:
         # Если менеджер ещё не инициализирован или произошла ошибка, возвращаем None
         import logging
+
         logger = logging.getLogger(__name__)
-        logger.debug("Не удалось автоматически определить размерность эмбеддингов: %s", e)
-    
+        logger.debug(
+            "Не удалось автоматически определить размерность эмбеддингов: %s", e
+        )
+
     return None
 
 
@@ -269,12 +279,18 @@ def _build_pgvector_config() -> dict:
     if hnsw_ef_construction is None:
         hnsw_ef_construction = _pg_vector_hnsw_ef_construction
     else:
-        hnsw_ef_construction = int(hnsw_ef_construction) if hnsw_ef_construction else _pg_vector_hnsw_ef_construction
+        hnsw_ef_construction = (
+            int(hnsw_ef_construction)
+            if hnsw_ef_construction
+            else _pg_vector_hnsw_ef_construction
+        )
     hnsw_ef_search = get_application_setting("pg_vector_hnsw_ef_search")
     if hnsw_ef_search is None:
         hnsw_ef_search = _pg_vector_hnsw_ef_search
     else:
-        hnsw_ef_search = int(hnsw_ef_search) if hnsw_ef_search else _pg_vector_hnsw_ef_search
+        hnsw_ef_search = (
+            int(hnsw_ef_search) if hnsw_ef_search else _pg_vector_hnsw_ef_search
+        )
     return {
         "__type__": "kotaemon.storages.PgvectorVectorStore",
         "collection_name": "default",

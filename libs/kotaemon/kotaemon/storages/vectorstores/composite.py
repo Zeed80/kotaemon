@@ -36,7 +36,9 @@ def _reciprocal_rank_fusion(
     id_to_original_score: dict[str, float] = {}
 
     for embeddings, scores, ids in results_per_store:
-        for rank, (emb, score, id_) in enumerate(zip(embeddings, scores, ids, strict=False)):
+        for rank, (emb, score, id_) in enumerate(
+            zip(embeddings, scores, ids, strict=False)
+        ):
             rrf_scores[id_] += 1.0 / (k + rank + 1)
             if id_ not in id_to_embedding:
                 id_to_embedding[id_] = emb
@@ -62,7 +64,9 @@ class CompositeVectorStore(BaseVectorStore):
         **kwargs: Any,
     ):
         if not store_configs:
-            raise ValueError("CompositeVectorStore requires at least one store_configs entry.")
+            raise ValueError(
+                "CompositeVectorStore requires at least one store_configs entry."
+            )
         self._collection_name = collection_name
         self._store_configs = store_configs
         self._stores: list[BaseVectorStore] = []
@@ -71,7 +75,7 @@ class CompositeVectorStore(BaseVectorStore):
             if isinstance(conf, BaseVectorStore):
                 self._stores.append(conf)
                 continue
-            
+
             # Если conf - словарь конфигурации, десериализуем его
             if isinstance(conf, dict):
                 c = dict(conf)
@@ -80,9 +84,13 @@ class CompositeVectorStore(BaseVectorStore):
                     store = deserialize(c, safe=False)
                     self._stores.append(store)
                 except Exception as e:
-                    logger.warning("CompositeVectorStore: skip store %s: %s", c.get("__type__"), e)
+                    logger.warning(
+                        "CompositeVectorStore: skip store %s: %s", c.get("__type__"), e
+                    )
             else:
-                logger.warning("CompositeVectorStore: skip invalid config type %s", type(conf))
+                logger.warning(
+                    "CompositeVectorStore: skip invalid config type %s", type(conf)
+                )
 
         if not self._stores:
             raise ValueError("CompositeVectorStore: no store could be initialized.")
@@ -112,8 +120,7 @@ class CompositeVectorStore(BaseVectorStore):
                 )
         if failed_stores and successful_stores:
             logger.info(
-                "CompositeVectorStore: successfully added to %s, "
-                "failed for %s",
+                "CompositeVectorStore: successfully added to %s, " "failed for %s",
                 successful_stores,
                 [name for name, _ in failed_stores],
             )
@@ -124,7 +131,9 @@ class CompositeVectorStore(BaseVectorStore):
             try:
                 store.delete(ids, **kwargs)
             except Exception as e:
-                logger.warning("CompositeVectorStore delete from %s: %s", type(store).__name__, e)
+                logger.warning(
+                    "CompositeVectorStore delete from %s: %s", type(store).__name__, e
+                )
 
     def query(
         self,
@@ -136,10 +145,14 @@ class CompositeVectorStore(BaseVectorStore):
         # Запрашиваем у каждого хранилища больше кандидатов для RRF (Reciprocal Rank Fusion)
         # Больше кандидатов = лучше качество объединения, но медленнее
         # Для качества: top_k * 4-5; для скорости: top_k * 2-3
-        fetch_k = min(top_k * 4, 100)  # оптимизировано для качества: больше кандидатов для лучшего RRF
+        fetch_k = min(
+            top_k * 4, 100
+        )  # оптимизировано для качества: больше кандидатов для лучшего RRF
         results_per_store: list[tuple[list[list[float]], list[float], list[str]]] = []
 
-        def query_one(s: BaseVectorStore) -> tuple[list[list[float]], list[float], list[str]]:
+        def query_one(
+            s: BaseVectorStore,
+        ) -> tuple[list[list[float]], list[float], list[str]]:
             return s.query(embedding, top_k=fetch_k, ids=ids, **kwargs)
 
         with ThreadPoolExecutor(max_workers=len(self._stores)) as executor:
@@ -162,7 +175,9 @@ class CompositeVectorStore(BaseVectorStore):
             try:
                 store.drop()
             except Exception as e:
-                logger.warning("CompositeVectorStore drop %s: %s", type(store).__name__, e)
+                logger.warning(
+                    "CompositeVectorStore drop %s: %s", type(store).__name__, e
+                )
 
     def __persist_flow__(self) -> dict[str, Any]:
         return {

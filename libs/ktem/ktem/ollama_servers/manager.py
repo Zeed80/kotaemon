@@ -11,7 +11,7 @@ from ktem.utils.ollama import check_ollama_available
 from .db import OllamaServerTable, engine
 
 
-def _persist_primary_ollama_url(manager: "OllamaServerManager", url: str) -> None:
+def _persist_primary_ollama_url(manager: OllamaServerManager, url: str) -> None:
     """Записать URL основного сервера Ollama в .env, application_settings и spec реранкера."""
     try:
         persist_ollama_url(url)

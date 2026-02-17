@@ -118,7 +118,6 @@ class PgvectorVectorStore(LlamaIndexVectorStore):
         """Число векторов в хранилище."""
         if hasattr(self._client, "client") and self._client.client is not None:
             from sqlalchemy import func, select
-
             from sqlalchemy.orm import Session
 
             table = getattr(self._client, "_table_class", None)

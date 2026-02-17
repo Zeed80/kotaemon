@@ -254,7 +254,10 @@ class IndexManagement(BasePage):
                 config=yaml.load(config, Loader=YAMLNoDateSafeLoader),
                 index_type=index_type,
             )
-            gr.Info(f'Create index "{name}" successfully. Please restart the app!', duration=1)
+            gr.Info(
+                f'Create index "{name}" successfully. Please restart the app!',
+                duration=1,
+            )
         except Exception as e:
             raise gr.Error(f"Failed to create Embedding model {name}: {e}")
 
@@ -317,7 +320,10 @@ class IndexManagement(BasePage):
         try:
             spec = yaml.load(config, Loader=YAMLNoDateSafeLoader)
             self.manager.update_index(selected_index_id, name, spec)
-            gr.Info(f'Update index "{name}" successfully. Please restart the app!', duration=1)
+            gr.Info(
+                f'Update index "{name}" successfully. Please restart the app!',
+                duration=1,
+            )
         except Exception as e:
             raise gr.Error(f'Failed to save index "{name}": {e}')
 

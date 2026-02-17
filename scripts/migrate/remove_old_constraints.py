@@ -66,7 +66,9 @@ def remove_old_constraints():
                 )
                 conn.execute(drop_query)
                 conn.commit()
-                print(f"  ✓ Удалён constraint {constraint_name} из таблицы {table_name}")
+                print(
+                    f"  ✓ Удалён constraint {constraint_name} из таблицы {table_name}"
+                )
             except ProgrammingError as e:
                 print(f"  ✗ Ошибка при удалении {constraint_name} из {table_name}: {e}")
                 conn.rollback()

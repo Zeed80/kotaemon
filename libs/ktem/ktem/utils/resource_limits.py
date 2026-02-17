@@ -22,15 +22,17 @@ class ResourceLimits:
     gpu_name: str = ""
     cpu_only: bool = True
     # Примерные требования моделей (MB)
-    model_vram_estimates: dict[str, int] = field(default_factory=lambda: {
-        "7b": 8 * 1024,   # ~8 GB для 7B в fp16
-        "8b": 9 * 1024,
-        "13b": 14 * 1024,
-        "32b": 20 * 1024,  # quantized
-        "70b": 40 * 1024,  # quantized
-        "embedding": 2 * 1024,
-        "reranker": 2 * 1024,
-    })
+    model_vram_estimates: dict[str, int] = field(
+        default_factory=lambda: {
+            "7b": 8 * 1024,  # ~8 GB для 7B в fp16
+            "8b": 9 * 1024,
+            "13b": 14 * 1024,
+            "32b": 20 * 1024,  # quantized
+            "70b": 40 * 1024,  # quantized
+            "embedding": 2 * 1024,
+            "reranker": 2 * 1024,
+        }
+    )
     suggested_max_context: int = 64000
     suggested_batch_size: int = 32
     warnings: list[str] = field(default_factory=list)
@@ -40,7 +42,11 @@ def _get_nvidia_smi_vram() -> tuple[int, str]:
     """Получить объём VRAM и имя GPU через nvidia-smi."""
     try:
         out = subprocess.run(
-            ["nvidia-smi", "--query-gpu=memory.total,name", "--format=csv,noheader,nounits"],
+            [
+                "nvidia-smi",
+                "--query-gpu=memory.total,name",
+                "--format=csv,noheader,nounits",
+            ],
             capture_output=True,
             text=True,
             timeout=5,

@@ -31,7 +31,6 @@ from ...utils.commands import WEB_SEARCH_COMMAND
 from ...utils.hf_papers import get_recommended_papers
 from ...utils.js_snippets import chat_input_focus_js
 from ...utils.rate_limit import check_rate_limit
-from .settings import load_chat_settings_values, save_chat_settings
 from .chat_panel import ChatPanel
 from .chat_suggestion import ChatSuggestion
 from .common import STATE
@@ -39,6 +38,7 @@ from .control import ConversationControl
 from .demo_hint import HintPage
 from .paper_list import PaperListPage
 from .report import ReportIssue
+from .settings import load_chat_settings_values, save_chat_settings
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
