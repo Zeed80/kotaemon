@@ -3,7 +3,24 @@ from ktem.utils.httplib2_patch import patch_httplib2_pyparsing  # noqa
 
 patch_httplib2_pyparsing()
 
+import logging
+import traceback
+import warnings
+
 import gradio as gr
+
+# Логировать traceback при "Unexpected argument" от Gradio для отладки
+_original_showwarning = warnings.showwarning
+
+def _showwarning_with_traceback(message, category, filename, lineno, file=None, line=None):
+    if "Unexpected argument" in str(message):
+        logger = logging.getLogger(__name__)
+        logger.warning("Gradio 'Unexpected argument': %s", message)
+        traceback.print_stack()
+    _original_showwarning(message, category, filename, lineno, file, line)
+
+
+warnings.showwarning = _showwarning_with_traceback
 from theflow.settings import settings as flowsettings
 
 from flowsettings_config import config
