@@ -165,6 +165,7 @@ chmod +x install.sh
    docker compose build
    docker compose up -d
    ```
+
    API-ключи, модели и остальные параметры — в веб-интерфейсе Settings → General.
 
    **Обновление без полной пересборки** (исходники монтируются):

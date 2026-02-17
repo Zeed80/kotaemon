@@ -267,6 +267,7 @@ cd /path/to/kotaemon
 Или через scripts: `./scripts/uninstall.sh` (то же самое).
 
 **Меню:**
+
 - [1] Резервная копия (миграция) в $HOME — сохранить данные перед удалением
 - [2] Docker (контейнеры, volumes) — включить по умолчанию
 - [3] Образы зависимостей (searxng, pgvector, qdrant)

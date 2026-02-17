@@ -166,6 +166,32 @@ class EmbeddingManager:
         """List all models"""
         return self._info
 
+    def get_spec_from_db(self, name: str) -> dict | None:
+        """Get stored spec from database (for embeddings that failed to load)."""
+        with Session(engine) as sess:
+            item = sess.query(EmbeddingTable).filter_by(name=name).first()
+            if item and item.spec:
+                return dict(item.spec)
+        return None
+
+    def get_from_db(self, name: str) -> tuple[dict, bool] | None:
+        """Get (spec, default) from database, or None if not found."""
+        with Session(engine) as sess:
+            item = sess.query(EmbeddingTable).filter_by(name=name).first()
+            if item:
+                return (dict(item.spec or {}), bool(item.default))
+        return None
+
+    def list_all_from_db(self) -> list[tuple[str, dict, bool]]:
+        """List all embeddings from DB as (name, spec, default)."""
+        result = []
+        with Session(engine) as sess:
+            stmt = select(EmbeddingTable)
+            for (item,) in sess.execute(stmt):
+                spec = dict(item.spec or {})
+                result.append((item.name, spec, bool(item.default)))
+        return result
+
     def add(self, name: str, spec: dict, default: bool):
         """Add a new model to the pool"""
         from ktem.utils.secret_storage import process_dict_for_save

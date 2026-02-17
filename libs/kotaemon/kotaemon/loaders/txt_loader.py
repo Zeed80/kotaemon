@@ -5,7 +5,14 @@ from kotaemon.base import Document
 from .base import BaseReader
 
 # Кодировки для fallback (русские и др.): utf-8, Windows-1251, KOI8-R
-_FALLBACK_ENCODINGS = ("utf-8", "utf-8-sig", "cp1251", "windows-1251", "koi8-r", "latin-1")
+_FALLBACK_ENCODINGS = (
+    "utf-8",
+    "utf-8-sig",
+    "cp1251",
+    "windows-1251",
+    "koi8-r",
+    "latin-1",
+)
 
 
 def _read_text_with_fallback(file_path: Path) -> str:

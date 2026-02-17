@@ -506,13 +506,19 @@ class EmbeddingManagement(BasePage):
             raise gr.Error(f"Failed to create Embedding model {name}: {e}")
 
     def list_embeddings(self):
-        """List the Embedding models"""
+        """List the Embedding models (including those that failed to load)."""
+        info = embedding_models_manager.info()
         items = []
-        for item in embedding_models_manager.info().values():
-            record = {}
-            record["name"] = item["name"]
-            record["vendor"] = item["spec"].get("__type__", "-").split(".")[-1]
-            record["default"] = item["default"]
+        for name, spec, default in embedding_models_manager.list_all_from_db():
+            record = {"name": name, "default": default}
+            if name in info:
+                record["vendor"] = (
+                    info[name]["spec"].get("__type__", "-").split(".")[-1]
+                )
+            else:
+                record["vendor"] = (
+                    spec.get("__type__", "-").split(".")[-1] + " (загрузка не удалась)"
+                )
             items.append(record)
 
         if items:
@@ -556,13 +562,43 @@ class EmbeddingManagement(BasePage):
             btn_delete_yes = gr.update(visible=False)
             btn_delete_no = gr.update(visible=False)
 
-            info = deepcopy(embedding_models_manager.info()[selected_emb_name])
+            info = embedding_models_manager.info().get(selected_emb_name)
+            if info is None:
+                # Embedding failed to load — use spec from DB
+                db_item = embedding_models_manager.get_from_db(selected_emb_name)
+                if db_item is None:
+                    return (
+                        gr.update(visible=False),
+                        gr.update(visible=False),
+                        gr.update(visible=False),
+                        gr.update(visible=True),
+                        gr.update(visible=False),
+                        gr.update(visible=False),
+                        gr.update(value=""),
+                        gr.update(value="Спецификация недоступна"),
+                        gr.update(value=False),
+                        gr.update(visible=False),
+                        gr.update(choices=[], value=None),
+                        gr.update(choices=[], value=None),
+                    )
+                db_spec, db_default = db_item
+                info = {
+                    "name": selected_emb_name,
+                    "spec": deepcopy(db_spec),
+                    "default": db_default,
+                }
+            else:
+                info = deepcopy(info)
             spec = info["spec"]
             vendor_str = spec.pop("__type__", "-").split(".")[-1]
-            vendor = embedding_models_manager.vendors()[vendor_str]
+            vendor = embedding_models_manager.vendors().get(vendor_str)
+            edit_spec_desc = (
+                format_description(vendor)
+                if vendor
+                else f"# {vendor_str}\n\nТип провайдера не найден."
+            )
 
             edit_spec = yaml.dump(spec)
-            edit_spec_desc = format_description(vendor)
             edit_default = info["default"]
 
             # Показать ряд Ollama (сервер + модель) только для Ollama-эмбеддингов
@@ -672,22 +708,36 @@ class EmbeddingManagement(BasePage):
         return btn_delete, btn_delete_yes, btn_delete_no
 
     def check_connection(self, selected_emb_name, selected_spec):
+        from ktem.utils.secret_storage import process_dict_for_load
+
         log_content: str = ""
         try:
             log_content += f"- Testing model: {selected_emb_name}<br>"
             yield log_content
 
-            # Parse content & init model
-            info = deepcopy(embedding_models_manager.info()[selected_emb_name])
+            info = embedding_models_manager.info().get(selected_emb_name)
+            if info is None:
+                db_spec = embedding_models_manager.get_spec_from_db(selected_emb_name)
+                if db_spec is None:
+                    log_content += (
+                        "<mark style='color: yellow; background: red'>- Модель не найдена. "
+                        "Перезагрузите страницу.</mark><br>"
+                    )
+                    yield log_content
+                    return log_content
+                info = {"spec": deepcopy(db_spec)}
+            else:
+                info = deepcopy(info)
 
-            # Parse content & create dummy embedding
             spec = yaml.load(selected_spec, Loader=YAMLNoDateSafeLoader)
-            info["spec"].update(spec)
+            if spec:
+                info["spec"].update(spec)
+            process_dict_for_load(info["spec"])
 
             emb = deserialize(info["spec"], safe=False)
 
             if emb is None:
-                raise Exception(f"Can not found model: {selected_emb_name}")
+                raise Exception(f"Не удалось создать модель: {selected_emb_name}")
 
             log_content += "- Sending a message `Hi`<br>"
             yield log_content
@@ -701,10 +751,9 @@ class EmbeddingManagement(BasePage):
 
             gr.Info(f"Embedding {selected_emb_name} connect successfully", duration=1)
         except Exception as e:
-            print(e)
             log_content += (
                 f"<mark style='color: yellow; background: red'>- Connection failed. "
-                f"Got error:\n {str(e)}</mark>"
+                f"Got error: {str(e)}</mark><br>"
             )
             yield log_content
 
@@ -713,9 +762,20 @@ class EmbeddingManagement(BasePage):
     def save_emb(self, selected_emb_name, default, spec):
         try:
             spec = yaml.load(spec, Loader=YAMLNoDateSafeLoader)
-            spec["__type__"] = embedding_models_manager.info()[selected_emb_name][
-                "spec"
-            ]["__type__"]
+            info = embedding_models_manager.info().get(selected_emb_name)
+            if info is not None:
+                spec["__type__"] = info["spec"]["__type__"]
+            else:
+                db_spec = embedding_models_manager.get_spec_from_db(selected_emb_name)
+                if db_spec is None:
+                    raise ValueError(
+                        f'Модель "{selected_emb_name}" не найдена. Перезагрузите страницу.'
+                    )
+                spec["__type__"] = db_spec.get("__type__")
+                if not spec["__type__"]:
+                    raise ValueError(
+                        f'У модели "{selected_emb_name}" отсутствует __type__ в спецификации.'
+                    )
             embedding_models_manager.update(
                 selected_emb_name, spec=spec, default=default
             )

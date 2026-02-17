@@ -27,9 +27,9 @@
 
 ```json
 [
-  {"name": "invoice_number", "type": "str", "description": "Номер счета"},
-  {"name": "amount", "type": "float", "description": "Сумма"},
-  {"name": "contract_number", "type": "str", "description": "Номер контракта"}
+  { "name": "invoice_number", "type": "str", "description": "Номер счета" },
+  { "name": "amount", "type": "float", "description": "Сумма" },
+  { "name": "contract_number", "type": "str", "description": "Номер контракта" }
 ]
 ```
 

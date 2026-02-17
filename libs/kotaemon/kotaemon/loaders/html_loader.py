@@ -49,7 +49,14 @@ class HtmlReader(BaseReader):
         file_path = Path(file_path).resolve()
 
         # Поддержка русской cp1251 и др.: utf-8 → cp1251 → koi8-r → latin-1
-        for enc in ("utf-8", "utf-8-sig", "cp1251", "windows-1251", "koi8-r", "latin-1"):
+        for enc in (
+            "utf-8",
+            "utf-8-sig",
+            "cp1251",
+            "windows-1251",
+            "koi8-r",
+            "latin-1",
+        ):
             try:
                 html_text = file_path.read_text(encoding=enc)
                 break
