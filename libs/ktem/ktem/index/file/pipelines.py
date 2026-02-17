@@ -381,11 +381,18 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             kwargs: other arguments
         """
         use_llm_reranking = user_settings.get("use_llm_reranking", False)
-        embedding_name = (
+        _emb = (
             user_settings.get("embedding")
             or index_settings.get("embedding")
             or embedding_models_manager.get_default_name()
         )
+        # Пустая строка или "X (default)" — это выбор default; resolve в реальное имя
+        if not _emb or str(_emb).endswith(" (default)"):
+            embedding_name = embedding_models_manager.get_default_name()
+        elif _emb not in embedding_models_manager:
+            embedding_name = embedding_models_manager.get_default_name()
+        else:
+            embedding_name = _emb
         reranking_name = (
             user_settings.get("reranking")
             or index_settings.get("reranking")

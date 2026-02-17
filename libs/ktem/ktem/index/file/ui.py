@@ -899,6 +899,8 @@ class FileIndexPage(BasePage):
                 self.delete_button,
                 self.download_single_button,
                 self.chat_button,
+                self.change_type_row,
+                self.change_type_dropdown,
             ],
             show_progress="hidden",
         )
@@ -1072,6 +1074,8 @@ class FileIndexPage(BasePage):
                 self.delete_button,
                 self.download_single_button,
                 self.chat_button,
+                self.change_type_row,
+                self.change_type_dropdown,
             ],
             show_progress="hidden",
         )
