@@ -103,6 +103,7 @@ services:
   # PostgreSQL с pgvector (опционально): раскомментировать depends_on в app и DATABASE_URL в environment
   postgres:
     image: pgvector/pgvector:pg16
+    platform: linux/amd64
     container_name: kotaemon-postgres
     environment:
       POSTGRES_USER: kotaemon
@@ -138,9 +139,10 @@ services:
       retries: 12
       start_period: 60s
 
-  # Создание БД kotaemon при отсутствии (старые volumes, гонка запуска)
+  # Создание БД kotaemon при отсутствии (официальный postgres:16 — Debian)
   db_init:
-    image: pgvector/pgvector:pg16
+    image: postgres:16
+    platform: linux/amd64
     container_name: kotaemon-db-init
     environment:
       PGHOST: postgres
