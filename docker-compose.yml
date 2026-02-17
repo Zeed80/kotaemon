@@ -50,9 +50,14 @@ services:
       # PostgreSQL: обязателен, раскомментировать для использования сервиса postgres
       DATABASE_URL: postgresql://kotaemon:${POSTGRES_PASSWORD:-kotaemon}@postgres:5432/kotaemon
     depends_on:
-      - qdrant
-      - searxng
-      - postgres # PostgreSQL обязателен
+      qdrant:
+        condition: service_started
+      searxng:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      db_init:
+        condition: service_completed_successfully
     volumes: *common-volumes
     restart: unless-stopped
     # GPU: по умолчанию включён. Для CPU-only закомментируйте.
@@ -131,6 +136,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # Создание БД kotaemon при отсутствии (старые volumes, гонка запуска)
+  db_init:
+    image: pgvector/pgvector:pg16
+    container_name: kotaemon-db-init
+    environment:
+      PGHOST: postgres
+      PGUSER: kotaemon
+      PGPASSWORD: ${POSTGRES_PASSWORD:-kotaemon}
+    volumes:
+      - ./docker/postgres/init-ensure-db.sh:/init-ensure-db.sh:ro
+    entrypoint: ["/bin/sh", "/init-ensure-db.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
   # Ollama для локальных моделей: docker compose --profile ollama up -d
   # В .env задать KH_OLLAMA_URL=http://ollama:11434/v1/
