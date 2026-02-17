@@ -457,7 +457,11 @@ class EmbeddingManagement(BasePage):
                             .replace("/api", "")
                             .replace("/v1", "")
                         )
-                        base_url = f"{base}" if base else "http://localhost:11434"
+                        base_url = (
+                            f"{base}"
+                            if base
+                            else get_ollama_base_url().replace("/api", "")
+                        )
                         spec = {
                             "__type__": type_str,
                             "base_url": base_url,

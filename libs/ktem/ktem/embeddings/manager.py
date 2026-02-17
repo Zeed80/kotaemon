@@ -8,6 +8,29 @@ from kotaemon.embeddings.base import BaseEmbeddings
 from .db import EmbeddingTable, engine
 
 
+def _apply_app_defaults_to_ollama_embedding(spec: dict) -> None:
+    """Подставить base_url из настроенных серверов Ollama в spec эмбеддинга."""
+    type_str = (spec.get("__type__") or "").strip()
+    type_name = type_str.split(".")[-1] if type_str else ""
+    is_ollama = type_name == "LCOllamaEmbeddings" or (
+        type_name == "OpenAIEmbeddings" and spec.get("api_key") == "ollama"
+    )
+    if not is_ollama:
+        return
+    try:
+        from ktem.utils.ollama import (
+            get_ollama_base_url,
+            get_ollama_base_url_for_langchain,
+        )
+
+        if type_name == "LCOllamaEmbeddings":
+            spec["base_url"] = get_ollama_base_url_for_langchain().rstrip("/")
+        else:
+            spec["base_url"] = get_ollama_base_url().replace("/api", "/v1/")
+    except Exception:
+        pass
+
+
 class EmbeddingManager:
     """Represent a pool of models"""
 
@@ -48,6 +71,7 @@ class EmbeddingManager:
                 try:
                     spec = dict(item.spec or {})
                     process_dict_for_load(spec)
+                    _apply_app_defaults_to_ollama_embedding(spec)
                     self._models[item.name] = deserialize(spec, safe=False)
                     self._info[item.name] = {
                         "name": item.name,
