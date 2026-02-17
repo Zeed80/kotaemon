@@ -115,8 +115,9 @@ chmod +x install.sh
 ### System requirements
 
 1. [Python](https://www.python.org/downloads/) >= 3.10
-2. [Docker](https://www.docker.com/): optional, if you [install with Docker](#with-docker-recommended)
-3. [Unstructured](https://docs.unstructured.io/open-source/installation/full-installation#full-installation) if you want to process files other than `.pdf`, `.html`, `.mhtml`, and `.xlsx` documents. Installation steps differ depending on your operating system. Please visit the link and follow the specific instructions provided there.
+2. [PostgreSQL](https://www.postgresql.org/) с расширением [pgvector](https://github.com/pgvector/pgvector) — обязателен для работы приложения.
+3. [Docker](https://www.docker.com/): optional, if you [install with Docker](#with-docker-recommended) (включает PostgreSQL)
+4. [Unstructured](https://docs.unstructured.io/open-source/installation/full-installation#full-installation) if you want to process files other than `.pdf`, `.html`, `.mhtml`, and `.xlsx` documents. Installation steps differ depending on your operating system. Please visit the link and follow the specific instructions provided there.
 
 ### With Docker (recommended)
 
@@ -187,7 +188,7 @@ cd kotaemon
 # или: ./install.sh --no-launch (только установка, без запуска)
 ```
 
-Скрипт создаёт виртуальное окружение `.venv`, ставит зависимости, при отсутствии копирует `.env` из `.env.example`, при необходимости загружает PDF.js и запускает приложение.
+Скрипт создаёт виртуальное окружение `.venv`, ставит зависимости, при отсутствии копирует `.env` из `.env.example`, при необходимости загружает PDF.js и запускает приложение. Для локального запуска задайте в `.env` переменную `DATABASE_URL=postgresql://user:password@localhost:5432/kotaemon` (PostgreSQL обязателен). Document Types и LightRAG document_links работают без дополнительной настройки.
 
 **Вариант 2 — вручную:**
 

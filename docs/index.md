@@ -11,6 +11,8 @@ Visit this [guide](online_install.md).
 
 ## Installation (Offline) - intermediate (20 mins)
 
+**Требования:** Python 3.10+, PostgreSQL с pgvector. Для локального запуска задайте `DATABASE_URL` в `.env`. Document Types (Resources → Document Types) работают автоматически.
+
 ### Download
 
 Download the `kotaemon-app.zip` file from the [latest release](https://github.com/Zeed80/kotaemon/releases/latest/).

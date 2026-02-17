@@ -54,6 +54,8 @@
 
 Таблицы создаются автоматически при первом запуске (SQLModel `create_all`). Миграции Alembic отключены по умолчанию (`KH_ENABLE_ALEMBIC = False`).
 
+- **Document Types**: таблица `document_type` для пользовательских типов документов создаётся автоматически (при `KH_ENABLE_ALEMBIC=false`). Если используете Alembic (`KH_ENABLE_ALEMBIC=true`), выполните `alembic -c libs/ktem/alembic.ini upgrade head`.
+
 **Автоматическая инициализация:** При первом запуске автоматически создаётся расширение `pgvector` (если используется векторное хранилище на PostgreSQL). Оптимальные параметры PostgreSQL применяются автоматически через `docker-compose.yml` или настройки сервера.
 
 ### Векторы в PostgreSQL (pgvector)
@@ -90,6 +92,12 @@
 - **ef_search**: 40 — оптимально для баланса скорости запросов и качества результатов. Увеличьте до 80-100 для максимальной точности.
 
 Изменения применяются при следующей индексации документов (существующие индексы не перестраиваются автоматически).
+
+### Document Types и document_links
+
+- **Document Types** (Resources → Document Types): пользовательские типы документов, schema_def, генерация промптов через LLM. Таблица `document_type` создаётся автоматически.
+- **document_links**: при индексации извлекаются связи между документами (счёт → контракт и т.п.) и сохраняются в `Source.note["document_links"]`.
+- **LightRAG + document_links**: при использовании LightRAG (`USE_LIGHTRAG=true`) связи автоматически добавляются в граф как рёбра между сущностями. Для LightRAG: `pip install git+https://github.com/HKUDS/LightRAG.git` (Docker-образ main-full уже содержит LightRAG).
 
 **PostgreSQL** (в `docker-compose.yml` уже настроены оптимальные параметры):
 

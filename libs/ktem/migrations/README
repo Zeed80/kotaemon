@@ -2,3 +2,6 @@ Generic single-database configuration.
 
 To enable database migration, please set `KH_ENABLE_ALEMBIC` to True in the
 setting file.
+
+Migrations include:
+- 001_document_type: таблица document_type для пользовательских типов документов

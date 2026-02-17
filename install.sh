@@ -278,6 +278,11 @@ run_local_install() {
     echo "  Запуск:    python app.py (из корня репозитория после активации venv)"
     echo "  Настройки: большинство параметров можно изменить в веб-интерфейсе: Settings → General."
     echo ""
+    echo "  Важно для локального запуска (без Docker):"
+    echo "  - PostgreSQL обязателен. Установите PostgreSQL с pgvector и задайте в .env:"
+    echo "    DATABASE_URL=postgresql://user:password@localhost:5432/kotaemon"
+    echo "  - Document Types (Resources → Document Types) — таблица создаётся автоматически."
+    echo ""
 
     launch_local
 }

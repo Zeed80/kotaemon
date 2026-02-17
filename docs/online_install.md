@@ -7,7 +7,7 @@
 3. Wait for the build to complete and start up (apprx 10 mins).
    ![Wait space build](https://raw.githubusercontent.com/Zeed80/kotaemon/main/docs/images/space_build.png)
    ![Close space build](https://raw.githubusercontent.com/Zeed80/kotaemon/main/docs/images/close_logs_space.png)
-4. Follow the first setup instructions (and register for Cohere API key if needed).
+4. Follow the first setup instructions (and register for Cohere API key if needed). Document Types (Resources → Document Types) и LightRAG document_links доступны в Space.
    ![Cohere API](https://raw.githubusercontent.com/Zeed80/kotaemon/main/docs/images/cohere_api_key.png)
 5. Complete the setup and use your own private space!
    ![App Startup](https://raw.githubusercontent.com/Zeed80/kotaemon/main/docs/images/initial_startup.png)

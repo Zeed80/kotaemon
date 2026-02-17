@@ -120,6 +120,8 @@ Navigate to the `File Index` tab and you will see 2 sections:
 2. File list:
    - This section shows the list of files that have been uploaded to the application and allows users to delete them.
 
+**Document Types** (Resources → Document Types): классификация документов (счёт, письмо и т.п.), извлечение структурированных данных и связей между документами. Пользовательские типы можно добавить и редактировать. При использовании LightRAG связи (document_links) автоматически добавляются в граф. См. [document-types.md](pages/app/index/document-types.md).
+
 ## 3. Chat with your documents
 
 ![chat tab](https://raw.githubusercontent.com/Zeed80/kotaemon/main/docs/images/chat-tab.png)
