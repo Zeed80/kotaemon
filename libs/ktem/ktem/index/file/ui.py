@@ -591,7 +591,7 @@ class FileIndexPage(BasePage):
 
         gr.Info(f"File {file_name} has been deleted", duration=1)
 
-        return None, self.selected_panel_false
+        return
 
     def delete_no_event(self):
         return (

@@ -89,6 +89,8 @@ class UnifiedUploadPage(BasePage):
                 (f"{idx.name} (id={idx.id})", idx.id)
                 for idx in self._app.index_manager.indices
             ]
+            if not choices:
+                return gr.update(choices=[], value=[])
             return gr.update(choices=choices)
 
         self._app.app.load(
