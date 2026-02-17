@@ -1,8 +1,9 @@
 @ECHO off
 REM Kotaemon — полное удаление (Windows)
-REM Использование: scripts\uninstall.bat [--migrate] [--force] [--docker-only | --local-only] [--keep-env]
+REM Использование: scripts\uninstall.bat [--migrate] [--force] [--all-images] [--docker-only | --local-only] [--keep-env]
 REM --migrate   Сохранить резервную копию в backup_kotaemon_YYYYMMDD_HHMMSS\
 REM --force     Без подтверждения
+REM --all-images  Удалить и образы зависимостей (searxng, pgvector, qdrant)
 
 SETLOCAL
 CD /D "%~dp0\.."
@@ -13,6 +14,7 @@ SET "FORCE=0"
 SET "DOCKER_ONLY=0"
 SET "LOCAL_ONLY=0"
 SET "KEEP_ENV=0"
+SET "ALL_IMAGES=0"
 
 :parse_args
 IF "%~1"=="" GOTO :run
@@ -23,12 +25,13 @@ IF /I "%~1"=="-f" SET FORCE=1
 IF /I "%~1"=="--docker-only" SET DOCKER_ONLY=1
 IF /I "%~1"=="--local-only" SET LOCAL_ONLY=1
 IF /I "%~1"=="--keep-env" SET KEEP_ENV=1
+IF /I "%~1"=="--all-images" SET ALL_IMAGES=1
 IF /I "%~1"=="--help" GOTO :help
 SHIFT
 GOTO :parse_args
 
 :help
-ECHO Kotaemon uninstall: scripts\uninstall.bat [--migrate] [--force] [--docker-only ^| --local-only] [--keep-env]
+ECHO Kotaemon uninstall: scripts\uninstall.bat [--migrate] [--force] [--all-images] [--docker-only ^| --local-only] [--keep-env]
 EXIT /B 0
 
 :run
@@ -82,6 +85,12 @@ IF EXIST "%REPO_ROOT%\docker-compose.yml" (
 )
 FOR %%c IN (kotaemon kotaemon-db-init kotaemon-postgres kotaemon-qdrant kotaemon-searxng kotaemon-ollama) DO docker rm -f %%c 2>nul
 docker rmi -f kotaemon:latest 2>nul
+IF %ALL_IMAGES%==1 (
+  docker rmi -f searxng/searxng:latest 2>nul
+  docker rmi -f pgvector/pgvector:pg16 2>nul
+  docker rmi -f qdrant/qdrant:latest 2>nul
+  ECHO [OK] Образы зависимостей удалены
+)
 FOR %%v IN (kotaemon_ktem_app_data kotaemon_qdrant_data kotaemon_postgres_data kotaemon_ollama_models) DO docker volume rm -f %%v 2>nul
 ECHO [OK] Docker удалён
 EXIT /B 0

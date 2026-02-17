@@ -257,26 +257,27 @@ docker compose up -d
 
 ## Полное удаление проекта
 
-Скрипт `scripts/uninstall.sh` (Linux/macOS) и `scripts/uninstall.bat` (Windows) удаляют контейнеры, образы, volumes и локальные папки (.venv, install_dir, ktem_app_data).
+Скрипт `./uninstall.sh` (запуск из корня проекта) открывает интерактивное меню (TUI) для настройки параметров удаления.
 
 ```bash
-# С миграцией данных (резервная копия в backup_kotaemon_YYYYMMDD_HHMMSS/)
-./scripts/uninstall.sh --migrate
-
-# Полное удаление без подтверждения
-./scripts/uninstall.sh --force
-
-# Только Docker (контейнеры, образы, volumes)
-./scripts/uninstall.sh --docker-only
-
-# Только локальные артефакты (.venv, install_dir)
-./scripts/uninstall.sh --local-only
-
-# Сохранить .env
-./scripts/uninstall.sh --keep-env
+cd /path/to/kotaemon
+./uninstall.sh
 ```
 
-**Миграция (--migrate)** сохраняет:
+Или через scripts: `./scripts/uninstall.sh` (то же самое).
+
+**Меню:**
+- [1] Резервная копия (миграция) — сохранить данные перед удалением
+- [2] Docker (контейнеры, volumes) — включить по умолчанию
+- [3] Образы зависимостей (searxng, pgvector, qdrant)
+- [4] Локальные папки (.venv, install_dir, ktem_app_data) — включить по умолчанию
+- [5] Удалить .env
+- [0] Выполнить удаление
+- [q] Выход
+
+Для Windows: `scripts\uninstall.bat` (CLI-параметры, см. `--help`).
+
+**Миграция** сохраняет:
 
 - `postgres_dump.sql` — дамп PostgreSQL (если postgres запущен)
 - `volumes/` — содержимое Docker volumes
