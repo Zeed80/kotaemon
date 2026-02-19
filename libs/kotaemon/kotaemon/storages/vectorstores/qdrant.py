@@ -130,14 +130,21 @@ class QdrantVectorStore(LlamaIndexVectorStore):
         logger = logging.getLogger(__name__)
 
         # Проверяем существование коллекции перед удалением
+        collection_exists = True
         try:
-            if not self._client.client.collection_exists(self._collection_name):
-                # Коллекция не существует, пропускаем удаление
-                logger.warning(
-                    f"Collection '{self._collection_name}' does not exist, "
-                    "skipping deletion of vectors"
+            collection_exists = self._client.client.collection_exists(
+                self._collection_name
+            )
+        except UnexpectedResponse as e:
+            # Если коллекция не существует, collection_exists может выбросить 404
+            if e.status_code == 404:
+                collection_exists = False
+            else:
+                # Другие ошибки логируем и продолжаем
+                logger.debug(
+                    f"Error checking collection existence (status {e.status_code}): {e}, "
+                    "attempting deletion anyway"
                 )
-                return
         except Exception as e:
             # Если проверка существования не удалась, логируем и продолжаем
             # (возможно, это старая версия клиента без метода collection_exists)
@@ -145,6 +152,14 @@ class QdrantVectorStore(LlamaIndexVectorStore):
                 f"Could not check collection existence: {e}, "
                 "attempting deletion anyway"
             )
+
+        if not collection_exists:
+            # Коллекция не существует, пропускаем удаление
+            logger.warning(
+                f"Collection '{self._collection_name}' does not exist, "
+                "skipping deletion of vectors"
+            )
+            return
 
         try:
             self._client.client.delete(
@@ -161,9 +176,21 @@ class QdrantVectorStore(LlamaIndexVectorStore):
                     f"Collection '{self._collection_name}' does not exist, "
                     "skipping deletion of vectors"
                 )
+                return
             else:
                 # Другие ошибки пробрасываем дальше
                 raise
+        except Exception as e:
+            # Обрабатываем другие возможные исключения, связанные с отсутствием коллекции
+            error_str = str(e).lower()
+            if "doesn't exist" in error_str or "not found" in error_str:
+                logger.warning(
+                    f"Collection '{self._collection_name}' does not exist, "
+                    "skipping deletion of vectors"
+                )
+                return
+            # Другие ошибки пробрасываем дальше
+            raise
 
     def drop(self):
         """Delete entire collection from vector stores"""
