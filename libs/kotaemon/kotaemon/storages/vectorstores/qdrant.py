@@ -119,24 +119,127 @@ class QdrantVectorStore(LlamaIndexVectorStore):
             ids: List of ids of the embeddings to be deleted
             kwargs: meant for vectorstore-specific parameters
         """
-        from qdrant_client import models
+        if not ids:
+            return
 
-        self._client.client.delete(
-            collection_name=self._collection_name,
-            points_selector=models.PointIdsList(
-                points=ids,
-            ),
-            **kwargs,
-        )
+        import logging
+
+        from qdrant_client import models
+        from qdrant_client.http.exceptions import UnexpectedResponse
+
+        logger = logging.getLogger(__name__)
+
+        # Проверяем существование коллекции перед удалением
+        try:
+            if not self._client.client.collection_exists(self._collection_name):
+                # Коллекция не существует, пропускаем удаление
+                logger.warning(
+                    f"Collection '{self._collection_name}' does not exist, "
+                    "skipping deletion of vectors"
+                )
+                return
+        except Exception as e:
+            # Если проверка существования не удалась, логируем и продолжаем
+            # (возможно, это старая версия клиента без метода collection_exists)
+            logger.debug(
+                f"Could not check collection existence: {e}, "
+                "attempting deletion anyway"
+            )
+
+        try:
+            self._client.client.delete(
+                collection_name=self._collection_name,
+                points_selector=models.PointIdsList(
+                    points=ids,
+                ),
+                **kwargs,
+            )
+        except UnexpectedResponse as e:
+            # Обрабатываем случай, когда коллекция не существует
+            if e.status_code == 404:
+                logger.warning(
+                    f"Collection '{self._collection_name}' does not exist, "
+                    "skipping deletion of vectors"
+                )
+            else:
+                # Другие ошибки пробрасываем дальше
+                raise
 
     def drop(self):
         """Delete entire collection from vector stores"""
-        self._client.client.delete_collection(self._collection_name)
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        # Проверяем существование коллекции перед удалением
+        try:
+            if not self._client.client.collection_exists(self._collection_name):
+                # Коллекция не существует, пропускаем удаление
+                logger.warning(
+                    f"Collection '{self._collection_name}' does not exist, "
+                    "skipping collection deletion"
+                )
+                return
+        except Exception as e:
+            # Если проверка существования не удалась, логируем и продолжаем
+            logger.debug(
+                f"Could not check collection existence: {e}, "
+                "attempting deletion anyway"
+            )
+
+        try:
+            self._client.client.delete_collection(self._collection_name)
+        except Exception as e:
+            from qdrant_client.http.exceptions import UnexpectedResponse
+
+            # Обрабатываем случай, когда коллекция не существует
+            if isinstance(e, UnexpectedResponse) and e.status_code == 404:
+                logger.warning(
+                    f"Collection '{self._collection_name}' does not exist, "
+                    "skipping collection deletion"
+                )
+            else:
+                # Другие ошибки пробрасываем дальше
+                raise
 
     def count(self) -> int:
-        return self._client.client.count(
-            collection_name=self._collection_name, exact=True
-        ).count
+        import logging
+
+        from qdrant_client.http.exceptions import UnexpectedResponse
+
+        logger = logging.getLogger(__name__)
+
+        # Проверяем существование коллекции перед подсчётом
+        try:
+            if not self._client.client.collection_exists(self._collection_name):
+                # Коллекция не существует, возвращаем 0
+                logger.debug(
+                    f"Collection '{self._collection_name}' does not exist, "
+                    "returning count 0"
+                )
+                return 0
+        except Exception as e:
+            # Если проверка существования не удалась, логируем и продолжаем
+            logger.debug(
+                f"Could not check collection existence: {e}, "
+                "attempting count anyway"
+            )
+
+        try:
+            return self._client.client.count(
+                collection_name=self._collection_name, exact=True
+            ).count
+        except UnexpectedResponse as e:
+            # Обрабатываем случай, когда коллекция не существует
+            if e.status_code == 404:
+                logger.debug(
+                    f"Collection '{self._collection_name}' does not exist, "
+                    "returning count 0"
+                )
+                return 0
+            else:
+                # Другие ошибки пробрасываем дальше
+                raise
 
     def __persist_flow__(self):
         return {
